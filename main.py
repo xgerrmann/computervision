@@ -11,16 +11,20 @@ def show_landmarks(win,predictor,detector,frame):
 	# will make everything bigger and allow us to detect more faces.
 	dets = detector(frame, 1)
 	print("Number of faces detected: {}".format(len(dets)))
-	for k,d in enumerate(dets):
-		print("Detection {}: Left: {} Top: {} Right: {} Bottom: {}".format(
-			k, d.left(), d.top(), d.right(), d.bottom()))
+	# TODO: use only face with highest detection strength: other faces should be ignored
+	print dets
+	win.clear_overlay()
+	if len(dets)>0:
+		d	= dets[0]
+		k	= 0
+		#print("Detection {}: Left: {} Top: {} Right: {} Bottom: {}".format(
+		#	k, d.left(), d.top(), d.right(), d.bottom()))
 		# Get the landmarks/parts for the face in box d.
 		shape = predictor(frame, d)
-		print("Part 0: {}, Part 1: {} ...".format(shape.part(0),shape.part(1)))
+		#print("Part 0: {}, Part 1: {} ...".format(shape.part(0),shape.part(1)))
 		# Draw the face landmarks on the screen.
-		win.clear_overlay()
 		win.add_overlay(shape)
-		win.set_image(frame)
+	win.set_image(frame)
 	#print np.array(dets)
 
 def main():
