@@ -6,11 +6,12 @@ import numpy as np
 from paths import trained_model
 from datetime import datetime
 from time import time
+import math
+from utils import pose
 
 ## Sources
 # Example:		http://dlib.net/face_landmark_detection.py.html
 # Speeding up:	http://www.learnopencv.com/speeding-up-dlib-facial-landmark-detector/
-
 
 def detect(win,predictor,detector,frame):
 	# Ask the detector to find the bounding boxes of each face. The 1 in the
@@ -53,7 +54,43 @@ def detect(win,predictor,detector,frame):
 	win.add_overlay(shape)
 	print 'Add overlay: ',time() - temp, 's'
 
-	return 0
+	return shape
+
+# TODO: draw in openCV and not wit dlib (shape.parts())
+def shape2pose(shape_calibrated, shape_current):
+# This function determines the pose of the head by using the foudn markers on the face.
+# The current markers are compared to the calibrated markers and from this the head pose is determined.
+# Currently only the nos bridge length is used, which is only to allow for a proof of concept.
+# Definition of head pose: x, y, z, rx (pitch), ry (yaw), rz (roll) -> http://gi4e.unavarra.es/databases/hpdb/
+	# Initialization of head pose
+	headpose = pose()
+
+	pts		= shape_current.parts()
+	#for pt in pts:
+	#	print pt
+	nose_bridge	= pts[27:31]
+	jaw_line	= pts[0:16]
+	
+	# TODO: no rotation is assumed
+	ymin = np.inf
+	ymax = -1
+	for pt in nose_bridge:
+		x = pt.x
+		y = pt.y
+		if y<ymin:
+			ymin = y
+		if y>ymax:
+			ymax = y
+	# TODO: use calibrated shape do determine normal nose bridge length
+	nb_length_cal = 40
+	nb_length_cur = ymax - ymin
+
+	headpose.rx = math.cos(float(nb_length_cur)/float(nb_length_cal))
+	print nb_length_cur
+	print nb_length_cal
+	print	math.acos(float(nb_length_cur)/float(nb_length_cal))
+
+	return headpose
 
 def main():
 	detector	= dlib.get_frontal_face_detector()
@@ -73,7 +110,16 @@ def main():
 		key = cv2.waitKey(1)
 		if key == 27: # exit on ESC
 			break
-		detect(win,predictor,detector,frame)
+		shape = detect(win,predictor,detector,frame)
+		if shape == 0:
+			continue
+		else:
+			# TODO: calibrated shape is now same as current.
+			shape_calibrated= shape
+			shape_current	= shape
+			headpose = shape2pose(shape_calibrated, shape_current)
+			print headpose
+
 	vc.release()
 	#cv2.destroyWindow("preview")
 
