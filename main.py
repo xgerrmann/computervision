@@ -3,11 +3,13 @@
 import cv2
 import dlib
 import numpy as np
-from paths import trained_model
+from paths import trained_model, default_image
 from datetime import datetime
 from time import time
 import math
 from utils import pose
+import sys
+import copy
 
 ## Sources
 # Example:		http://dlib.net/face_landmark_detection.py.html
@@ -82,7 +84,7 @@ def shape2pose(shape_calibrated, shape_current):
 		if y>ymax:
 			ymax = y
 	# TODO: use calibrated shape do determine normal nose bridge length
-	nb_length_cal = 40
+	nb_length_cal = 45
 	nb_length_cur = ymax - ymin
 
 	headpose.rx = math.cos(float(nb_length_cur)/float(nb_length_cal))
@@ -92,13 +94,73 @@ def shape2pose(shape_calibrated, shape_current):
 
 	return headpose
 
+def adjustwindow(windowname,image,headpose):
+	a = 1
+	b = 0
+	c = 0
+	d = 0
+	e = 1
+	f = 0
+	g = 0
+	h = 0
+	i = 1
+	homography	= np.array([[a,b,c],[d,e,f],[g,h,i]])
+	hom_inv		= np.linalg.inv(homography)
+	print homography
+	print hom_inv
+	print image.shape
+	(height, width, channels) = image.shape
+
+	w = 1
+	X = np.zeros((height,width))
+	Y = np.zeros((height,width))
+	W = np.zeros((height,width))
+	for x in range(width):
+		print x
+		for y in range(height):
+			temp = np.matrix([[x],[y],[w]])
+			#print temp
+			res = np.dot(hom_inv,temp)
+			#print res
+			X[y,x] = res[0]
+			Y[y,x] = res[1]
+			W[y,x] = res[2]
+	image_new = np.zeros((height,width,channels),dtype=np.uint8)
+	for x in range(width):
+		for y in range(height):
+			# TODO: perform interpolation instead of rounding
+			x_tmp = int(X[y,x])
+			y_tmp = int(Y[y,x])
+			#print 'x: ',x,'-> ',x_tmp
+			#print 'y: ',y,'-> ',y_tmp
+			if x_tmp > width or y_tmp >height or x_tmp<0 or y_tmp < 0:
+				image_new[y,x,:] = 0
+			else:
+				#print 'Before'
+				#print image[y,x,:]
+				#print image_new[y,x,:]
+				image_new[y,x,:] = copy.deepcopy(image[y_tmp,x_tmp,:])
+				#print 'After'
+				#print image[y,x,:]
+				#print image_new[y,x,:]
+
+				#image_new = image
+	cv2.imshow('test',image_new)
+	cv2.waitKey(1)
+	return 0
+
 def main():
 	detector	= dlib.get_frontal_face_detector()
 	print trained_model
 	predictor	= dlib.shape_predictor(trained_model)
-	#cv2.namedWindow("preview")
+	image		= cv2.imread(default_image)
+	windowname = "image"
+	cv2.namedWindow(windowname)
+	cv2.namedWindow('test')
+	cv2.imshow(windowname,image)
+	cv2.waitKey(1)
 	vc = cv2.VideoCapture(0)
-	win = dlib.image_window()
+	win_dlib = dlib.image_window()
 	if vc.isOpened(): # try to get the first frame
 		rval, frame = vc.read()
 	else:
@@ -110,15 +172,16 @@ def main():
 		key = cv2.waitKey(1)
 		if key == 27: # exit on ESC
 			break
-		shape = detect(win,predictor,detector,frame)
+		shape = detect(win_dlib,predictor,detector,frame)
 		if shape == 0:
 			continue
 		else:
-			# TODO: calibrated shape is now same as current.
+			# TODO: calibrated shape is now same as current, calibrated shape must be indicated by used.
 			shape_calibrated= shape
 			shape_current	= shape
-			headpose = shape2pose(shape_calibrated, shape_current)
+			headpose		= shape2pose(shape_calibrated, shape_current)
 			print headpose
+			adjustwindow(windowname, image, headpose)
 
 	vc.release()
 	#cv2.destroyWindow("preview")
