@@ -47,7 +47,8 @@ def performhomography(windowname,image):
 	print corners_p
 	# meters
 	f	= 0.3 # [m]
-	e	= np.matrix([[0],[0],[-f]]) # position of eye
+	e	= np.matrix([[0],[0],[f]]) # position of eye
+	print e
 	wx	= width*pitch	# [m]
 	hy	= height*pitch	# [m]
 	c0	= np.matrix([[-wx/2],[+hy/2],[0]])-e # vector from eye to corner 0
@@ -67,10 +68,10 @@ def performhomography(windowname,image):
 		print A
 		print Ai
 		#print 'Corner: \n',c
-		comb = Ai*e
-		#a[ic] = res[0]
-		#b[ic] = res[1]
-		intersection = A[:,1:]*comb[1:]
+		comb = Ai*(-e)
+		print comb
+		intersection = np.hstack((pr1,pr2))*comb[1:]
+		print intersection
 		#print 'Intersection:\n', intersection
 		# compute x,y coordinates in plane by performing the inverse plane rotation on the point of intersection
 		coords = Rti*intersection
@@ -82,12 +83,12 @@ def performhomography(windowname,image):
 		corners_proj.append([float(x),float(y)])
 		#corners_proj[0,ic]=x
 		#corners_proj[1,ic]=y
-	print corners_proj
+	print 'Projected corners:\n',corners_proj
 	
 	# temporary
 	# corners [x,y]
 	#corners_proj = ([0,0],[50,0],[50,50],[0,50])
-	print corners_proj
+	#print corners_proj
 
 	# corners in the projection are now known.
 	# calculate the homography
