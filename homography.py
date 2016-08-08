@@ -16,9 +16,9 @@ import copy
 def calcrotationmatrix(rx, ry, rz):
 	# source: http://nghiaho.com/?page_id=846
 	# source: https://en.wikipedia.org/wiki/3D_projection (uses negative angles?)
-	#rx = -rx
-	ry = -ry
-	rz = -rz
+#	rx = -rx
+#	ry = -ry
+#	rz = -rz
 	X	= np.matrix([[1, 0, 0],
 					[0,	math.cos(rx), -math.sin(rx)],
 					[0, math.sin(rx), math.cos(rx)]])
@@ -28,24 +28,7 @@ def calcrotationmatrix(rx, ry, rz):
 	Z	= np.matrix([[math.cos(rz), -math.sin(rz), 0],
 					[math.sin(rz), math.cos(rz), 0],
 					[0, 0, 1]])
-#	# source (1): http://web.cs.iastate.edu/~cs577/handouts/homogeneous-transform.pdf
-#	# source (2) http://www.cs.virginia.edu/~gfx/Courses/2012/IntroGraphics/lectures/10-Transformations.pdf
-#	X	= np.matrix([[1, 0,				0,				0],
-#					[0,	 math.cos(rx),	-math.sin(rx),	0],
-#					[0,  math.sin(rx),	math.cos(rx),	0],
-#					[0,  0,				0,				1]])
-#	Y	= np.matrix([[math.cos(ry),	0,	math.sin(ry),	0],
-#					[0,				1,	0,				0],
-#					[-math.sin(ry),	0,	math.cos(ry),	0],
-#					[0,				0,	0,				1]])
-#	Z	= np.matrix([[math.cos(rz),	-math.sin(rz),	0,	0],
-#					[math.sin(rz),	math.cos(rz),	0,	0],
-#					[0,				0,				1,	0],
-#					[0,				0,				0,	1]])
 	R	= Z*Y*X
-	# rotation matrix applies only on X and Y, there is no Z. Therefore
-	# remove last row and column
-	#R	= R[0:2,0:2]
 	return R
 
 def getoutputimagesize(Tpers,homography,height,width):
@@ -84,7 +67,7 @@ def getoutputimagesize(Tpers,homography,height,width):
 	print 'Size image_out: ',height_out,', ',width_out
 	return (height_out, width_out)
 
-def performhomography(windowname,image,headpose):
+def performhomography(windowname,image):
 	rx	= 0.0*math.pi
 	ry	= 0.0*math.pi
 	rz	= 0.0*math.pi
@@ -99,7 +82,7 @@ def performhomography(windowname,image,headpose):
 	# e: viewers position relative to the camera
 	ex = 0
 	ey = 0
-	ez = -f
+	ez = f
 	e = np.matrix([[-f],[0],[0]]) # viewer is direcly behind projection plane
 	# T: transformation matrix for projection of 3D -> 2D
 	T = np.zeros((4,4))
@@ -137,30 +120,30 @@ def performhomography(windowname,image,headpose):
 			x = xp*pitch
 			y = yp*pitch
 			a = np.matrix([[x],[y],[0]]) # virtual image is always at z=0
-			print 'a: ',a
+			#print 'a: ',a
 			# c is the 3D position of the camera
 			c = np.matrix([[0],[0],[0]])
-			print 'c: ',c
+			#print 'c: ',c
 			# d is the position of point A with respect to a coordinate system
 			dtmp = R*(a-c)
 			# convert d to homogeneous coordinates
-			print dtmp
+			#print dtmp
 			d = np.matrix(np.zeros((4,1)))
 			d[0:3,0]= dtmp[0:3,0]
 			d[3,0]	= 1
-			print d
+			#print d
 			# 3D -> 2D
 			f = T*d
-			print 'f: ',f
+			#print 'f: ',f
 			fx = f[0]
 			fy = f[1]
 			fz = f[2]
 			fw = f[3]
-			print 'fx: ',float(fx)
-			print 'fy: ',float(fy)
-			print 'fw: ',float(fw)
+			#print 'fx: ',float(fx)
+			#print 'fy: ',float(fy)
+			#print 'fw: ',float(fw)
 			if fw<>0.0: # TODO: why is fw always zeros? only in euqal plane scenario?
-				print 'True'
+			#	print 'True'
 				bx = fx/fw
 				by = fy/fw
 			else:
@@ -169,16 +152,19 @@ def performhomography(windowname,image,headpose):
 			# convert meters to pixels
 			bxp=bx/pitch
 			byp=by/pitch
-			print 'bx: ',bx
-			print 'by: ',by
-			print 'bxp: ',bxp
-			print 'byp: ',byp
+			#print 'bx: ',bx
+			#print 'by: ',by
+			#print 'bxp: ',bxp
+			#print 'byp: ',byp
 			X[yp,xp] = bxp # pixel coordinate on display
 			Y[yp,xp] = byp # pixel coordinate on display
 
-	height_out	= np.max(np.max(Y))
-	width_out	= np.max(np.max(X))
-	image_new	= np.zeros((height_out,width_out,channels),dtype=np.uint8)
+	height_out	= int(np.max(np.max(abs(Y))))
+	width_out	= int(np.max(np.max(abs(X))))
+	print height_out
+	print width_out
+	image_new	= np.zeros((height_out+1,width_out+1,channels),dtype=np.uint8)
+	print image_new.shape
 	# perform forward mapping for testing
 	# TODO: this must be a backward mapping if forward gives correct results
 	for x in range(width):
@@ -186,22 +172,24 @@ def performhomography(windowname,image,headpose):
 			# TODO: perform interpolation instead of rounding
 			x_tmp = int(X[y,x])
 			y_tmp = int(Y[y,x])
-			#print 'x: ',x,'-> ',x_tmp
-			#print 'y: ',y,'-> ',y_tmp
+			print 'x: ',x,'-> ',x_tmp
+			print 'y: ',y,'-> ',y_tmp
 			#if x_tmp >= width or y_tmp >= height or x_tmp<0 or y_tmp < 0:
 			#	image_new[y,x,:] = 0
 			#else:
 				#print 'Before'
 				#print image[y,x,:]
 				#print image_new[y,x,:]
-			image_new[x_tmp,y_tmp,:] = copy.deepcopy(image[y,x,:])
+			x_tmp = abs(x_tmp)
+			y_tmp = abs(y_tmp)
+			image_new[y_tmp,x_tmp,:] = copy.deepcopy(image[y,x,:])
 				#print 'After'
 				#print image[y,x,:]
 				#print image_new[y,x,:]
 
 				#image_new = image
 	cv2.imshow('test',image_new)
-	cv2.waitKey(1)
+	cv2.waitKey(2000)
 	return 0
 
 def main():
@@ -209,7 +197,7 @@ def main():
 	windowname	= "image"
 	cv2.namedWindow(windowname)
 	cv2.imshow(windowname,image)
-	cv2.waitKey(1)
+	cv2.waitKey(10)
 	windowname = 'test'
 	cv2.namedWindow(windowname)
 	
