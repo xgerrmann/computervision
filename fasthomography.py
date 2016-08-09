@@ -137,9 +137,12 @@ def performhomography(windowname,image):
 	Hi = np.linalg.inv(H)
 	print Hi
 	#print H.dtype
-	image_out0 = cv2.warpPerspective(image,H,(width,height))
+	t = time.time()
+	image_out0	= cv2.warpPerspective(image,H,(width,height))
+	print time.time()-t
 	# apply homography backward
-	image_out = np.zeros((height_out,width_out,channels),dtype=np.uint8)
+	t = time.time()
+	image_out1 = np.zeros((height_out,width_out,channels),dtype=np.uint8)
 	for h in range(ymin_out,ymax_out):
 		for w in range(xmin_out,xmax_out):
 			tmp = np.matrix([[w],[h],[1]])
@@ -153,11 +156,33 @@ def performhomography(windowname,image):
 				#print 'y: %+5d -> %+5d'%(ytmp,h)
 				#print 'x: %+5d -> %+5d'%(xtmp,w)
 				#print image[ytmp,xtmp,:]
-				image_out[h-ymin_out,w-xmin_out,:] = image[ytmp,xtmp,:]
+				image_out1[h-ymin_out,w-xmin_out,:] = image[ytmp,xtmp,:]
 				#print image_out[h,w,:]
 				#print image[ytmp,xtmp,:]
+	print time.time()-t
+
+	# calc mapping
+	t = time.time()
+	x = range(xmin_out,xmax_out)
+	y = range(ymin_out,ymax_out)
+	X, Y = np.meshgrid(x,y)
+	W = np.ones((height_out,width_out))
+	O = np.stack((X,Y,W),2)
+	map_out	= np.einsum('kp,ijp->ijk',Hi,O)
+	image_out2 = np.zeros((height_out,width_out,channels),dtype=np.uint8)
+	for h in range(height_out):
+		for w in range(width_out):
+				scale = map_out[h,w,2]
+				x = int(round(map_out[h,w,0]/scale))
+				y = int(round(map_out[h,w,1]/scale))
+				if x<0 or x>=width or y<0 or y>=height:
+					continue
+				image_out2[h,w,:] = image[y,x,:]
+	print time.time()-t
+	
 	cv2.imshow('test0',image_out0)
-	cv2.imshow('test',image_out)
+	cv2.imshow('test1',image_out1)
+	cv2.imshow('test2',image_out2)
 	cv2.waitKey(0)
 
 
@@ -184,8 +209,6 @@ def main():
 	cv2.namedWindow(windowname)
 	cv2.imshow(windowname,image)
 	cv2.waitKey(100)
-	windowname = 'test'
-	cv2.namedWindow(windowname)
 	
 	performhomography(windowname, image)
 
