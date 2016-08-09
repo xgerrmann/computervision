@@ -15,7 +15,7 @@ def performhomography(windowname,image):
 	
 	rx = 0.0*math.pi
 	ry = 0.0*math.pi
-	rz = 0.0*math.pi
+	rz = 0.33*math.pi
 
 	(height,width,channels)	= image.shape
 	(Rx,Ry,Rz)		= calcrotationmatrix(rx,ry,rz)
@@ -83,12 +83,31 @@ def performhomography(windowname,image):
 		corners_proj.append([float(x),float(y)])
 		#corners_proj[0,ic]=x
 		#corners_proj[1,ic]=y
+
+	# projected corners is in pixels
 	print 'Projected corners:\n',corners_proj
 	
-	# temporary
-	# corners [x,y]
-	#corners_proj = ([0,0],[50,0],[50,50],[0,50])
-	#print corners_proj
+	xmin_out	= np.inf
+	ymin_out	= np.inf
+	xmax_out	= -np.inf
+	ymax_out	= -np.inf
+	for corner_proj in corners_proj:
+		x = corner_proj[0]
+		y = corner_proj[1]
+		if x < xmin_out:
+			xmin_out = x
+		if x > xmax_out:
+			xmax_out = x
+		if y < ymin_out:
+			ymin_out = y
+		if y > ymax_out:
+			ymax_out = y
+	xmin_out = int(np.ceil(xmin_out))
+	ymin_out = int(np.ceil(ymin_out))
+	xmax_out = int(np.ceil(xmax_out))
+	ymax_out = int(np.ceil(ymax_out))
+	height_out	= int(np.ceil(ymax_out - ymin_out))
+	width_out	= int(np.ceil(xmax_out - xmin_out))
 
 	# corners in the projection are now known.
 	# calculate the homography
@@ -118,27 +137,23 @@ def performhomography(windowname,image):
 	print H
 
 	# apply homography backward
-	image_out = np.zeros((height,width,channels),dtype=np.uint8)
-	for h in range(height):
-		for w in range(width):
+	image_out = np.zeros((height_out,width_out,channels),dtype=np.uint8)
+	for h in range(ymin_out,ymax_out):
+		for w in range(xmin_out,xmax_out):
 			tmp = np.matrix([[w],[h],[1]])
 			res = Hi*tmp
 			scale	= res[2]
 			xtmp	= int(res[0]/scale)
 			ytmp	= int(res[1]/scale)
-			if xtmp<0 or xtmp>=width:
-				xtmp=0
-			if ytmp<0 or ytmp>=height:
-				ytmp=0
-			#print 'y:',h,'\t->',ytmp
-			#print 'x:',w,'\t->',xtmp
-			image_out[h,w,:] = image[ytmp,xtmp,:]
-			#print image_out[h,w,:]
-			#print image[ytmp,xtmp,:]
-			if h <> ytmp or w <> xtmp:
-				#print 'weird >>'
-				#sys.exit('strange')
-				pass
+			if xtmp<0 or xtmp>=width or ytmp<0 or ytmp>=height:
+				continue
+			else:
+				#print 'y: %+5d -> %+5d'%(ytmp,h)
+				#print 'x: %+5d -> %+5d'%(xtmp,w)
+				#print image[ytmp,xtmp,:]
+				image_out[h-ymin_out,w-xmin_out,:] = image[ytmp,xtmp,:]
+				#print image_out[h,w,:]
+				#print image[ytmp,xtmp,:]
 	cv2.imshow('test',image_out)
 	cv2.waitKey(0)
 
