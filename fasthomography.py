@@ -137,30 +137,32 @@ def performhomography(windowname,image):
 	Hi = np.linalg.inv(H)
 	print Hi
 	#print H.dtype
+## CV2 proprietary method # 0.003 seconds
 	t = time.time()
 	image_out0	= cv2.warpPerspective(image,H,(width,height))
 	print time.time()-t
-	# apply homography backward
-	t = time.time()
-	image_out1 = np.zeros((height_out,width_out,channels),dtype=np.uint8)
-	for h in range(ymin_out,ymax_out):
-		for w in range(xmin_out,xmax_out):
-			tmp = np.matrix([[w],[h],[1]])
-			res = Hi*tmp
-			scale	= res[2]
-			xtmp	= int(res[0]/scale)
-			ytmp	= int(res[1]/scale)
-			if xtmp<0 or xtmp>=width or ytmp<0 or ytmp>=height:
-				continue
-			else:
-				#print 'y: %+5d -> %+5d'%(ytmp,h)
-				#print 'x: %+5d -> %+5d'%(xtmp,w)
-				#print image[ytmp,xtmp,:]
-				image_out1[h-ymin_out,w-xmin_out,:] = image[ytmp,xtmp,:]
-				#print image_out[h,w,:]
-				#print image[ytmp,xtmp,:]
-	print time.time()-t
+## Own Loop backward homography # 2.06 seconds
+#	t = time.time()
+#	image_out1 = np.zeros((height_out,width_out,channels),dtype=np.uint8)
+#	for h in range(ymin_out,ymax_out):
+#		for w in range(xmin_out,xmax_out):
+#			tmp = np.matrix([[w],[h],[1]])
+#			res = Hi*tmp
+#			scale	= res[2]
+#			xtmp	= int(res[0]/scale)
+#			ytmp	= int(res[1]/scale)
+#			if xtmp<0 or xtmp>=width or ytmp<0 or ytmp>=height:
+#				continue
+#			else:
+#				#print 'y: %+5d -> %+5d'%(ytmp,h)
+#				#print 'x: %+5d -> %+5d'%(xtmp,w)
+#				#print image[ytmp,xtmp,:]
+#				image_out1[h-ymin_out,w-xmin_out,:] = image[ytmp,xtmp,:]
+#				#print image_out[h,w,:]
+#				#print image[ytmp,xtmp,:]
+#	print time.time()-t
 
+## Faster backward homography # 0.106 seconds
 	# calc mapping
 	t = time.time()
 	x = range(xmin_out,xmax_out)
@@ -169,6 +171,7 @@ def performhomography(windowname,image):
 	W = np.ones((height_out,width_out))
 	O = np.stack((X,Y,W),2)
 	map_out	= np.einsum('kp,ijp->ijk',Hi,O)
+	# perform mapping
 	image_out2 = np.zeros((height_out,width_out,channels),dtype=np.uint8)
 	for h in range(height_out):
 		for w in range(width_out):
@@ -179,10 +182,36 @@ def performhomography(windowname,image):
 					continue
 				image_out2[h,w,:] = image[y,x,:]
 	print time.time()-t
+
+## Faster backward homography, different mapping method # 0.007 seconds
+	# calc mapping
+	t = time.time()
+	x = range(xmin_out,xmax_out)
+	y = range(ymin_out,ymax_out)
+	X, Y = np.meshgrid(x,y)
+	W = np.ones((height_out,width_out))
+	O = np.stack((X,Y,W),2)
+	map_out	= np.einsum('kp,ijp->ijk',Hi,O)
+	
+	map_out[:,:,1]	= map_out[:,:,1]/map_out[:,:,2]
+	map_out[:,:,0]	= map_out[:,:,0]/map_out[:,:,2]
+	map_out			= map_out.astype(int) # mapping must be of integer type because it is used directly for indexing
+	# construct empty image
+	image_out3 = np.zeros((height_out,width_out,channels),dtype=np.uint8)
+	# make conditional mask for the width (not larger than max image width)
+	mask_width = np.logical_and(map_out[:,:,0] < width,map_out[:,:,0]>=0)
+	# make conditional mask for the width (not larger than max image height)
+	mask_height = np.logical_and(map_out[:,:,1]>=0,map_out[:,:,1]<height)
+	# combine masks
+	mask_total = np.logical_and(mask_width==1,mask_height==1)
+	# Use mask to copy values from original image
+	image_out3[mask_total,:] = image[map_out[mask_total,1],map_out[mask_total,0],:]
+	print time.time()-t
 	
 	cv2.imshow('test0',image_out0)
-	cv2.imshow('test1',image_out1)
+	#cv2.imshow('test1',image_out1)
 	cv2.imshow('test2',image_out2)
+	cv2.imshow('test3',image_out3)
 	cv2.waitKey(0)
 
 
