@@ -183,7 +183,7 @@ def performhomography(windowname,image):
 				image_out2[h,w,:] = image[y,x,:]
 	print time.time()-t
 
-## Faster backward homography, different mapping method # 0.007 seconds
+## Faster backward homography, mapping by masking and matrix indices method # 0.007 seconds
 	# calc mapping
 	t = time.time()
 	x = range(xmin_out,xmax_out)
@@ -207,7 +207,8 @@ def performhomography(windowname,image):
 	# Use mask to copy values from original image
 	image_out3[mask_total,:] = image[map_out[mask_total,1],map_out[mask_total,0],:]
 	print time.time()-t
-	
+
+	# Show results
 	cv2.imshow('test0',image_out0)
 	#cv2.imshow('test1',image_out1)
 	cv2.imshow('test2',image_out2)
