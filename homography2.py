@@ -8,14 +8,15 @@ from paths import default_image
 import math
 import sys
 import copy
+import time
 
 def performhomography(windowname,image):
 	pitch = 0.2625*(10**-3) # [m] pixel pitch (pixel size) assume square pixels, which is generally true
-	print 'Pitch: %.6f'%pitch
+	#print 'Pitch: %.6f'%pitch
 	
-	rx = 0.0*math.pi
+	rx = 0.2*math.pi
 	ry = 0.0*math.pi
-	rz = 0.33*math.pi
+	rz = 0.*math.pi
 
 	(height,width,channels)	= image.shape
 	(Rx,Ry,Rz)		= calcrotationmatrix(rx,ry,rz)
@@ -44,11 +45,11 @@ def performhomography(windowname,image):
 	cp2	= np.matrix([[width],[height]])
 	cp3	= np.matrix([[0],[height]])
 	corners_p = [cp0, cp1,cp2,cp3]
-	print corners_p
+	#print corners_p
 	# meters
 	f	= 0.3 # [m]
 	e	= np.matrix([[0],[0],[f]]) # position of eye
-	print e
+	#print e
 	wx	= width*pitch	# [m]
 	hy	= height*pitch	# [m]
 	c0	= np.matrix([[-wx/2],[+hy/2],[0]])-e # vector from eye to corner 0
@@ -56,7 +57,7 @@ def performhomography(windowname,image):
 	c2	= np.matrix([[+wx/2],[-hy/2],[0]])-e # vector from eye to corner 2
 	c3	= np.matrix([[-wx/2],[-hy/2],[0]])-e # vector from eye to corner 3
 	cornerlines = [c0,c1,c2,c3]
-	print 'Lines:\n',cornerlines
+	#print 'Lines:\n',cornerlines
 	# For each intersection a linear combination of the vectors spanning the plane exists
 	# when this combination is found, the exact location of the intersection is known
 	corners_proj = []
@@ -65,13 +66,13 @@ def performhomography(windowname,image):
 		# note: origin is still center of the plane
 		A	= np.hstack((c,-pr1,-pr2))
 		Ai	= np.linalg.inv(A)
-		print A
-		print Ai
+		#print A
+		#print Ai
 		#print 'Corner: \n',c
 		comb = Ai*(-e)
-		print comb
+		#print comb
 		intersection = np.hstack((pr1,pr2))*comb[1:]
-		print intersection
+		#print intersection
 		#print 'Intersection:\n', intersection
 		# compute x,y coordinates in plane by performing the inverse plane rotation on the point of intersection
 		coords = Rti*intersection
@@ -85,7 +86,7 @@ def performhomography(windowname,image):
 		#corners_proj[1,ic]=y
 
 	# projected corners is in pixels
-	print 'Projected corners:\n',corners_proj
+	#print 'Projected corners:\n',corners_proj
 	
 	xmin_out	= np.inf
 	ymin_out	= np.inf
@@ -119,23 +120,24 @@ def performhomography(windowname,image):
 		yA	= float(corners_p[i][1])
 		xB	= float(corners_proj[i][0])
 		yB	= float(corners_proj[i][1])
-		print 'xA: ',xA,', xB: ',xB
-		print 'yA: ',yA,', yB: ',yB
+		#print 'xA: ',xA,', xB: ',xB
+		#print 'yA: ',yA,', yB: ',yB
 		row0	= np.matrix([xA,yA,1,0,0,0,-xA*xB,-yA*xB])
 		row1	= np.matrix([0,0,0,xA,yA,1,-xA*yB,-yA*yB])
 		M1 = np.vstack((M1,row0))
 		M1 = np.vstack((M1,row1))
 		M2[i*2,0]	= xB
 		M2[i*2+1,0]	= yB
-	print M1
-	print M2
+	#print M1
+	#print M2
 	H = np.linalg.inv(np.transpose(M1)*M1)*(np.transpose(M1)*M2)
-	print H
+	#print H
 	H = np.vstack((H,[1]))
 	H = np.reshape(H,(3,3))
 	Hi = np.linalg.inv(H)
-	print H
-
+	#print H
+	#print H.dtype
+	image_out0 = cv2.warpPerspective(image,H,(width,height))
 	# apply homography backward
 	image_out = np.zeros((height_out,width_out,channels),dtype=np.uint8)
 	for h in range(ymin_out,ymax_out):
@@ -154,6 +156,7 @@ def performhomography(windowname,image):
 				image_out[h-ymin_out,w-xmin_out,:] = image[ytmp,xtmp,:]
 				#print image_out[h,w,:]
 				#print image[ytmp,xtmp,:]
+	cv2.imshow('test0',image_out0)
 	cv2.imshow('test',image_out)
 	cv2.waitKey(0)
 
