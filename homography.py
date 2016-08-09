@@ -27,13 +27,10 @@ def calcrotationmatrix(rx, ry, rz):
 					[0, 0, 1]])
 	return (Rx,Ry,Rz)
 
-def calchomography(image):
+def calchomography(image,rx, ry, rz):
 	pitch = 0.2625*(10**-3) # [m] pixel pitch (pixel size) assume square pixels, which is generally true
 	#print 'Pitch: %.6f'%pitch
 	
-	rx = 0.2*math.pi
-	ry = 0.0*math.pi
-	rz = 0.*math.pi
 
 	(height,width,channels)	= image.shape
 	(Rx,Ry,Rz)		= calcrotationmatrix(rx,ry,rz)
@@ -154,19 +151,19 @@ def calchomography(image):
 	Hi = np.linalg.inv(H)
 	return (H,Hi,height_out,width_out,xmin_out,xmax_out,ymin_out,ymax_out)
 
-def hom0(image):
+def hom0(image,rx,ry,rz):
 ## CV2 proprietary method # 0.003 seconds
-	(H,Hi,height_out,width_out,xmin_out,xmax_out, ymin_out,ymax_out) = calchomography(image)
+	(H,Hi,height_out,width_out,xmin_out,xmax_out, ymin_out,ymax_out) = calchomography(image,rx,ry,rz)
 	t = time.time()
 	(height, width, channels) = image.shape
 	image_out	= cv2.warpPerspective(image,H,(width,height))
 	print 'Hom0: Elapsed time',time.time()-t
 	return image_out
 
-def hom1(image):
+def hom1(image,rx,ry,rz):
 # Own Loop backward homography # 2.06 seconds
 	t = time.time()
-	(H,Hi,height_out,width_out,xmin_out,xmax_out, ymin_out,ymax_out) = calchomography(image)
+	(H,Hi,height_out,width_out,xmin_out,xmax_out, ymin_out,ymax_out) = calchomography(image,rx,ry,rz)
 	(height, width, channels) = image.shape
 	image_out = np.zeros((height_out,width_out,channels),dtype=np.uint8)
 	for h in range(ymin_out,ymax_out):
@@ -188,10 +185,10 @@ def hom1(image):
 	print 'Hom1: Elapsed time',time.time()-t
 	return image_out
 
-def hom2(image):
+def hom2(image,rx,ry,rz):
 ## Faster backward homography # 0.106 seconds
 	t = time.time()
-	(H,Hi,height_out,width_out,xmin_out,xmax_out, ymin_out,ymax_out) = calchomography(image)
+	(H,Hi,height_out,width_out,xmin_out,xmax_out, ymin_out,ymax_out) = calchomography(image,rx,ry,rz)
 	(height, width, channels) = image.shape
 	# calc mapping
 	x = range(xmin_out,xmax_out)
@@ -213,10 +210,10 @@ def hom2(image):
 	print 'Hom2: Elapsed time',time.time()-t
 	return image_out
 
-def hom3(image):
+def hom3(image,rx,ry,rz):
 ## Faster backward homography, mapping by masking and matrix indices method # 0.007 seconds
 	t = time.time()
-	(H,Hi,height_out,width_out,xmin_out,xmax_out, ymin_out,ymax_out) = calchomography(image)
+	(H,Hi,height_out,width_out,xmin_out,xmax_out, ymin_out,ymax_out) = calchomography(image,rx,ry,rz)
 	(height, width, channels) = image.shape
 	# calc mapping
 	x = range(xmin_out,xmax_out)
@@ -249,10 +246,14 @@ def main():
 	cv2.imshow(windowname,image)
 	cv2.waitKey(100)
 	
-	im0 = hom0(image)
-	im1 = hom1(image)
-	im2 = hom2(image)
-	im3 = hom3(image)
+	rx = 0.2*math.pi
+	ry = 0.0*math.pi
+	rz = 0.*math.pi
+	
+	im0 = hom0(image,rx,ry,rz)
+	im1 = hom1(image,rx,ry,rz)
+	im2 = hom2(image,rx,ry,rz)
+	im3 = hom3(image,rx,ry,rz)
 
 	# Show results
 	cv2.imshow('Hom0',im0)
