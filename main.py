@@ -10,6 +10,7 @@ import math
 from utils import pose
 import sys
 import copy
+from homography import hom3
 
 ## Sources
 # Example:		http://dlib.net/face_landmark_detection.py.html
@@ -41,9 +42,6 @@ def detect_face(window_face,window_image,predictor,detector,frame):
 	# Ask the detector to find the bounding boxes of each face. The 1 in the
 	# second argument indicates that we should upsample the image 1 time. This
 	# will make everything bigger and allow us to detect more faces.
-	# Draw new frame
-	temp = time()
-	print 'Plot frame: ',time() - temp, 's'
 	# Detect face
 	temp = time()
 	# subsampling for faster detection
@@ -71,7 +69,7 @@ def detect_face(window_face,window_image,predictor,detector,frame):
 	# Draw the face landmarks on the screen.
 	temp = time()
 	showshape(window_face,frame,shape)
-	print 'Add overlay: ',time() - temp, 's'
+	print 'Draw landmarks: ',time() - temp, 's'
 
 	return shape
 
@@ -100,20 +98,26 @@ def shape2pose(shape_calibrated, shape_current):
 		if y>ymax:
 			ymax = y
 	# TODO: use calibrated shape do determine normal nose bridge length
-	nb_length_cal = 45
+	nb_length_cal = 35
 	nb_length_cur = ymax - ymin
 
-	headpose.rx = math.cos(float(nb_length_cur)/float(nb_length_cal))
-	#print nb_length_cur
-	#print nb_length_cal
+	headpose.rx = -math.acos(float(nb_length_cur)/float(nb_length_cal))
+	print 'Bridge length:, ',nb_length_cur
+	print 'Normal length:  ',nb_length_cal
 	#print	math.acos(float(nb_length_cur)/float(nb_length_cal))
 
 	return headpose
 
 def adjustwindow(windowname,image,headpose):
-	
-	#cv2.imshow('Image transformed',image_new)
-	#cv2.waitKey(1)
+	rx = headpose.rx
+	ry = headpose.ry
+	rz = headpose.rz
+	print 'rx: ',rx
+	print 'ry: ',ry
+	print 'rz: ',rz
+	image_adj = hom3(image,rx,ry,rz)
+	cv2.imshow('Image adjusted',image_adj)
+	cv2.waitKey(1)
 	return 0
 
 def main():
