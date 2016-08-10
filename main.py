@@ -101,9 +101,9 @@ def shape2pose(shape_calibrated, shape_current):
 	nb_length_cal = 35
 	nb_length_cur = ymax - ymin
 
-	headpose.rx = -math.acos(float(nb_length_cur)/float(nb_length_cal))
 	print 'Bridge length:, ',nb_length_cur
 	print 'Normal length:  ',nb_length_cal
+	headpose.rx = -math.acos(float(nb_length_cur)/float(nb_length_cal))
 	#print	math.acos(float(nb_length_cur)/float(nb_length_cal))
 
 	return headpose
