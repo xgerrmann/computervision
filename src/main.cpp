@@ -120,6 +120,8 @@
 //	cv2.waitKey(1)
 //	return 0
 //
+#define EVER ;;
+
 int main(){
 	dlib::frontal_face_detector detector = dlib::get_frontal_face_detector();
 	dlib::shape_predictor predictor;
@@ -135,28 +137,24 @@ int main(){
 	std::string window_face = "Face";
 	cv::namedWindow(window_face);
 	cv::VideoCapture vc =cv::VideoCapture(0);
-	if(!vc.isOpened()) // Early return if no frame is captured by the cam
+	if(!vc.isOpened()){ // Early return if no frame is captured by the cam
+		std::cerr << "No frame capured by camera, try running again.";
 		return -1;
-
-	while(true){
+	}
+	for(EVER){
 		cv::Mat frame;
 		vc >> frame;
 		cv::imshow(window_face,frame);
-		cv::waitKey(1);
+		char key = (char)cv::waitKey(1);
+		if(key == 27){
+			std::cerr << "Program halted by user.";
+			return 0;
+		}
 	}
 	return 0;
 }
 //def main():
-//	vc = cv2.VideoCapture(0)
-//	#win_dlib = dlib.image_window()
-//	if vc.isOpened(): # try to get the first frame
-//		rval, frame = vc.read()
-//	else:
-//		sys.exit('No frame captured')
-//
 //	while True:
-//		#cv2.imshow("preview", frame)
-//		rval, frame = vc.read()
 //		key = cv2.waitKey(1)
 //		if key == 27: # exit on ESC
 //			break
