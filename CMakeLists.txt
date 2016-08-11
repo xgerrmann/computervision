@@ -14,6 +14,7 @@ include(include/dlib/cmake)
 # .cpp files to compile.  Here each example consists of only one .cpp file but
 # in general you will make programs that const of many .cpp files.
 ADD_EXECUTABLE(main src/main.cpp)
+ADD_EXECUTABLE(homography src/homography.cpp)
 # Then we tell it to link with dlib.
 #TARGET_LINK_LIBRARIES(main dlib)
 
@@ -37,6 +38,7 @@ if (OpenCV_FOUND)
 #
 #   ADD_EXECUTABLE(webcam_face_pose_ex webcam_face_pose_ex.cpp)
 	TARGET_LINK_LIBRARIES(main dlib ${OpenCV_LIBS})
+	TARGET_LINK_LIBRARIES(homography ${OpenCV_LIBS})
 else()
 	message("OpenCV NOT found :(")
 endif()

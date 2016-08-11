@@ -1,15 +1,15 @@
 # computervision
 
 ## Dependencies:
-Boost
-sudo apt-get install libboost-all-dev
 
 dlib
-sudo pip install dlib
 
 opencv
 
-numpy
+
+eigen
+sudo hg clone https://bitbucket.org/eigen/eigen
+
 
 attention-tracker:
-https://github.com/chili-epfl/attention-tracker
+sudo git clone https://github.com/chili-epfl/attention-tracker
