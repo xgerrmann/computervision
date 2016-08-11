@@ -121,20 +121,32 @@
 //	return 0
 //
 int main(){
-	std::cerr << trained_model;
-//	detector	= dlib.get_frontal_face_detector();
-//	predictor	= dlib.shape_predictor(trained_model);
+	dlib::frontal_face_detector detector = dlib::get_frontal_face_detector();
+	dlib::shape_predictor predictor;
+	dlib::deserialize(trained_model) >> predictor;
+
+	cv::Mat image;
+	image = cv::imread("media/250x250.jpeg");
+	//cv::namedWindow("Image",cv::WINDOW_AUTOSIZE);
+	std::string window_image = "Image";
+	cv::namedWindow("Image");
+	cv::imshow("Image",image);
+	cv::waitKey(1);
+	std::string window_face = "Face";
+	cv::namedWindow(window_face);
+	cv::VideoCapture vc =cv::VideoCapture(0);
+	if(!vc.isOpened()) // Early return if no frame is captured by the cam
+		return -1;
+
+	while(true){
+		cv::Mat frame;
+		vc >> frame;
+		cv::imshow(window_face,frame);
+		cv::waitKey(1);
+	}
 	return 0;
 }
 //def main():
-//	detector	= dlib.get_frontal_face_detector()
-//	predictor	= dlib.shape_predictor(trained_model)
-//	image		= cv2.imread(default_image)
-//	window_image = "Image"
-//	cv2.imshow(window_image,image)
-//	cv2.waitKey(1)
-//	window_face = 'Face'
-//	cv2.namedWindow(window_face)
 //	vc = cv2.VideoCapture(0)
 //	#win_dlib = dlib.image_window()
 //	if vc.isOpened(): # try to get the first frame
