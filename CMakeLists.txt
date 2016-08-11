@@ -30,6 +30,7 @@ ADD_EXECUTABLE(homography src/homography.cpp)
 ##here we apply our macros
 #add_file(main)
 
+include_directories(include/eigen)
 
 find_package(OpenCV QUIET)
 if (OpenCV_FOUND)
