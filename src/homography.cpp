@@ -303,10 +303,10 @@ cv::Mat hom3(cv::Mat image, double rx, double ry, double rz){
 	Hi	= H.inverse();
 	cv::Mat image_out;
 	int xmin_out, ymin_out, xmax_out, ymax_out, width_out, height_out;
-	xmin_out	= rectangle[0]
-	ymin_out	= rectangle[0]
-	width_out	= rectangle[0]
-	height_out	= rectangle[0]
+	xmin_out	= rectangle[0];
+	ymin_out	= rectangle[0];
+	width_out	= rectangle[0];
+	height_out	= rectangle[0];
 	xmax_out	= xmin_out + width_out;
 	ymax_out	= ymin_out + height_out;
 	// calc mapping
