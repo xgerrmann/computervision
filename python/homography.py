@@ -145,12 +145,13 @@ def calchomography(image,rx, ry, rz):
 		M1 = np.vstack((M1,row1))
 		M2[i*2,0]	= xB
 		M2[i*2+1,0]	= yB
-	#print M1
-	#print M2
+	print "M1:\n",M1.astype(int)
+	print "M2:\n",M2.astype(int)
 	H = np.linalg.inv(np.transpose(M1)*M1)*(np.transpose(M1)*M2)
-	#print H
+	print "H: \n",H
 	H = np.vstack((H,[1]))
 	H = np.reshape(H,(3,3))
+	print "H: \n",H
 	Hi = np.linalg.inv(H)
 	return (H,Hi,height_out,width_out,xmin_out,xmax_out,ymin_out,ymax_out)
 

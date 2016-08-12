@@ -21,6 +21,9 @@ rotations calcrotationmatrix(double rx, double ry, double rz){
 	Rz <<	cos(rz),	-sin(rz),	0,
 			sin(rz),	cos(rz),	0,
 			0,			0,			1;
+//	std::cerr << "Rx:\n"<< Rx<<"\n";
+//	std::cerr << "Ry:\n"<< Ry<<"\n";
+//	std::cerr << "Rz:\n"<< Rz<<"\n";
 	rotations rot;
 	rot.Rx=Rx;
 	rot.Ry=Ry;
@@ -28,7 +31,70 @@ rotations calcrotationmatrix(double rx, double ry, double rz){
 	return rot;
 }
 
-int calchomography(cv::Mat image, double rx, double ry, double rz){
+Eigen::Vector4i box_out(Eigen::Matrix3f H, int width, int height){
+	Eigen::Vector2f c0, c1, c2, c3;
+	c0	<< 0,				0;
+	c1	<< float(width),	0;
+	c2	<< float(width),	float(height);
+	c3	<< 0,				float(height);
+	std::vector<Eigen::Vector2f> corners;
+	corners.push_back(c0);
+	corners.push_back(c1);
+	corners.push_back(c2);
+	corners.push_back(c3);
+	
+	std::vector<Eigen::Vector2f> corners_proj;
+	float x,y,w;
+	for(int i = 0; i<4; i++){
+		x = corners.at(i)[0];
+		y = corners.at(i)[1];
+		w = 1;
+		Eigen::Vector3f corner_original, corner_new;
+		corner_original << x,y,w;
+		//std::cerr << "Corner_original:\n" << corner_original << "\n";
+		corner_new = H*corner_original;
+		//std::cerr << "Corner_new:\n" << corner_new << "\n";
+		//std::cerr << "Corner_new:\n" << corner_new.block<2,1>(0,0) << "\n";
+		corners_proj.push_back(corner_new.block<2,1>(0,0));
+	}
+	
+//	Projected corners are in pixels
+//	#print 'Projected corners:\n',corners_proj
+	int xmin_out, ymin_out, xmax_out, ymax_out;
+	float xtmp, ytmp;
+	xmin_out	= INT_MAX;
+	ymin_out	= INT_MAX;
+	xmax_out	= INT_MIN;
+	ymax_out	= INT_MIN;
+	for(int i = 0; i<4; i++){
+		xtmp = corners_proj.at(i)[0];
+		ytmp = corners_proj.at(i)[1];
+		if(int(round(xtmp)) < xmin_out)
+			xmin_out = int(round(xtmp));
+		if(int(round(xtmp)) > xmax_out)
+			xmax_out = int(round(xtmp));
+		if(int(round(ytmp)) < ymin_out)
+			ymin_out = int(round(ytmp));
+		if(int(round(ytmp)) > ymax_out)
+			ymax_out = int(round(ytmp));
+	}
+//	std::cerr << "xmin: \t" << xmin_out << "\n";
+//	std::cerr << "xmax: \t" << xmax_out << "\n";
+//	std::cerr << "ymin: \t" << ymin_out << "\n";
+//	std::cerr << "ymax: \t" << ymax_out << "\n";
+	int height_out, width_out;
+	height_out	= ymax_out - ymin_out;
+	width_out	= xmax_out - xmin_out;
+//	std::cerr << "Height: " << height_out << "\n";
+//	std::cerr << "Width:  " << width_out << "\n";
+//	std::cerr << "xmin:   " << xmin_out << "\n";
+//	std::cerr << "ymin:   " << ymin_out << "\n";
+	Eigen::Vector4i rectangle;
+	rectangle << xmin_out,ymin_out,width_out,height_out;
+	return rectangle; // xmin, ymin, width, height
+}
+
+Eigen::Matrix3f calchomography(cv::Mat image, double rx, double ry, double rz){
 	double pitch = 0.2625*(std::pow(10.0,-3.0)); // [m] pixel pitch (pixel size) assume square pixels, which is generally true
 	printf("Pitch: %.6f\n",pitch);
 
@@ -99,91 +165,69 @@ int calchomography(cv::Mat image, double rx, double ry, double rz){
 //	# when this combination is found, the exact location of the intersection is known
 	std::vector<Eigen::Vector2f> corners_proj;
 	for(int i=0; i<4; i++){
-//		find the projection of each corner point on the plane
-//		note: origin is still center of the plane
+		//Find the projection of each corner point on the plane
+		//note: origin is still center of the plane
 		Eigen::Matrix3f A, Ai;
 		Eigen::Matrix<float,3,2> tmp_mat;
 		Eigen::Vector3f comb, intersection, coords;
 		Eigen::Vector2f tmp_vec, corner;
 		float x, y;
-
-		std::cerr << "Corner: " << cornerlines.at(i) << "\n";
+		// TODO: more comments
+		//std::cerr << "Corner: " << cornerlines.at(i) << "\n";
 		A	<< cornerlines.at(i) , -pr1, -pr2;
-		std::cerr << "A: \n" << A <<"\n";
+		//std::cerr << "A: \n" << A <<"\n";
 		Ai		= A.inverse();
-		std::cerr << "Ai: \n" << Ai <<"\n";
-		std::cerr << "e\n" << e <<"\n";
+		//std::cerr << "Ai: \n" << Ai <<"\n";
+		//std::cerr << "e\n" << e <<"\n";
 		comb	= Ai*(-e);
-		std::cerr << "Comb:\n" << comb << "\n";
+		//std::cerr << "Comb:\n" << comb << "\n";
 		tmp_mat << pr1, pr2;
 		tmp_vec = comb.block<2,1>(1,0);
-		std::cerr << "Comb part:\n" << tmp_vec << "\n";
+		//std::cerr << "Comb part:\n" << tmp_vec << "\n";
 		intersection = tmp_mat*tmp_vec;
-		std::cerr << "Intersection:\n" << intersection << "\n";
-//		Compute x,y coordinates in plane by performing the inverse plane rotation on the point of intersection
+		//std::cerr << "Intersection:\n" << intersection << "\n";
+		//Compute x,y coordinates in plane by performing the inverse plane rotation on the point of intersection
 		coords = Rti*intersection;
-		std::cerr << "Coordinates:\n" << coords << "\n";
+		//std::cerr << "Coordinates:\n" << coords << "\n";
 		// Convert real coordinates into pixed coordinates
 		x = (coords[0]+wx/2)/pitch;
 		y = -(coords[1]-hy/2)/pitch; //# change y direction
-		std::cerr << "x: " << x << "\n";
-		std::cerr << "y: " << y << "\n";
+		//std::cerr << "x: " << x << "\n";
+		//std::cerr << "y: " << y << "\n";
 		corner << x,y;
 		corners_proj.push_back(corner);
 	}
-//
-//	# projected corners is in pixels
-//	#print 'Projected corners:\n',corners_proj
-//	
-//	xmin_out	= np.inf
-//	ymin_out	= np.inf
-//	xmax_out	= -np.inf
-//	ymax_out	= -np.inf
-//	for corner_proj in corners_proj:
-//		x = corner_proj[0]
-//		y = corner_proj[1]
-//		if x < xmin_out:
-//			xmin_out = x
-//		if x > xmax_out:
-//			xmax_out = x
-//		if y < ymin_out:
-//			ymin_out = y
-//		if y > ymax_out:
-//			ymax_out = y
-//	xmin_out = int(np.ceil(xmin_out))
-//	ymin_out = int(np.ceil(ymin_out))
-//	xmax_out = int(np.ceil(xmax_out))
-//	ymax_out = int(np.ceil(ymax_out))
-//	height_out	= int(np.ceil(ymax_out - ymin_out))
-//	width_out	= int(np.ceil(xmax_out - xmin_out))
-//
-//	# corners in the projection are now known.
-//	# calculate the homography
-//	# source: http://math.stackexchange.com/questions/494238/how-to-compute-homography-matrix-h-from-corresponding-points-2d-2d-planar-homog
-//	M1 = np.zeros((0,8))
-//	M2 = np.zeros((8,1))
-//	for i in range(4):
-//		xA	= float(corners_p[i][0])
-//		yA	= float(corners_p[i][1])
-//		xB	= float(corners_proj[i][0])
-//		yB	= float(corners_proj[i][1])
-//		#print 'xA: ',xA,', xB: ',xB
-//		#print 'yA: ',yA,', yB: ',yB
-//		row0	= np.matrix([xA,yA,1,0,0,0,-xA*xB,-yA*xB])
-//		row1	= np.matrix([0,0,0,xA,yA,1,-xA*yB,-yA*yB])
-//		M1 = np.vstack((M1,row0))
-//		M1 = np.vstack((M1,row1))
-//		M2[i*2,0]	= xB
-//		M2[i*2+1,0]	= yB
-//	#print M1
-//	#print M2
-//	H = np.linalg.inv(np.transpose(M1)*M1)*(np.transpose(M1)*M2)
-//	#print H
-//	H = np.vstack((H,[1]))
-//	H = np.reshape(H,(3,3))
-//	Hi = np.linalg.inv(H)
-//	return (H,Hi,height_out,width_out,xmin_out,xmax_out,ymin_out,ymax_out)
-	return 0;
+
+//	corners in the projection are now known.
+//	calculate the homography
+//	source: http://math.stackexchange.com/questions/494238/how-to-compute-homography-matrix-h-from-corresponding-points-2d-2d-planar-homog
+	Eigen::Matrix<float,8,8> M1;
+	Eigen::Matrix<float,8,1> M2;
+	float xA, xB, yA, yB;
+	for(int i = 0; i<4; i++){
+		xA	= corners_p.at(i)[0];	// original corner
+		yA	= corners_p.at(i)[1];	// original corner
+		xB	= corners_proj.at(i)[0];// new corner (projected)
+		yB	= corners_proj.at(i)[1];// new corner (projected)
+		//std::cerr << "xA: " << xA <<", xB: " << xB << "\n";
+		//std::cerr << "yA: " << yA <<", yB: " << yB << "\n";
+		M1.row(i*2)		<< xA,yA,1,0,0,0,-xA*xB,-yA*xB;
+		M1.row(i*2+1)	<< 0,0,0,xA,yA,1,-xA*yB,-yA*yB;
+		M2.row(i*2) << xB;
+		M2.row(i*2+1) << yB;
+	}
+	//std::cerr << "M1:\n" << M1 <<"\n";
+	//std::cerr << "M2:\n" << M2 <<"\n";
+	Eigen::Matrix<float,8,1> Htmp;
+	Eigen::Matrix3f H;
+	Htmp = (M1.transpose()*M1).inverse()*(M1.transpose()*M2);
+	//std::cerr << "Htmp:\n" << Htmp << "\n";
+	// TODO: maybe not transpose?
+	H << Htmp; // first down, then right. Therefore needs to be transposed later.
+	H.block<1,1>(2,2) << 1;
+	H = H.transpose();
+	//std::cerr << "H:\n" << H << "\n";
+	return H;
 }
 //
 //def hom0(image,rx,ry,rz):
@@ -248,11 +292,24 @@ int calchomography(cv::Mat image, double rx, double ry, double rz){
 cv::Mat hom3(cv::Mat image, double rx, double ry, double rz){
 // Faster backward homography, mapping by masking and matrix indices method # 0.007 seconds
 //	t = time.time()
-	//(H,Hi,height_out,width_out,xmin_out,xmax_out, ymin_out,ymax_out) = calchomography(image,rx,ry,rz)
-	int H = calchomography(image,rx,ry,rz);
+	int height	= image.size().height;
+	int width	= image.size().width;
+	int channels= image.channels();
+	
+	Eigen::Matrix3f H, Hi;
+	H	= calchomography(image,rx,ry,rz);
+	Eigen::Vector4i rectangle = box_out(H, width, height);
+	std::cerr <<"Rectangle:\n"<< rectangle << "\n"; // rectangle is xmin, ymin, width, height
+	Hi	= H.inverse();
 	cv::Mat image_out;
-//	(height, width, channels) = image.shape
-//	# calc mapping
+	int xmin_out, ymin_out, xmax_out, ymax_out, width_out, height_out;
+	xmin_out	= rectangle[0]
+	ymin_out	= rectangle[0]
+	width_out	= rectangle[0]
+	height_out	= rectangle[0]
+	xmax_out	= xmin_out + width_out;
+	ymax_out	= ymin_out + height_out;
+	// calc mapping
 //	x = range(xmin_out,xmax_out)
 //	y = range(ymin_out,ymax_out)
 //	X, Y = np.meshgrid(x,y)
