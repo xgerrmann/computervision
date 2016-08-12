@@ -2,30 +2,30 @@
 // script to test and perform homographies on an example image
 // script based on: http://math.stackexchange.com/questions/494238/how-to-compute-homography-matrix-h-from-corresponding-points-2d-2d-planar-homog/1886060#1886060
 
-std::vector<Eigen::Matrix3d> calcrotationmatrix(double rx, double ry, double rz){
+rotations calcrotationmatrix(double rx, double ry, double rz){
 //	source: http://nghiaho.com/?page_id=846
 //	source: https://en.wikipedia.org/wiki/3D_projection (uses negative angles?)
 	rx = -rx;
 	ry = -ry;
 	rz = -rz;
 
-	Eigen::Matrix3d Rx;
+	Eigen::Matrix3f Rx;
 	Rx <<	1.0,		0.0,		0.0,
 			0.0,		cos(rx),	-sin(rx),
 			0.0,		sin(rx),	cos(rx);
-	Eigen::Matrix3d	Ry;
+	Eigen::Matrix3f	Ry;
 	Ry <<	cos(ry),	0,			sin(ry),
 			0,			1,			0,
 			-sin(ry),	0,			cos(ry);
-	Eigen::Matrix3d Rz;
+	Eigen::Matrix3f Rz;
 	Rz <<	cos(rz),	-sin(rz),	0,
 			sin(rz),	cos(rz),	0,
 			0,			0,			1;
-	std::vector<Eigen::Matrix3d> rotations;
-	rotations.push_back(Rz);
-	rotations.push_back(Ry);
-	rotations.push_back(Rx);
-	return rotations;
+	rotations rot;
+	rot.Rx=Rx;
+	rot.Ry=Ry;
+	rot.Rz=Rz;
+	return rot;
 }
 
 int calchomography(cv::Mat image, double rx, double ry, double rz){
@@ -34,72 +34,103 @@ int calchomography(cv::Mat image, double rx, double ry, double rz){
 
 	int height	= image.size().height;
 	int width	= image.size().width;
-//	(height,width,channels)	= image.shape
-	std::vector<Eigen::Matrix3d> rotations = calcrotationmatrix(rx,ry,rz);
-//	Rt	= Rz*Ry*Rx
-//	Rti	= np.linalg.inv(Rt)
+	int channels= image.channels();
+	rotations rot = calcrotationmatrix(rx,ry,rz);
+	//Rt = Rz*Ry*Rx
+	Eigen::Matrix3f Rt	= rot.Rz*rot.Ry*rot.Rx;
+	Eigen::Matrix3f Rti	= Rt.inverse();
 //	# define 3 points on the virtual image plane
-//	p0 = np.matrix([[0],[0],[0]])
-//	p1 = np.matrix([[1],[0],[0]])
-//	p2 = np.matrix([[0],[1],[0]])
+	Eigen::Vector3f p0, p1, p2, pr0, pr1, pr2;
+	p0 << 0, 0, 0;
+	p1 << 1, 0, 0;
+	p2 << 0, 1, 0;
+	//std::cerr << p0 << "\n";
+	//std::cerr << p1 << "\n";
+	//std::cerr << p2 << "\n";
 //	# preform rotation of points
-//	pr0 = Rt*p0
-//	pr1 = Rt*p1
-//	pr2 = Rt*p2
-//	# find 2 vectors that span the plane:
-//	# pr0 is always <0,0,0>, so the vectors pr1 and pr2 define the plane
-//
-//	# construct the vectors for the view-lines from the optical center to the corners of the virtual image:
-//	# Corner numbering:
-//	# 0-----1
-//	# |		|
-//	# 3-----2
-//	# pixels
-//	# corner [x,y]
-//	cp0	= np.matrix([[0],[0]])
-//	cp1	= np.matrix([[width],[0]])
-//	cp2	= np.matrix([[width],[height]])
-//	cp3	= np.matrix([[0],[height]])
-//	corners_p = [cp0, cp1,cp2,cp3]
+	pr0 = Rt*p0;
+	pr1 = Rt*p1;
+	pr2 = Rt*p2;
+//	Find 2 vectors that span the plane:
+//	pr0 is always <0,0,0>, so the vectors pr1 and pr2 define the plane
+
+//	Construct the vectors for the view-lines from the optical center to the corners of the virtual image:
+//	Corner numbering:
+//	0-------1
+//	|		|
+//	3-------2
+//	pixels
+//	corner [x,y]
+	Eigen::Vector2f cp0, cp1, cp2, cp3;
+	cp0	<< 0,		0;
+	cp1	<< width,	0;
+	cp2	<< width,	height;
+	cp3	<< 0,		height;
+	std::vector<Eigen::Vector2f> corners_p;
+	corners_p.push_back(cp0);
+	corners_p.push_back(cp1);
+	corners_p.push_back(cp2);
+	corners_p.push_back(cp3);
 //	#print corners_p
 //	# meters
-//	f	= 0.3 # [m]
-//	e	= np.matrix([[0],[0],[f]]) # position of eye
+	double	f, wx, hy;
+	f = 0.3;	// [m] Distance of viewer to the screen
+	Eigen::Vector3f	e;
+	e << 0,0,f;			// position of viewer (user)
 //	#print e
-//	wx	= width*pitch	# [m]
-//	hy	= height*pitch	# [m]
-//	c0	= np.matrix([[-wx/2],[+hy/2],[0]])-e # vector from eye to corner 0
-//	c1	= np.matrix([[+wx/2],[+hy/2],[0]])-e # vector from eye to corner 1
-//	c2	= np.matrix([[+wx/2],[-hy/2],[0]])-e # vector from eye to corner 2
-//	c3	= np.matrix([[-wx/2],[-hy/2],[0]])-e # vector from eye to corner 3
-//	cornerlines = [c0,c1,c2,c3]
+	wx	= width*pitch;	// [m]
+	hy	= height*pitch;	// [m]
+	Eigen::Vector3f c0, c1, c2, c3;
+	c0	<< -wx/2,+hy/2,0;// location of corner 0
+	c1	<< +wx/2,+hy/2,0;// location of corner 1
+	c2	<< +wx/2,-hy/2,0;// location of corner 2
+	c3	<< -wx/2,-hy/2,0;// location of corner 3
+	c0 = c0-e;// vector from eye to corner 0
+	c1 = c1-e;// vector from eye to corner 0
+	c2 = c2-e;// vector from eye to corner 0
+	c3 = c3-e;// vector from eye to corner 0
+	std::vector<Eigen::Vector3f> cornerlines;
+	cornerlines.push_back(c0);
+	cornerlines.push_back(c1);
+	cornerlines.push_back(c2);
+	cornerlines.push_back(c3);
 //	#print 'Lines:\n',cornerlines
 //	# For each intersection a linear combination of the vectors spanning the plane exists
 //	# when this combination is found, the exact location of the intersection is known
-//	corners_proj = []
-//	for ic, c in enumerate(cornerlines):
-//		# find the projection of each corner point on the plane
-//		# note: origin is still center of the plane
-//		A	= np.hstack((c,-pr1,-pr2))
-//		Ai	= np.linalg.inv(A)
-//		#print A
-//		#print Ai
-//		#print 'Corner: \n',c
-//		comb = Ai*(-e)
-//		#print comb
-//		intersection = np.hstack((pr1,pr2))*comb[1:]
-//		#print intersection
-//		#print 'Intersection:\n', intersection
-//		# compute x,y coordinates in plane by performing the inverse plane rotation on the point of intersection
-//		coords = Rti*intersection
-//		#print 'Coordinates:\n',coords
-//		x = (coords[0]+wx/2)/pitch
-//		y = -(coords[1]-hy/2)/pitch # change y direction
-//		#print x
-//		#print y
-//		corners_proj.append([float(x),float(y)])
-//		#corners_proj[0,ic]=x
-//		#corners_proj[1,ic]=y
+	std::vector<Eigen::Vector2f> corners_proj;
+	for(int i=0; i<4; i++){
+//		find the projection of each corner point on the plane
+//		note: origin is still center of the plane
+		Eigen::Matrix3f A, Ai;
+		Eigen::Matrix<float,3,2> tmp_mat;
+		Eigen::Vector3f comb, intersection, coords;
+		Eigen::Vector2f tmp_vec, corner;
+		float x, y;
+
+		std::cerr << "Corner: " << cornerlines.at(i) << "\n";
+		A	<< cornerlines.at(i) , -pr1, -pr2;
+		std::cerr << "A: \n" << A <<"\n";
+		Ai		= A.inverse();
+		std::cerr << "Ai: \n" << Ai <<"\n";
+		std::cerr << "e\n" << e <<"\n";
+		comb	= Ai*(-e);
+		std::cerr << "Comb:\n" << comb << "\n";
+		tmp_mat << pr1, pr2;
+		tmp_vec = comb.block<2,1>(1,0);
+		std::cerr << "Comb part:\n" << tmp_vec << "\n";
+		intersection = tmp_mat*tmp_vec;
+		std::cerr << "Intersection:\n" << intersection << "\n";
+//		Compute x,y coordinates in plane by performing the inverse plane rotation on the point of intersection
+		coords = Rti*intersection;
+		std::cerr << "Coordinates:\n" << coords << "\n";
+		// Convert real coordinates into pixed coordinates
+		x = (coords[0]+wx/2)/pitch;
+		y = -(coords[1]-hy/2)/pitch; //# change y direction
+		std::cerr << "x: " << x << "\n";
+		std::cerr << "y: " << y << "\n";
+		corner << x,y;
+		corners_proj.push_back(corner);
+	}
 //
 //	# projected corners is in pixels
 //	#print 'Projected corners:\n',corners_proj
@@ -254,7 +285,7 @@ int main(){
 	cv::imshow(windowname,image);
 	cv::waitKey(100);
 	
-	double	rx = 0.2*PI;
+	double	rx = 0.0*PI;
 	double	ry = 0.0*PI;
 	double	rz = 0.0*PI;
 	

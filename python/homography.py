@@ -44,6 +44,9 @@ def calchomography(image,rx, ry, rz):
 	pr0 = Rt*p0
 	pr1 = Rt*p1
 	pr2 = Rt*p2
+	print pr0
+	print pr1
+	print pr2
 	# find 2 vectors that span the plane:
 	# pr0 is always <0,0,0>, so the vectors pr1 and pr2 define the plane
 
@@ -80,8 +83,8 @@ def calchomography(image,rx, ry, rz):
 		# note: origin is still center of the plane
 		A	= np.hstack((c,-pr1,-pr2))
 		Ai	= np.linalg.inv(A)
-		#print A
-		#print Ai
+		print A
+		print Ai
 		#print 'Corner: \n',c
 		comb = Ai*(-e)
 		#print comb
@@ -246,7 +249,7 @@ def main():
 	cv2.imshow(windowname,image)
 	cv2.waitKey(100)
 	
-	rx = 0.2*math.pi
+	rx = 0.0*math.pi
 	ry = 0.0*math.pi
 	rz = 0.*math.pi
 	
