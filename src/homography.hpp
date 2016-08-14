@@ -6,6 +6,8 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include "paths.hpp"
 #include <math.h>
+#include <chrono>
+#include <ctime>
 // ## Eigen
 #include <Eigen/Dense>
 #include <limits.h> // for max values of datatypes

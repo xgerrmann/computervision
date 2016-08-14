@@ -291,67 +291,65 @@ Eigen::Matrix3f calchomography(cv::Mat image, double rx, double ry, double rz){
 //
 cv::Mat hom3(cv::Mat image, double rx, double ry, double rz){
 // Faster backward homography, mapping by masking and matrix indices method # 0.007 seconds
-//	t = time.time()
+	std::chrono::time_point<std::chrono::system_clock> start, end;
+	start = std::chrono::system_clock::now();
+
 	int height	= image.size().height;
 	int width	= image.size().width;
 	int channels= image.channels();
 	
 	Eigen::Matrix3f H, Hi;
 	H	= calchomography(image,rx,ry,rz);
+	std::cerr << "H:\n" << H << std::endl;
 	Eigen::Vector4i rectangle = box_out(H, width, height);
 	std::cerr <<"Rectangle:\n"<< rectangle << "\n"; // rectangle is xmin, ymin, width, height
 	Hi	= H.inverse();
 	cv::Mat image_out;
 	int xmin_out, ymin_out, xmax_out, ymax_out, width_out, height_out;
 	xmin_out	= rectangle[0];
-	ymin_out	= rectangle[0];
-	width_out	= rectangle[0];
-	height_out	= rectangle[0];
+	ymin_out	= rectangle[1];
+	width_out	= rectangle[2];
+	height_out	= rectangle[3];
 	xmax_out	= xmin_out + width_out;
 	ymax_out	= ymin_out + height_out;
+	std::cerr << "xmin: " << xmin_out << std::endl;
+	std::cerr << "xmax: " << xmax_out << std::endl;
+	std::cerr << "ymin: " << ymin_out << std::endl;
+	std::cerr << "ymax: " << ymax_out << std::endl;
 	// calc mapping
-//	mat A = randu<mat>(4,5);
-//	mat B = randu<mat>(4,5);
-//	std::cerr << A*B.t() << std::endl;
-//	x = range(xmin_out,xmax_out)
-//	y = range(ymin_out,ymax_out)
-//	X, Y = np.meshgrid(x,y)
-//	W = np.ones((height_out,width_out))
-//	O = np.stack((X,Y,W),2)
 // meshgrid implementation from:	https://forum.kde.org/viewtopic.php?f=74&t=90876
-	arma::mat Ht = arma::eye(3,3);
-	std::cerr << "Ht:\n" << Ht << std::endl;
-	width_out = 3;
-	height_out = 3;
-	xmin_out = 0;
-	xmax_out = 2;
-	ymin_out = 0;
-	ymax_out = 2;
-	std::cerr << height_out << "\n" << width_out << std::endl;
+//	arma::mat Ht = arma::eye(3,3);
+//	std::cerr << "Ht:\n" << Ht << std::endl;
+//	width_out = 3;
+//	height_out = 3;
+//	xmin_out = 0;
+//	xmax_out = 2;
+//	ymin_out = 0;
+//	ymax_out = 2;
 	arma::mat x = arma::linspace<arma::rowvec>(xmin_out,xmax_out,width_out);
 	arma::mat X = arma::repmat(x,height_out,1);
-	x.print("x:") ;
-	X.print("X:") ;
+//	x.print("x:") ;
+//	X.print("X:") ;
 	arma::mat y = arma::linspace<arma::colvec>(ymin_out,ymax_out,height_out);
 	arma::mat Y = arma::repmat(y,1,width_out);
-	y.print("y:") ;
-	Y.print("Y:") ;
+//	y.print("y:") ;
+//	Y.print("Y:") ;
 	arma::mat W = arma::ones(height_out,width_out);
-	W.print("W:") ;
+//	W.print("W:") ;
 	arma::cube O = arma::cube(height_out, width_out, 2);
 	O = arma::join_slices(arma::join_slices(X,Y),W);
-	O.print("O:");
+//	O.print("O:");
 //	map_out	= np.einsum('kp,ijp->ijk',Hi,O)
-//	TODO: Hi naar arma type
+//	TODO: Hi naar arma type?
 	arma::cube M = arma::zeros(height_out, width_out, 3);
 	for(int i = 0; i < height_out; i++){
-		for(int j = 0; j < height_out; j++){
-			for(int k = 0; k < height_out; k++){
-				for(int p = 0; p < height_out; p++){
+		for(int j = 0; j < width_out; j++){
+			for(int k = 0; k < 3; k++){
+				for(int p = 0; p < 3; p++){
 					//std::cerr << Hi(k,p) << std::endl;
 					//std::cerr << O(i,j,p) << std::endl;
 					//TODO: vector operation instead of loop for last loop.
-					M(i,j,k) += Ht(k,p)*O(i,j,p);
+					M(i,j,k) += Hi(k,p)*O(i,j,p);
 				}
 			}
 		}
@@ -359,7 +357,7 @@ cv::Mat hom3(cv::Mat image, double rx, double ry, double rz){
 	// Element wise division by scale
 	M.slice(0)	= M.slice(0)/M.slice(2);
 	M.slice(1)	= M.slice(1)/M.slice(2);
-	M.print("M:");
+	//M.print("M:");
 //	map_out			= map_out.astype(int) # mapping must be of integer type because it is used directly for indexing
 //	# construct empty image
 //	image_out = np.zeros((height_out,width_out,channels),dtype=np.uint8)
@@ -371,7 +369,8 @@ cv::Mat hom3(cv::Mat image, double rx, double ry, double rz){
 //	mask_total = np.logical_and(mask_width==1,mask_height==1)
 //	# Use mask to copy values from original image
 //	image_out[mask_total,:] = image[map_out[mask_total,1],map_out[mask_total,0],:]
-//	print 'Hom3: Elapsed time',time.time()-t
+	std::chrono::duration<double> elapsed_seconds = std::chrono::system_clock::now()-start;
+	std::cerr << std::printf ("Hom3: Elapsed time %f",elapsed_seconds.count())<<std::endl;
 	return image_out;
 }
 
@@ -399,6 +398,7 @@ int main(){
 	cv::imshow("Hom3",im3);
 	cv::waitKey(0);
 
+// Python:
 //#	Hom0: Elapsed time 0.00331997871399
 //#	Hom1: Elapsed time 2.2098929882
 //#	Hom2: Elapsed time 0.0985150337219
