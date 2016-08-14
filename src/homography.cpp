@@ -310,22 +310,56 @@ cv::Mat hom3(cv::Mat image, double rx, double ry, double rz){
 	xmax_out	= xmin_out + width_out;
 	ymax_out	= ymin_out + height_out;
 	// calc mapping
-	arma::mat A = arma::randu<arma::mat>(4,5);
-	arma::mat B = arma::randu<arma::mat>(4,5);
-	std::cerr << A*B.t() << std::endl;
 //	mat A = randu<mat>(4,5);
 //	mat B = randu<mat>(4,5);
 //	std::cerr << A*B.t() << std::endl;
-
 //	x = range(xmin_out,xmax_out)
 //	y = range(ymin_out,ymax_out)
 //	X, Y = np.meshgrid(x,y)
 //	W = np.ones((height_out,width_out))
 //	O = np.stack((X,Y,W),2)
+// meshgrid implementation from:	https://forum.kde.org/viewtopic.php?f=74&t=90876
+	arma::mat Ht = arma::eye(3,3);
+	std::cerr << "Ht:\n" << Ht << std::endl;
+	width_out = 3;
+	height_out = 3;
+	xmin_out = 0;
+	xmax_out = 2;
+	ymin_out = 0;
+	ymax_out = 2;
+	std::cerr << height_out << "\n" << width_out << std::endl;
+	arma::mat x = arma::linspace<arma::rowvec>(xmin_out,xmax_out,width_out);
+	arma::mat X = arma::repmat(x,height_out,1);
+	x.print("x:") ;
+	X.print("X:") ;
+	arma::mat y = arma::linspace<arma::colvec>(ymin_out,ymax_out,height_out);
+	arma::mat Y = arma::repmat(y,1,width_out);
+	y.print("y:") ;
+	Y.print("Y:") ;
+	arma::mat W = arma::ones(height_out,width_out);
+	W.print("W:") ;
+	arma::cube O = arma::cube(height_out, width_out, 2);
+	O = arma::join_slices(arma::join_slices(X,Y),W);
+	O.print("O:");
 //	map_out	= np.einsum('kp,ijp->ijk',Hi,O)
-//	
-//	map_out[:,:,1]	= map_out[:,:,1]/map_out[:,:,2]
-//	map_out[:,:,0]	= map_out[:,:,0]/map_out[:,:,2]
+//	TODO: Hi naar arma type
+	arma::cube M = arma::zeros(height_out, width_out, 3);
+	for(int i = 0; i < height_out; i++){
+		for(int j = 0; j < height_out; j++){
+			for(int k = 0; k < height_out; k++){
+				for(int p = 0; p < height_out; p++){
+					//std::cerr << Hi(k,p) << std::endl;
+					//std::cerr << O(i,j,p) << std::endl;
+					//TODO: vector operation instead of loop for last loop.
+					M(i,j,k) += Ht(k,p)*O(i,j,p);
+				}
+			}
+		}
+	}
+	// Element wise division by scale
+	M.slice(0)	= M.slice(0)/M.slice(2);
+	M.slice(1)	= M.slice(1)/M.slice(2);
+	M.print("M:");
 //	map_out			= map_out.astype(int) # mapping must be of integer type because it is used directly for indexing
 //	# construct empty image
 //	image_out = np.zeros((height_out,width_out,channels),dtype=np.uint8)

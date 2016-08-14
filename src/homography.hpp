@@ -12,8 +12,6 @@
 // ## Armadillo
 #include <armadillo>
 
-//using namespace arma; 
-
 typedef struct {
 	Eigen::Matrix3f Rx;
 	Eigen::Matrix3f Ry;
