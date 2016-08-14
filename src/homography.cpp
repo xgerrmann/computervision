@@ -310,6 +310,13 @@ cv::Mat hom3(cv::Mat image, double rx, double ry, double rz){
 	xmax_out	= xmin_out + width_out;
 	ymax_out	= ymin_out + height_out;
 	// calc mapping
+	arma::mat A = arma::randu<arma::mat>(4,5);
+	arma::mat B = arma::randu<arma::mat>(4,5);
+	std::cerr << A*B.t() << std::endl;
+//	mat A = randu<mat>(4,5);
+//	mat B = randu<mat>(4,5);
+//	std::cerr << A*B.t() << std::endl;
+
 //	x = range(xmin_out,xmax_out)
 //	y = range(ymin_out,ymax_out)
 //	X, Y = np.meshgrid(x,y)

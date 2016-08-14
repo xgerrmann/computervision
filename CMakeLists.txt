@@ -7,7 +7,6 @@ cmake_minimum_required(VERSION 2.8.4)
 
 PROJECT(computervision)
 
-include(include/dlib/cmake)
 
 # Tell CMake to compile a program.  We do this with the ADD_EXECUTABLE()
 # statement which takes the name of the output executable and then a list of
@@ -30,8 +29,11 @@ ADD_EXECUTABLE(homography src/homography.cpp)
 ##here we apply our macros
 #add_file(main)
 
+include(include/dlib/cmake)
 include_directories(include/eigen)
-#include_directories(include/lapack)
+#include_directories(include/armadillo/include)
+find_package(Armadillo REQUIRED)
+include_directories(${ARMADILLO_INCLUDE_DIRS})
 
 # BLAS
 #find_package(BLAS REQUIRED)
@@ -43,8 +45,10 @@ include_directories(include/eigen)
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
+
+# Linking
 TARGET_LINK_LIBRARIES(main dlib ${OpenCV_LIBS})
-TARGET_LINK_LIBRARIES(homography ${OpenCV_LIBS})
+TARGET_LINK_LIBRARIES(homography ${OpenCV_LIBS} ${ARMADILLO_LIBRARIES})
 
 ##set(LAPACK_LIBDIRS "/usr/lib/liblapack")
 ##set(LAPACK_LIBRARIES lapack)
