@@ -9,6 +9,7 @@
 // ## Eigen
 #include <Eigen/Dense>
 #include <limits.h> // for max values of datatypes
+// #include <armadillo>
 typedef struct {
 	Eigen::Matrix3f Rx;
 	Eigen::Matrix3f Ry;

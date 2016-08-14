@@ -31,15 +31,30 @@ ADD_EXECUTABLE(homography src/homography.cpp)
 #add_file(main)
 
 include_directories(include/eigen)
+#include_directories(include/lapack)
 
-find_package(OpenCV QUIET)
-if (OpenCV_FOUND)
-	include_directories(${OpenCV_INCLUDE_DIRS})
-	message("OpenCV found :)")
+# BLAS
+#find_package(BLAS REQUIRED)
+#include_directories(${BLAS_INCLUDE_DIRS})
+# LAPACK
+#find_package(LAPACK REQUIRED)
+#include_directories(${LAPACK_INCLUDE_DIRS})
+# OPENCV
+find_package(OpenCV REQUIRED)
+include_directories(${OpenCV_INCLUDE_DIRS})
+
+TARGET_LINK_LIBRARIES(main dlib ${OpenCV_LIBS})
+TARGET_LINK_LIBRARIES(homography ${OpenCV_LIBS})
+
+##set(LAPACK_LIBDIRS "/usr/lib/liblapack")
+##set(LAPACK_LIBRARIES lapack)
 #
-#   ADD_EXECUTABLE(webcam_face_pose_ex webcam_face_pose_ex.cpp)
-	TARGET_LINK_LIBRARIES(main dlib ${OpenCV_LIBS})
-	TARGET_LINK_LIBRARIES(homography ${OpenCV_LIBS})
-else()
-	message("OpenCV NOT found :(")
-endif()
+#if (OpenCV_FOUND)
+#	include_directories(${OpenCV_INCLUDE_DIRS})
+##   ADD_EXECUTABLE(webcam_face_pose_ex webcam_face_pose_ex.cpp)
+#	TARGET_LINK_LIBRARIES(main dlib ${OpenCV_LIBS})
+#	TARGET_LINK_LIBRARIES(homography ${OpenCV_LIBS})
+#	TARGET_LINK_LIBRARIES(homography ${LAPACK_LIBS})
+#else()
+#	message("OpenCV NOT found :(")
+#endif()
