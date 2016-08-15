@@ -50,9 +50,9 @@ Eigen::Vector4i box_out(Eigen::Matrix3f H, int width, int height){
 		w = 1;
 		Eigen::Vector3f corner_original, corner_new;
 		corner_original << x,y,w;
-		std::cerr << "Corner_original:\n" << corner_original << "\n";
+		//std::cerr << "Corner_original:\n" << corner_original << "\n";
 		corner_new = H*corner_original;
-		std::cerr << "Corner_new:\n" << corner_new << "\n";
+		//std::cerr << "Corner_new:\n" << corner_new << "\n";
 		//std::cerr << "Corner_new:\n" << corner_new.block<2,1>(0,0) << "\n";
 		corners_proj.push_back(corner_new.block<2,1>(0,0));
 	}
@@ -77,10 +77,10 @@ Eigen::Vector4i box_out(Eigen::Matrix3f H, int width, int height){
 		if(int(round(ytmp)) > ymax_out)
 			ymax_out = int(round(ytmp));
 	}
-	std::cerr << "xmin: \t" << xmin_out << "\n";
-	std::cerr << "xmax: \t" << xmax_out << "\n";
-	std::cerr << "ymin: \t" << ymin_out << "\n";
-	std::cerr << "ymax: \t" << ymax_out << "\n";
+//	std::cerr << "xmin: \t" << xmin_out << "\n";
+//	std::cerr << "xmax: \t" << xmax_out << "\n";
+//	std::cerr << "ymin: \t" << ymin_out << "\n";
+//	std::cerr << "ymax: \t" << ymax_out << "\n";
 	int height_out, width_out;
 	height_out	= ymax_out - ymin_out;
 	width_out	= xmax_out - xmin_out;
@@ -129,9 +129,9 @@ Eigen::Matrix3f calchomography(cv::Mat image, float rx, float ry, float rz){
 //	corner [x,y]
 	Eigen::Vector2f cp0, cp1, cp2, cp3;
 	cp0	<< 0.0,				0.0;
-	cp1	<< float(width),	0.0;
-	cp2	<< float(width),	float(height);
-	cp3	<< float(0),		float(height);
+	cp1	<< float(width-1),	0.0;			// -1 because zeros based
+	cp2	<< float(width-1),	float(height-1);// -1 because zeros based
+	cp3	<< float(0),		float(height-1);// -1 because zeros based
 	std::vector<Eigen::Vector2f> corners_p;
 	corners_p.push_back(cp0);
 	corners_p.push_back(cp1);
@@ -260,8 +260,9 @@ cv::Mat hom3(cv::Mat image, float rx, float ry, float rz){
 	//		0,0,1;
 	std::cerr << "H:\n" << H << std::endl;
 	Eigen::Vector4i rectangle = box_out(H, width, height);
-	std::cerr <<"Rectangle:\n"<< rectangle << "\n"; // rectangle is xmin, ymin, width, height
-	Hi	= H.inverse();
+//	std::cerr <<"Rectangle:\n"<< rectangle << "\n"; // rectangle is xmin, ymin, width, height
+	Hi	= H.inverse(); // correct
+	std::cerr << "Hi:\n" << Hi << std::endl;
 	int xmin_out, ymin_out, xmax_out, ymax_out, width_out, height_out;
 	xmin_out	= rectangle[0];
 	ymin_out	= rectangle[1];
@@ -277,28 +278,29 @@ cv::Mat hom3(cv::Mat image, float rx, float ry, float rz){
 // meshgrid implementation from:	https://forum.kde.org/viewtopic.php?f=74&t=90876
 //	arma::mat Ht = arma::eye(3,3);
 //	std::cerr << "Ht:\n" << Ht << std::endl;
-//	width_out = width;
-//	height_out = height;
-//	xmin_out = 0;
-//	xmax_out = width-1;
-//	ymin_out = 0;
-//	ymax_out = height-1;
+//	width_out	= 2;
+//	height_out	= 2;
+//	xmin_out	= 0;
+//	xmax_out	= width_out-1;
+//	ymin_out	= 0;
+//	ymax_out	= height_out-1;
 	arma::Mat<int> x = arma::linspace<arma::Row<int>>(xmin_out,xmax_out,width_out);
 	arma::Mat<int> X = arma::repmat(x,height_out,1);
-//	x.print("x:") ;
+	x.print("x:") ;
 //	X.print("X:") ;
 	arma::Mat<int> y = arma::linspace<arma::Col<int>>(ymin_out,ymax_out,height_out);
 	arma::Mat<int> Y = arma::repmat(y,1,width_out);
-//	y.print("y:") ;
+	y.print("y:") ;
 //	Y.print("Y:") ;
 	arma::Mat<int> W = arma::ones<arma::Mat<int>>(height_out,width_out);
 //	W.print("W:") ;
 	arma::Cube<int> O = arma::Cube<int>(height_out, width_out, 2);
 	O = arma::join_slices(arma::join_slices(X,Y),W);
-//	O.print("O:");
+//	O.print("O:");// Matrix seems to be correct
 //	map_out	= np.einsum('kp,ijp->ijk',Hi,O)
 //	TODO: Hi naar arma type?
-	arma::cube M = arma::zeros(height_out, width_out, 3);
+	arma::Cube<float> M = arma::zeros<arma::Cube<float>>(height_out, width_out, 3);
+	//M.print("M:");
 	for(int i = 0; i < height_out; i++){
 		for(int j = 0; j < width_out; j++){
 			for(int k = 0; k < 3; k++){
@@ -306,7 +308,7 @@ cv::Mat hom3(cv::Mat image, float rx, float ry, float rz){
 					//std::cerr << Hi(k,p) << std::endl;
 					//std::cerr << O(i,j,p) << std::endl;
 					//TODO: vector operation instead of loop for last loop.
-					M(i,j,k) += Hi(k,p)*O(i,j,p);
+					M(i,j,k) += Hi(k,p)*float(O(i,j,p));
 					//M(i,j,k) += Ht(k,p)*O(i,j,p);
 				}
 			}
@@ -315,9 +317,9 @@ cv::Mat hom3(cv::Mat image, float rx, float ry, float rz){
 	// Element wise division by scale
 	M.slice(0)	= M.slice(0)/M.slice(2);
 	M.slice(1)	= M.slice(1)/M.slice(2);
-	//M.print("M:");
+	M.slice(1).print("M:");
 	arma::Cube<int> Mi = arma::conv_to<arma::Cube<int>>::from(M); // mapping must be of integer type because it is used directly for indexing
-	//Mi.print("Mi:");
+	Mi.slice(1).print("Mi:");
 //	# construct empty image
 	arma::Cube<uchar> image_out_arma = arma::zeros<arma::Cube<uchar>>(height_out,width_out,channels);
 //	// image is Mat opencv_mat;    //opencv's mat, already transposed.
