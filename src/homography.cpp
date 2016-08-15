@@ -250,33 +250,33 @@ cv::Mat hom3(cv::Mat image, double rx, double ry, double rz){
 	ymin_out	= rectangle[1];
 	width_out	= rectangle[2];
 	height_out	= rectangle[3];
-	xmax_out	= xmin_out + width_out;
-	ymax_out	= ymin_out + height_out;
+	xmax_out	= xmin_out + width_out-1; // zero based, thus -1
+	ymax_out	= ymin_out + height_out-1;// zero based, thus -1
 	std::cerr << "xmin: " << xmin_out << std::endl;
 	std::cerr << "xmax: " << xmax_out << std::endl;
 	std::cerr << "ymin: " << ymin_out << std::endl;
 	std::cerr << "ymax: " << ymax_out << std::endl;
 	// calc mapping
 // meshgrid implementation from:	https://forum.kde.org/viewtopic.php?f=74&t=90876
-//	arma::mat Ht = arma::eye(3,3);
-//	std::cerr << "Ht:\n" << Ht << std::endl;
+	arma::mat Ht = arma::eye(3,3);
+	std::cerr << "Ht:\n" << Ht << std::endl;
 //	width_out = 3;
 //	height_out = 3;
 //	xmin_out = 0;
 //	xmax_out = 2;
 //	ymin_out = 0;
 //	ymax_out = 2;
-	arma::mat x = arma::linspace<arma::rowvec>(xmin_out,xmax_out,width_out);
-	arma::mat X = arma::repmat(x,height_out,1);
-//	x.print("x:") ;
+	arma::Mat<int> x = arma::linspace<arma::Row<int>>(xmin_out,xmax_out,width_out);
+	arma::Mat<int> X = arma::repmat(x,height_out,1);
+	x.print("x:") ;
 //	X.print("X:") ;
-	arma::mat y = arma::linspace<arma::colvec>(ymin_out,ymax_out,height_out);
-	arma::mat Y = arma::repmat(y,1,width_out);
-//	y.print("y:") ;
+	arma::Mat<int> y = arma::linspace<arma::Col<int>>(ymin_out,ymax_out,height_out);
+	arma::Mat<int> Y = arma::repmat(y,1,width_out);
+	y.print("y:") ;
 //	Y.print("Y:") ;
-	arma::mat W = arma::ones(height_out,width_out);
+	arma::Mat<int> W = arma::ones<arma::Mat<int>>(height_out,width_out);
 //	W.print("W:") ;
-	arma::cube O = arma::cube(height_out, width_out, 2);
+	arma::Cube<int> O = arma::Cube<int>(height_out, width_out, 2);
 	O = arma::join_slices(arma::join_slices(X,Y),W);
 //	O.print("O:");
 //	map_out	= np.einsum('kp,ijp->ijk',Hi,O)
@@ -289,7 +289,8 @@ cv::Mat hom3(cv::Mat image, double rx, double ry, double rz){
 					//std::cerr << Hi(k,p) << std::endl;
 					//std::cerr << O(i,j,p) << std::endl;
 					//TODO: vector operation instead of loop for last loop.
-					M(i,j,k) += Hi(k,p)*O(i,j,p);
+					//M(i,j,k) += Hi(k,p)*O(i,j,p);
+					M(i,j,k) += Ht(k,p)*O(i,j,p);
 				}
 			}
 		}
@@ -302,24 +303,21 @@ cv::Mat hom3(cv::Mat image, double rx, double ry, double rz){
 	//Mi.print("Mi:");
 //	# construct empty image
 	arma::Cube<uchar> image_out_arma = arma::zeros<arma::Cube<uchar>>(height_out,width_out,channels);
-//	# make conditional mask for the width and height (not larger than max image width and height)
-	//arma::Mat<int> mask_width	= Mi.slice(0).for_each([width_out](int& X){if(X>=0&&X<=width_out){X=1;}else{X=0;}});
-	//arma::Mat<int> mask_width	= Mi.slice(0).for_each([width_out](int& X){if(X>=0&&X<=width_out){X=1;}else{X=0;}});
-////	# combine mask
-//	arma::Mat<int> mask_total	= mask_width % mask_height; // % is the schur product: elementwise multiplication
-////	# Use mask to copy values from original image
 //	// image is Mat opencv_mat;    //opencv's mat, already transposed.
 //	// opencv mat to arma cube, copying is true by default
 	std::cerr << "cv -> arma" << std::endl;
 	//std::cerr << image << std::endl;
 	std::cerr << "Image type:" << image.type() << std::endl;
+	// cv::mat to arma
 	arma::Cube<uchar> image_arma( image.ptr(), image.rows, image.cols , image.channels());
+	// arma to cv::mat
+	cv::Mat image_test( height_out, width_out, CV_8UC3, image_arma.memptr());
+	// show result
+	cv::imshow("Back",image_test);
+	// So data cast is correct.
 	//image_arma.print("image_arma:");
 	std::cerr << "cv -> arma finished" << std::endl;
 	std::cerr << size(image_arma) << std::endl;
-////	image_arma.slice(0)(mask_total).print("masked image");
-//	image_outt.slice(0)(mask_total) = image_arma.slice(0)(mask_total)
-////	image_out[mask_total,:] = image[map_out[mask_total,1],map_out[mask_total,0],:]
 	int xtmp,ytmp;
 	std::cerr << width << std::endl;
 	std::cerr << height << std::endl;
@@ -330,8 +328,8 @@ cv::Mat hom3(cv::Mat image, double rx, double ry, double rz){
 			if(xtmp<0 || xtmp >= width || ytmp<0 || ytmp>=height){
 				continue;
 			}
-			std::cerr<<xtmp<<"->"<<w<<std::endl;
-			std::cerr<<ytmp<<"->"<<h<<std::endl;
+			//std::cerr<<"x:"<<xtmp<<"->"<<w<<std::endl;
+			//std::cerr<<"y:"<<ytmp<<"->"<<h<<std::endl;
 			image_out_arma(h,w,0) = image_arma(ytmp,xtmp,0);
 			image_out_arma(h,w,1) = image_arma(ytmp,xtmp,1);
 			image_out_arma(h,w,2) = image_arma(ytmp,xtmp,2);
@@ -356,7 +354,7 @@ int main(){
 	
 	double	rx = 0.0*PI;
 	double	ry = 0.0*PI;
-	double	rz = 0.001*PI;
+	double	rz = 0.0001*PI;
 	
 	//im0 = hom0(image,rx,ry,rz)
 	//im1 = hom1(image,rx,ry,rz)
