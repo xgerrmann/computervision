@@ -226,69 +226,10 @@ Eigen::Matrix3f calchomography(cv::Mat image, double rx, double ry, double rz){
 	H << Htmp; // first down, then right. Therefore needs to be transposed later.
 	H.block<1,1>(2,2) << 1;
 	H = H.transpose();
-	//std::cerr << "H:\n" << H << "\n";
+	std::cerr << "H:\n" << H << "\n";
 	return H;
 }
-//
-//def hom0(image,rx,ry,rz):
-//## CV2 proprietary method # 0.003 seconds
-//	(H,Hi,height_out,width_out,xmin_out,xmax_out, ymin_out,ymax_out) = calchomography(image,rx,ry,rz)
-//	t = time.time()
-//	(height, width, channels) = image.shape
-//	image_out	= cv2.warpPerspective(image,H,(width,height))
-//	print 'Hom0: Elapsed time',time.time()-t
-//	return image_out
-//
-//def hom1(image,rx,ry,rz):
-//# Own Loop backward homography # 2.06 seconds
-//	t = time.time()
-//	(H,Hi,height_out,width_out,xmin_out,xmax_out, ymin_out,ymax_out) = calchomography(image,rx,ry,rz)
-//	(height, width, channels) = image.shape
-//	image_out = np.zeros((height_out,width_out,channels),dtype=np.uint8)
-//	for h in range(ymin_out,ymax_out):
-//		for w in range(xmin_out,xmax_out):
-//			tmp = np.matrix([[w],[h],[1]])
-//			res = Hi*tmp
-//			scale	= res[2]
-//			xtmp	= int(res[0]/scale)
-//			ytmp	= int(res[1]/scale)
-//			if xtmp<0 or xtmp>=width or ytmp<0 or ytmp>=height:
-//				continue
-//			else:
-//				#print 'y: %+5d -> %+5d'%(ytmp,h)
-//				#print 'x: %+5d -> %+5d'%(xtmp,w)
-//				#print image[ytmp,xtmp,:]
-//				image_out[h-ymin_out,w-xmin_out,:] = image[ytmp,xtmp,:]
-//				#print image_out[h,w,:]
-//				#print image[ytmp,xtmp,:]
-//	print 'Hom1: Elapsed time',time.time()-t
-//	return image_out
-//
-//def hom2(image,rx,ry,rz):
-//## Faster backward homography # 0.106 seconds
-//	t = time.time()
-//	(H,Hi,height_out,width_out,xmin_out,xmax_out, ymin_out,ymax_out) = calchomography(image,rx,ry,rz)
-//	(height, width, channels) = image.shape
-//	# calc mapping
-//	x = range(xmin_out,xmax_out)
-//	y = range(ymin_out,ymax_out)
-//	X, Y = np.meshgrid(x,y)
-//	W = np.ones((height_out,width_out))
-//	O = np.stack((X,Y,W),2)
-//	map_out	= np.einsum('kp,ijp->ijk',Hi,O)
-//	# perform mapping
-//	image_out = np.zeros((height_out,width_out,channels),dtype=np.uint8)
-//	for h in range(height_out):
-//		for w in range(width_out):
-//				scale = map_out[h,w,2]
-//				x = int(round(map_out[h,w,0]/scale))
-//				y = int(round(map_out[h,w,1]/scale))
-//				if x<0 or x>=width or y<0 or y>=height:
-//					continue
-//				image_out[h,w,:] = image[y,x,:]
-//	print 'Hom2: Elapsed time',time.time()-t
-//	return image_out
-//
+
 cv::Mat hom3(cv::Mat image, double rx, double ry, double rz){
 // Faster backward homography, mapping by masking and matrix indices method # 0.007 seconds
 	std::chrono::time_point<std::chrono::system_clock> start, end;
@@ -304,7 +245,6 @@ cv::Mat hom3(cv::Mat image, double rx, double ry, double rz){
 	Eigen::Vector4i rectangle = box_out(H, width, height);
 	std::cerr <<"Rectangle:\n"<< rectangle << "\n"; // rectangle is xmin, ymin, width, height
 	Hi	= H.inverse();
-	cv::Mat image_out;
 	int xmin_out, ymin_out, xmax_out, ymax_out, width_out, height_out;
 	xmin_out	= rectangle[0];
 	ymin_out	= rectangle[1];
@@ -358,17 +298,49 @@ cv::Mat hom3(cv::Mat image, double rx, double ry, double rz){
 	M.slice(0)	= M.slice(0)/M.slice(2);
 	M.slice(1)	= M.slice(1)/M.slice(2);
 	//M.print("M:");
-//	map_out			= map_out.astype(int) # mapping must be of integer type because it is used directly for indexing
+	arma::Cube<int> Mi = arma::conv_to<arma::Cube<int>>::from(M); // mapping must be of integer type because it is used directly for indexing
+	//Mi.print("Mi:");
 //	# construct empty image
-//	image_out = np.zeros((height_out,width_out,channels),dtype=np.uint8)
-//	# make conditional mask for the width (not larger than max image width)
-//	mask_width = np.logical_and(map_out[:,:,0] < width,map_out[:,:,0]>=0)
-//	# make conditional mask for the width (not larger than max image height)
-//	mask_height = np.logical_and(map_out[:,:,1]>=0,map_out[:,:,1]<height)
-//	# combine masks
-//	mask_total = np.logical_and(mask_width==1,mask_height==1)
-//	# Use mask to copy values from original image
-//	image_out[mask_total,:] = image[map_out[mask_total,1],map_out[mask_total,0],:]
+	arma::Cube<uchar> image_out_arma = arma::zeros<arma::Cube<uchar>>(height_out,width_out,channels);
+//	# make conditional mask for the width and height (not larger than max image width and height)
+	//arma::Mat<int> mask_width	= Mi.slice(0).for_each([width_out](int& X){if(X>=0&&X<=width_out){X=1;}else{X=0;}});
+	//arma::Mat<int> mask_width	= Mi.slice(0).for_each([width_out](int& X){if(X>=0&&X<=width_out){X=1;}else{X=0;}});
+////	# combine mask
+//	arma::Mat<int> mask_total	= mask_width % mask_height; // % is the schur product: elementwise multiplication
+////	# Use mask to copy values from original image
+//	// image is Mat opencv_mat;    //opencv's mat, already transposed.
+//	// opencv mat to arma cube, copying is true by default
+	std::cerr << "cv -> arma" << std::endl;
+	//std::cerr << image << std::endl;
+	std::cerr << "Image type:" << image.type() << std::endl;
+	arma::Cube<uchar> image_arma( image.ptr(), image.rows, image.cols , image.channels());
+	//image_arma.print("image_arma:");
+	std::cerr << "cv -> arma finished" << std::endl;
+	std::cerr << size(image_arma) << std::endl;
+////	image_arma.slice(0)(mask_total).print("masked image");
+//	image_outt.slice(0)(mask_total) = image_arma.slice(0)(mask_total)
+////	image_out[mask_total,:] = image[map_out[mask_total,1],map_out[mask_total,0],:]
+	int xtmp,ytmp;
+	std::cerr << width << std::endl;
+	std::cerr << height << std::endl;
+	for(int h = 0; h<height_out; h++){
+		for(int w = 0; w<width_out; w++){
+			xtmp = Mi(h,w,0);
+			ytmp = Mi(h,w,1);
+			if(xtmp<0 || xtmp >= width || ytmp<0 || ytmp>=height){
+				continue;
+			}
+			std::cerr<<xtmp<<"->"<<w<<std::endl;
+			std::cerr<<ytmp<<"->"<<h<<std::endl;
+			image_out_arma(h,w,0) = image_arma(ytmp,xtmp,0);
+			image_out_arma(h,w,1) = image_arma(ytmp,xtmp,1);
+			image_out_arma(h,w,2) = image_arma(ytmp,xtmp,2);
+		}
+	}
+	cv::Mat image_out( height_out, width_out, CV_8UC3, image_out_arma.memptr());
+	//cv::Mat image_out( height_out, width_out, CV_8UC3, CV_RGB(1,1,1));
+	//std::cerr << image_out << std::endl;
+	//std::cerr << image_out.rows << ", " << image_out.cols << ", " << image_out.channels() << std::endl;
 	std::chrono::duration<double> elapsed_seconds = std::chrono::system_clock::now()-start;
 	std::cerr << std::printf ("Hom3: Elapsed time %f",elapsed_seconds.count())<<std::endl;
 	return image_out;
@@ -384,7 +356,7 @@ int main(){
 	
 	double	rx = 0.0*PI;
 	double	ry = 0.0*PI;
-	double	rz = 0.0*PI;
+	double	rz = 0.001*PI;
 	
 	//im0 = hom0(image,rx,ry,rz)
 	//im1 = hom1(image,rx,ry,rz)
