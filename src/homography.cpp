@@ -2,25 +2,24 @@
 // script to test and perform homographies on an example image
 // script based on: http://math.stackexchange.com/questions/494238/how-to-compute-homography-matrix-h-from-corresponding-points-2d-2d-planar-homog/1886060#1886060
 
-rotations calcrotationmatrix(double rx, double ry, double rz){
+rotations calcrotationmatrix(float rx, float ry, float rz){
 //	source: http://nghiaho.com/?page_id=846
 //	source: https://en.wikipedia.org/wiki/3D_projection (uses negative angles?)
-	rx = -rx;
-	ry = -ry;
-	rz = -rz;
-
+//	Results of rotation matrices are consistent with python script
+	std::cerr<<"rz: "<<rz<<std::endl;
 	Eigen::Matrix3f Rx;
 	Rx <<	1.0,		0.0,		0.0,
 			0.0,		cos(rx),	-sin(rx),
 			0.0,		sin(rx),	cos(rx);
 	Eigen::Matrix3f	Ry;
-	Ry <<	cos(ry),	0,			sin(ry),
-			0,			1,			0,
-			-sin(ry),	0,			cos(ry);
+	Ry <<	cos(ry),	0.0,		sin(ry),
+			0.0,		1.0,		0.0,
+			-sin(ry),	0.0,		cos(ry);
 	Eigen::Matrix3f Rz;
-	Rz <<	cos(rz),	-sin(rz),	0,
-			sin(rz),	cos(rz),	0,
-			0,			0,			1;
+	Rz <<	cos(rz),	-sin(rz),	0.0,
+			sin(rz),	cos(rz),	0.0,
+			0.0,		0.0,		1.0;
+	std::cerr<<"Rz:\n"<<Rz<<std::endl;
 //	std::cerr << "Rx:\n"<< Rx<<"\n";
 //	std::cerr << "Ry:\n"<< Ry<<"\n";
 //	std::cerr << "Rz:\n"<< Rz<<"\n";
@@ -51,9 +50,9 @@ Eigen::Vector4i box_out(Eigen::Matrix3f H, int width, int height){
 		w = 1;
 		Eigen::Vector3f corner_original, corner_new;
 		corner_original << x,y,w;
-		//std::cerr << "Corner_original:\n" << corner_original << "\n";
+		std::cerr << "Corner_original:\n" << corner_original << "\n";
 		corner_new = H*corner_original;
-		//std::cerr << "Corner_new:\n" << corner_new << "\n";
+		std::cerr << "Corner_new:\n" << corner_new << "\n";
 		//std::cerr << "Corner_new:\n" << corner_new.block<2,1>(0,0) << "\n";
 		corners_proj.push_back(corner_new.block<2,1>(0,0));
 	}
@@ -78,10 +77,10 @@ Eigen::Vector4i box_out(Eigen::Matrix3f H, int width, int height){
 		if(int(round(ytmp)) > ymax_out)
 			ymax_out = int(round(ytmp));
 	}
-//	std::cerr << "xmin: \t" << xmin_out << "\n";
-//	std::cerr << "xmax: \t" << xmax_out << "\n";
-//	std::cerr << "ymin: \t" << ymin_out << "\n";
-//	std::cerr << "ymax: \t" << ymax_out << "\n";
+	std::cerr << "xmin: \t" << xmin_out << "\n";
+	std::cerr << "xmax: \t" << xmax_out << "\n";
+	std::cerr << "ymin: \t" << ymin_out << "\n";
+	std::cerr << "ymax: \t" << ymax_out << "\n";
 	int height_out, width_out;
 	height_out	= ymax_out - ymin_out;
 	width_out	= xmax_out - xmin_out;
@@ -94,8 +93,8 @@ Eigen::Vector4i box_out(Eigen::Matrix3f H, int width, int height){
 	return rectangle; // xmin, ymin, width, height
 }
 
-Eigen::Matrix3f calchomography(cv::Mat image, double rx, double ry, double rz){
-	double pitch = 0.2625*(std::pow(10.0,-3.0)); // [m] pixel pitch (pixel size) assume square pixels, which is generally true
+Eigen::Matrix3f calchomography(cv::Mat image, float rx, float ry, float rz){
+	float pitch = 0.2625*(std::pow(10.0,-3.0)); // [m] pixel pitch (pixel size) assume square pixels, which is generally true
 	printf("Pitch: %.6f\n",pitch);
 
 	int height	= image.size().height;
@@ -104,12 +103,13 @@ Eigen::Matrix3f calchomography(cv::Mat image, double rx, double ry, double rz){
 	rotations rot = calcrotationmatrix(rx,ry,rz);
 	//Rt = Rz*Ry*Rx
 	Eigen::Matrix3f Rt	= rot.Rz*rot.Ry*rot.Rx;
+	std::cerr<<"Rt:\n"<<Rt<<std::endl;
 	Eigen::Matrix3f Rti	= Rt.inverse();
 //	# define 3 points on the virtual image plane
 	Eigen::Vector3f p0, p1, p2, pr0, pr1, pr2;
-	p0 << 0, 0, 0;
-	p1 << 1, 0, 0;
-	p2 << 0, 1, 0;
+	p0 << 0.0, 0.0, 0.0;
+	p1 << 1.0, 0.0, 0.0;
+	p2 << 0.0, 1.0, 0.0;
 	//std::cerr << p0 << "\n";
 	//std::cerr << p1 << "\n";
 	//std::cerr << p2 << "\n";
@@ -128,10 +128,10 @@ Eigen::Matrix3f calchomography(cv::Mat image, double rx, double ry, double rz){
 //	pixels
 //	corner [x,y]
 	Eigen::Vector2f cp0, cp1, cp2, cp3;
-	cp0	<< 0,		0;
-	cp1	<< width,	0;
-	cp2	<< width,	height;
-	cp3	<< 0,		height;
+	cp0	<< 0.0,				0.0;
+	cp1	<< float(width),	0.0;
+	cp2	<< float(width),	float(height);
+	cp3	<< float(0),		float(height);
 	std::vector<Eigen::Vector2f> corners_p;
 	corners_p.push_back(cp0);
 	corners_p.push_back(cp1);
@@ -139,13 +139,13 @@ Eigen::Matrix3f calchomography(cv::Mat image, double rx, double ry, double rz){
 	corners_p.push_back(cp3);
 //	#print corners_p
 //	# meters
-	double	f, wx, hy;
+	float	f, wx, hy;
 	f = 0.3;	// [m] Distance of viewer to the screen
 	Eigen::Vector3f	e;
-	e << 0,0,f;			// position of viewer (user)
+	e << 0.0,0.0,f;			// position of viewer (user)
 //	#print e
-	wx	= width*pitch;	// [m]
-	hy	= height*pitch;	// [m]
+	wx	= float(width)*pitch;	// [m]
+	hy	= float(height)*pitch;	// [m]
 	Eigen::Vector3f c0, c1, c2, c3;
 	c0	<< -wx/2,+hy/2,0;// location of corner 0
 	c1	<< +wx/2,+hy/2,0;// location of corner 1
@@ -213,24 +213,38 @@ Eigen::Matrix3f calchomography(cv::Mat image, double rx, double ry, double rz){
 		//std::cerr << "yA: " << yA <<", yB: " << yB << "\n";
 		M1.row(i*2)		<< xA,yA,1,0,0,0,-xA*xB,-yA*xB;
 		M1.row(i*2+1)	<< 0,0,0,xA,yA,1,-xA*yB,-yA*yB;
-		M2.row(i*2) << xB;
-		M2.row(i*2+1) << yB;
+		M2.row(i*2)		<< xB;
+		M2.row(i*2+1)	<< yB;
 	}
 	//std::cerr << "M1:\n" << M1 <<"\n";
 	//std::cerr << "M2:\n" << M2 <<"\n";
-	Eigen::Matrix<float,8,1> Htmp;
+	Eigen::Matrix<float,8,1> Htmp; // column vector with 8 elements
 	Eigen::Matrix3f H;
 	Htmp = (M1.transpose()*M1).inverse()*(M1.transpose()*M2);
-	//std::cerr << "Htmp:\n" << Htmp << "\n";
+	std::cerr << "Htmp:\n" << Htmp << "\n";
 	// TODO: maybe not transpose?
-	H << Htmp; // first down, then right. Therefore needs to be transposed later.
-	H.block<1,1>(2,2) << 1;
-	H = H.transpose();
+	H << Htmp; // Fill H with Htmp. First down, then right. Therefore needs to be transposed later.
 	std::cerr << "H:\n" << H << "\n";
+	H.block<1,1>(2,2) << 1.0;
+	std::cerr << "H:\n" << H << "\n";
+	H.transposeInPlace(); // in place transposition to avoid aliasing
+	std::cerr << "H:\n" << H << "\n";
+	// H is calculated correct and results correspond with python script
 	return H;
 }
 
-cv::Mat hom3(cv::Mat image, double rx, double ry, double rz){
+//int ut_calchomography(cv::Mat image, double rx,double ry,double rz){
+//	H	= calchomography(image,rx,ry,rz);
+//	width_out	= 3;
+//	height_out	= 3;
+//	xmin_out	= 0;
+//	xmax_out	= 2;
+//	ymin_out	= 0;
+//	ymax_out	= 2;
+//// linspace etc
+//}
+
+cv::Mat hom3(cv::Mat image, float rx, float ry, float rz){
 // Faster backward homography, mapping by masking and matrix indices method # 0.007 seconds
 	std::chrono::time_point<std::chrono::system_clock> start, end;
 	start = std::chrono::system_clock::now();
@@ -241,6 +255,9 @@ cv::Mat hom3(cv::Mat image, double rx, double ry, double rz){
 	
 	Eigen::Matrix3f H, Hi;
 	H	= calchomography(image,rx,ry,rz);
+	//H	<<	1,0,0,
+	//		0,1,0,
+	//		0,0,1;
 	std::cerr << "H:\n" << H << std::endl;
 	Eigen::Vector4i rectangle = box_out(H, width, height);
 	std::cerr <<"Rectangle:\n"<< rectangle << "\n"; // rectangle is xmin, ymin, width, height
@@ -258,21 +275,21 @@ cv::Mat hom3(cv::Mat image, double rx, double ry, double rz){
 	std::cerr << "ymax: " << ymax_out << std::endl;
 	// calc mapping
 // meshgrid implementation from:	https://forum.kde.org/viewtopic.php?f=74&t=90876
-	arma::mat Ht = arma::eye(3,3);
-	std::cerr << "Ht:\n" << Ht << std::endl;
-//	width_out = 3;
-//	height_out = 3;
+//	arma::mat Ht = arma::eye(3,3);
+//	std::cerr << "Ht:\n" << Ht << std::endl;
+//	width_out = width;
+//	height_out = height;
 //	xmin_out = 0;
-//	xmax_out = 2;
+//	xmax_out = width-1;
 //	ymin_out = 0;
-//	ymax_out = 2;
+//	ymax_out = height-1;
 	arma::Mat<int> x = arma::linspace<arma::Row<int>>(xmin_out,xmax_out,width_out);
 	arma::Mat<int> X = arma::repmat(x,height_out,1);
-	x.print("x:") ;
+//	x.print("x:") ;
 //	X.print("X:") ;
 	arma::Mat<int> y = arma::linspace<arma::Col<int>>(ymin_out,ymax_out,height_out);
 	arma::Mat<int> Y = arma::repmat(y,1,width_out);
-	y.print("y:") ;
+//	y.print("y:") ;
 //	Y.print("Y:") ;
 	arma::Mat<int> W = arma::ones<arma::Mat<int>>(height_out,width_out);
 //	W.print("W:") ;
@@ -289,8 +306,8 @@ cv::Mat hom3(cv::Mat image, double rx, double ry, double rz){
 					//std::cerr << Hi(k,p) << std::endl;
 					//std::cerr << O(i,j,p) << std::endl;
 					//TODO: vector operation instead of loop for last loop.
-					//M(i,j,k) += Hi(k,p)*O(i,j,p);
-					M(i,j,k) += Ht(k,p)*O(i,j,p);
+					M(i,j,k) += Hi(k,p)*O(i,j,p);
+					//M(i,j,k) += Ht(k,p)*O(i,j,p);
 				}
 			}
 		}
@@ -352,9 +369,9 @@ int main(){
 	cv::imshow(windowname,image);
 	cv::waitKey(100);
 	
-	double	rx = 0.0*PI;
-	double	ry = 0.0*PI;
-	double	rz = 0.0001*PI;
+	float	rx = 0.0*PI;
+	float	ry = 0.0*PI;
+	float	rz = 0.5*PI;
 	
 	//im0 = hom0(image,rx,ry,rz)
 	//im1 = hom1(image,rx,ry,rz)
