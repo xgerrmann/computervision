@@ -30,6 +30,8 @@ Eigen::Vector4i calccorners(Eigen::Matrix3f H, int height, int width);
 
 const double PI		= 3.141592653589793;
 const double INF	= abs(1.0/0.0);
+const float PITCH	= 0.2625*(std::pow(10.0,-3.0)); // [m] pixel pitch (pixel size) assume square pixels, which is generally true
+// TODO: pitch is different per device
 
 ////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////
@@ -63,30 +65,40 @@ rotations calcrotationmatrix(float rx, float ry, float rz){
 	return rot;
 }
 
-Eigen::Vector4i box_out(Eigen::Matrix3f H, int width, int height){
-	Eigen::Vector2f c0, c1, c2, c3;
-	c0	<< 0,				0;
-	c1	<< float(width-1),	0;
-	c2	<< float(width-1),	float(height-1);
-	c3	<< 0,				float(height-1);
-	std::vector<Eigen::Vector2f> corners;
+Eigen::Vector4i box_out(Eigen::Matrix3f H, int width_original, int height_original){
+// This function calculates the locations in the x,y,z, coordinate system of the resulting
+// corner points. From this it determines the width and height of the outgoing image.
+
+// Define corners and set origin to center of image
+	float wx, hy;
+	wx	= float(width_original-1);	// [pixels]
+	hy	= float(height_original-1);	// [pixels]
+	Eigen::Vector3f c0, c1, c2, c3;
+	c0	<< -wx/2,+hy/2,1;// location of corner 0 <x,y,w>
+	c1	<< +wx/2,+hy/2,1;// location of corner 1 <x,y,w>
+	c2	<< +wx/2,-hy/2,1;// location of corner 2 <x,y,w>
+	c3	<< -wx/2,-hy/2,1;// location of corner 3 <x,y,w>
+	std::vector<Eigen::Vector3f> corners;
 	corners.push_back(c0);
 	corners.push_back(c1);
 	corners.push_back(c2);
 	corners.push_back(c3);
 	
 	std::vector<Eigen::Vector2f> corners_proj;
-	float x,y,w;
+	float x,y,w,scale;
 	for(int i = 0; i<4; i++){
-		x = corners.at(i)[0];
-		y = corners.at(i)[1];
-		w = 1;
 		Eigen::Vector3f corner_original, corner_new;
-		corner_original << x,y,w;
-		//std::cerr << "Corner_original:\n" << corner_original << "\n";
-		corner_new = H*corner_original;
+		corner_original = corners.at(i);
+		std::cerr << "Corner_original:\n" << corner_original << "\n";
+		corner_new = H*corner_original; // Perform a forward homography on the corner point.
+		std::cerr << "Corner_new:\n" << corner_new << "\n";
+		//scale = corner_new(2);
+		std::cerr << "Scale: " << scale << std::endl;
+		//corner_new = corner_new/scale; // DO NOT divide by scale TODO?? TODO
 		//std::cerr << "Corner_new:\n" << corner_new << "\n";
-		//std::cerr << "Corner_new:\n" << corner_new.block<2,1>(0,0) << "\n";
+		//corner_new(0) = (corner_new(0)+wx/2); // reset origin
+		//corner_new(1) = -(corner_new(1)-hy/2); // reset origin, change y direction
+		std::cerr << "Corner_new (transposed):\n" << corner_new << "\n";
 		corners_proj.push_back(corner_new.block<2,1>(0,0));
 	}
 	
@@ -127,11 +139,14 @@ Eigen::Vector4i box_out(Eigen::Matrix3f H, int width, int height){
 }
 
 Eigen::Matrix3f calchomography(int width, int height, float rx, float ry, float rz){
+// This function calculates the homography matrix, given the rotations rx,ry,rz.
+// Coordinate system:
+// ^ y+
+// |
+// --->x
+
 	// Width and height of an image must be > 0
 	assert(width>0&&height>0);
-	float pitch = 0.2625*(std::pow(10.0,-3.0)); // [m] pixel pitch (pixel size) assume square pixels, which is generally true
-	// TODO: pitch is different per device
-//	printf("Pitch: %.6f\n",pitch);
 
 	rotations rot = calcrotationmatrix(rx,ry,rz);
 	//Rt = Rz*Ry*Rx
@@ -140,9 +155,9 @@ Eigen::Matrix3f calchomography(int width, int height, float rx, float ry, float 
 	Eigen::Matrix3f Rti	= Rt.inverse();
 //	# define 3 points on the virtual image plane
 	Eigen::Vector3f p0, p1, p2, pr0, pr1, pr2;
-	p0 << 0.0, 0.0, 0.0;
-	p1 << 1.0, 0.0, 0.0;
-	p2 << 0.0, 1.0, 0.0;
+	p0 << 0.0, 0.0, 0.0;	// [m]
+	p1 << 1.0, 0.0, 0.0;	// [m]
+	p2 << 0.0, 1.0, 0.0;	// [m]
 	//std::cerr << p0 << "\n";
 	//std::cerr << p1 << "\n";
 	//std::cerr << p2 << "\n";
@@ -151,7 +166,7 @@ Eigen::Matrix3f calchomography(int width, int height, float rx, float ry, float 
 	pr1 = Rt*p1;
 	pr2 = Rt*p2;
 //	Find 2 vectors that span the plane:
-//	pr0 is always <0,0,0>, so the vectors pr1 and pr2 define the plane
+//	pr0 is always <0,0,0>, so the vectors pr1 and pr2 define the plane.
 
 //	Construct the vectors for the view-lines from the optical center to the corners of the virtual image:
 //	Corner numbering:
@@ -159,41 +174,38 @@ Eigen::Matrix3f calchomography(int width, int height, float rx, float ry, float 
 //	|		|
 //	3-------2
 //	pixels
-//	First define the cornerscorner [x,y]
-	Eigen::Vector2f cp0, cp1, cp2, cp3;
-	cp0	<< 0.0,				0.0;
-	cp1	<< float(width-1),	0.0;			
-	cp2	<< float(width-1),	float(height-1);
-	cp3	<< 0.0,				float(height-1);
-	// TODO: above -1 for width and height?
-	std::vector<Eigen::Vector2f> corners_p;
-	corners_p.push_back(cp0);
-	corners_p.push_back(cp1);
-	corners_p.push_back(cp2);
-	corners_p.push_back(cp3);
-//	#print corners_p
+//	First define the corners [x,y]
 //	# meters
 	float	f, wx, hy;
 	f = 0.3;	// [m] Distance of viewer to the screen
 	Eigen::Vector3f	e;
 	e << 0.0,0.0,f;			// position of viewer (user)
 //	#print e
-	wx	= float(width-1)*pitch;	// [m]
-	hy	= float(height-1)*pitch;// [m]
+	wx	= float(width-1);	// [pixels]
+	hy	= float(height-1);	// [pixels]
+	Eigen::Vector3f cp0, cp1, cp2, cp3;
+	cp0	<< -wx/2,+hy/2,0;// location of corner 0 <x,y,z> [pixels]
+	cp1	<< +wx/2,+hy/2,0;// location of corner 1 <x,y,z> [pixels]
+	cp2	<< +wx/2,-hy/2,0;// location of corner 2 <x,y,z> [pixels]
+	cp3	<< -wx/2,-hy/2,0;// location of corner 3 <x,y,z> [pixels]
+	
+	std::vector<Eigen::Vector3f> corners;
+	corners.push_back(cp0);
+	corners.push_back(cp1);
+	corners.push_back(cp2);
+	corners.push_back(cp3);
+	// make vectors (and convert to meters)
 	Eigen::Vector3f c0, c1, c2, c3;
-	c0	<< -wx/2,+hy/2,0;// location of corner 0
-	c1	<< +wx/2,+hy/2,0;// location of corner 1
-	c2	<< +wx/2,-hy/2,0;// location of corner 2
-	c3	<< -wx/2,-hy/2,0;// location of corner 3
-	c0 = c0-e;// vector from eye to corner 0
-	c1 = c1-e;// vector from eye to corner 0
-	c2 = c2-e;// vector from eye to corner 0
-	c3 = c3-e;// vector from eye to corner 0
+	c0 = PITCH*cp0-e;// vector from eye to corner 0 [m]
+	c1 = PITCH*cp1-e;// vector from eye to corner 0 [m]
+	c2 = PITCH*cp2-e;// vector from eye to corner 0 [m]
+	c3 = PITCH*cp3-e;// vector from eye to corner 0 [m]
 	std::vector<Eigen::Vector3f> cornerlines;
 	cornerlines.push_back(c0);
 	cornerlines.push_back(c1);
 	cornerlines.push_back(c2);
 	cornerlines.push_back(c3);
+
 //	#print 'Lines:\n',cornerlines
 //	# For each intersection a linear combination of the vectors spanning the plane exists
 //	# when this combination is found, the exact location of the intersection is known
@@ -223,26 +235,26 @@ Eigen::Matrix3f calchomography(int width, int height, float rx, float ry, float 
 		//Compute x,y coordinates in plane by performing the inverse plane rotation on the point of intersection
 		coords = Rti*intersection;
 		//std::cerr << "Coordinates:\n" << coords << "\n";
-		// Convert real coordinates into pixed coordinates
-		x = (coords[0]+wx/2)/pitch;
-		y = -(coords[1]-hy/2)/pitch; //# change y direction
+		// Convert real coordinates into pixel coordinates
+		x = coords[0]/PITCH;	// [pixels]
+		y = coords[1]/PITCH;	// [pixels]
 		//std::cerr << "x: " << x << "\n";
 		//std::cerr << "y: " << y << "\n";
 		corner << x,y;
 		corners_proj.push_back(corner);
 	}
 
-//	corners in the projection are now known.
+//	The pixel locations of the corners in the projection are now known.
 //	calculate the homography
 //	source: http://math.stackexchange.com/questions/494238/how-to-compute-homography-matrix-h-from-corresponding-points-2d-2d-planar-homog
 	Eigen::Matrix<float,8,8> M1;
 	Eigen::Matrix<float,8,1> M2;
 	float xA, xB, yA, yB;
 	for(int i = 0; i<4; i++){
-		xA	= corners_p.at(i)[0];	// original corner
-		yA	= corners_p.at(i)[1];	// original corner
-		xB	= corners_proj.at(i)[0];// new corner (projected)
-		yB	= corners_proj.at(i)[1];// new corner (projected)
+		xA	= corners.at(i)[0];			// [pixels] original corner
+		yA	= corners.at(i)[1];			// [pixels] original corner
+		xB	= corners_proj.at(i)[0];	// [pixels] new corner (projected)
+		yB	= corners_proj.at(i)[1];	// [pixels] new corner (projected)
 		//std::cerr << "xA: " << xA <<"\t-> xB: " << xB << "\n";
 		//std::cerr << "yA: " << yA <<"\t-> yB: " << yB << "\n";
 		M1.row(i*2)		<< xA,yA,1,0,0,0,-xA*xB,-yA*xB;
@@ -281,7 +293,7 @@ cv::Mat hom(cv::Mat image, float rx, float ry, float rz){
 //	std::cerr << width << std::endl;
 //	std::cerr << height << std::endl;
 	Eigen::Vector4i rectangle = box_out(H, width, height);
-	//std::cerr <<"Rectangle:\n"<< rectangle << "\n"; // rectangle is xmin, ymin, width, height
+	std::cerr <<"Rectangle:\n"<< rectangle << "\n"; // rectangle is xmin, ymin, width, height
 	Hi	= H.inverse(); // correct
 //	std::cerr << "Hi:\n" << Hi << std::endl;
 	int xmin_out, ymin_out, xmax_out, ymax_out, width_out, height_out;
@@ -291,19 +303,19 @@ cv::Mat hom(cv::Mat image, float rx, float ry, float rz){
 	height_out	= rectangle[3];
 	xmax_out	= xmin_out + width_out-1; // zero based, thus -1
 	ymax_out	= ymin_out + height_out-1;// zero based, thus -1
-//	std::cerr << "xmin: " << xmin_out << std::endl;
-//	std::cerr << "xmax: " << xmax_out << std::endl;
-//	std::cerr << "ymin: " << ymin_out << std::endl;
-//	std::cerr << "ymax: " << ymax_out << std::endl;
+	std::cerr << "xmin: " << xmin_out << std::endl;
+	std::cerr << "xmax: " << xmax_out << std::endl;
+	std::cerr << "ymin: " << ymin_out << std::endl;
+	std::cerr << "ymax: " << ymax_out << std::endl;
 	// calc mapping
 // meshgrid implementation from:	https://forum.kde.org/viewtopic.php?f=74&t=90876
 	arma::Mat<int> x = arma::linspace<arma::Row<int>>(xmin_out,xmax_out,width_out);
 	arma::Mat<int> X = arma::repmat(x,height_out,1);
-//	x.print("x:") ;
+	x.print("x:") ;
 //	X.print("X:") ;
 	arma::Mat<int> y = arma::linspace<arma::Col<int>>(ymin_out,ymax_out,height_out);
 	arma::Mat<int> Y = arma::repmat(y,1,width_out);
-//	y.print("y:") ;
+	y.print("y:") ;
 //	Y.print("Y:") ;
 	arma::Mat<int> W = arma::ones<arma::Mat<int>>(height_out,width_out);
 //	W.print("W:") ;
@@ -341,33 +353,34 @@ cv::Mat hom(cv::Mat image, float rx, float ry, float rz){
 	// Round is very important in this conversion, otherwise major errors
 	// TODO: Check if this still works for negative values (if necessary)
 	arma::Cube<int> Mi = arma::conv_to<arma::Cube<int>>::from(round(M)); // mapping must be of integer type because it is used directly for indexing
-//	Mi.print("Mi:");
+	Mi.print("Mi:");
 	//M.slice.print("M:");
 //	# construct empty image
 	cv::Mat image_out	= cv::Mat::zeros(height_out, width_out,CV_8UC3);
-//	cv::Mat image_out	= image.clone();
-	image_out = cv::Scalar(0,0,0);
+	image_out			= cv::Scalar(0,0,0); //fill with zeros, TODO: can be done in previous step. 
 	
-	int xtmp,ytmp;
+	int xtmp,ytmp, wx, hy;
+	wx = int(round(float(width)))/2;
+	hy = int(round(float(height)))/2;
 	for(int h = 0; h<height_out; h++){
 		for(int w = 0; w<width_out; w++){
-			//xtmp = Mi.slice(0)(h,w);
-			xtmp = Mi(h,w,0);
-			ytmp = Mi(h,w,1);
+			// Change origin from center of image to upper right corner.
+			xtmp = Mi(h,w,0)+wx;
+			ytmp = Mi(h,w,1)+hy;
 			if(xtmp<0 || xtmp >= width || ytmp<0 || ytmp>=height){
-				std::cerr<<"NOT x:"<<xtmp<<"->"<<w<<std::endl;
-				std::cerr<<"NOT y:"<<ytmp<<"->"<<h<<std::endl;
+				//std::cerr<<"NOT x:"<<xtmp<<"->"<<w<<std::endl;
+				//std::cerr<<"NOT y:"<<ytmp<<"->"<<h<<std::endl;
 				continue;
 			}
-			//std::cerr<<"x:"<<xtmp<<"->"<<w<<std::endl;
-			//std::cerr<<"y:"<<ytmp<<"->"<<h<<std::endl;
+			std::cerr<<"x:"<<xtmp<<"->"<<w<<std::endl;
+			std::cerr<<"y:"<<ytmp<<"->"<<h<<std::endl;
 			//std::cerr<<"y:"<<h<<",x:"<<w<<",R:"<<int(image_arma(h,w,0))<<std::endl;
 			//std::cerr<< "R:"<<int(image_arma(ytmp,xtmp,0)) << "==" << int(image_out_arma(h,w,0))<< std::endl;
 		//	std::cerr<< int(image_arma(ytmp,xtmp,1)) << "==" << int(image_out_arma(h,w,1))<< std::endl;
 		//	std::cerr<< int(image_arma(ytmp,xtmp,2)) << "==" << int(image_out_arma(h,w,2))<< std::endl;
-			((uchar*)image_out.data)[(w+h*width)*3]	= ((uchar)image.data[(ytmp*width+xtmp)*3]) ;
-			((uchar*)image_out.data)[(w+h*width)*3+1]	= ((uchar)image.data[(ytmp*width+xtmp)*3+1]) ;
-			((uchar*)image_out.data)[(w+h*width)*3+2]	= ((uchar)image.data[(ytmp*width+xtmp)*3+2]) ;
+			((uchar*)image_out.data)[(w+h*width_out)*3]		= ((uchar)image.data[(ytmp*width+xtmp)*3]) ;
+			((uchar*)image_out.data)[(w+h*width_out)*3+1]	= ((uchar)image.data[(ytmp*width+xtmp)*3+1]) ;
+			((uchar*)image_out.data)[(w+h*width_out)*3+2]	= ((uchar)image.data[(ytmp*width+xtmp)*3+2]) ;
 		//	std::cerr<< int(image_arma(ytmp,xtmp,0)) << "==" << int(image_out_arma(h,w,0))<< std::endl;
 		//	std::cerr<< int(image_arma(ytmp,xtmp,1)) << "==" << int(image_out_arma(h,w,1))<< std::endl;
 		//	std::cerr<< int(image_arma(ytmp,xtmp,2)) << "==" << int(image_out_arma(h,w,2))<< std::endl;
