@@ -1,17 +1,5 @@
 #include "main.hpp"
 
-//import cv2
-//import dlib
-//import numpy as np
-//from paths import trained_model, default_image
-//from datetime import datetime
-//from time import time
-//import math
-//from utils import pose
-//import sys
-//import copy
-//from homography import hom3
-
 #define EVER ;;
 
 //## Sources
@@ -134,7 +122,7 @@ int main(){
 	dlib::deserialize(trained_model) >> predictor;
 
 	cv::Mat image;
-	image = cv::imread("media/250x250.jpeg");
+	image = cv::imread(default_image);
 	//cv::namedWindow("Image",cv::WINDOW_AUTOSIZE);
 	std::string window_image = "Image";
 	cv::namedWindow("Image");
@@ -156,6 +144,11 @@ int main(){
 			std::cerr << msg << "\n";
 		}
 		cv::imshow(window_face,frame);
+		float rx, ry, rz;
+		rx = 0;
+		ry = 0;
+		rz = 0;
+		cv::Mat im = hom(image,rx,ry,rz);
 		char key = (char)cv::waitKey(1);
 		if(key == 27){
 			std::cerr << "Program halted by user.";
