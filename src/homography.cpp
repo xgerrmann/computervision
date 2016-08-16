@@ -19,7 +19,7 @@ rotations calcrotationmatrix(float rx, float ry, float rz){
 	Rz <<	cos(rz),	-sin(rz),	0.0,
 			sin(rz),	cos(rz),	0.0,
 			0.0,		0.0,		1.0;
-	std::cerr<<"Rz:\n"<<Rz<<std::endl;
+//	std::cerr<<"Rz:\n"<<Rz<<std::endl;
 //	std::cerr << "Rx:\n"<< Rx<<"\n";
 //	std::cerr << "Ry:\n"<< Ry<<"\n";
 //	std::cerr << "Rz:\n"<< Rz<<"\n";
@@ -103,7 +103,7 @@ Eigen::Matrix3f calchomography(cv::Mat image, float rx, float ry, float rz){
 	rotations rot = calcrotationmatrix(rx,ry,rz);
 	//Rt = Rz*Ry*Rx
 	Eigen::Matrix3f Rt	= rot.Rz*rot.Ry*rot.Rx;
-	std::cerr<<"Rt:\n"<<Rt<<std::endl;
+//	std::cerr<<"Rt:\n"<<Rt<<std::endl;
 	Eigen::Matrix3f Rti	= Rt.inverse();
 //	# define 3 points on the virtual image plane
 	Eigen::Vector3f p0, p1, p2, pr0, pr1, pr2;
@@ -129,9 +129,10 @@ Eigen::Matrix3f calchomography(cv::Mat image, float rx, float ry, float rz){
 //	corner [x,y]
 	Eigen::Vector2f cp0, cp1, cp2, cp3;
 	cp0	<< 0.0,				0.0;
-	cp1	<< float(width-1),	0.0;			// -1 because zeros based
-	cp2	<< float(width-1),	float(height-1);// -1 because zeros based
-	cp3	<< float(0),		float(height-1);// -1 because zeros based
+	cp1	<< float(width),	0.0;			// -1 ?
+	cp2	<< float(width),	float(height);// -1 ?
+	cp3	<< 0.0,				float(height);// -1 ?
+	// TODO: above -1?
 	std::vector<Eigen::Vector2f> corners_p;
 	corners_p.push_back(cp0);
 	corners_p.push_back(cp1);
@@ -221,14 +222,13 @@ Eigen::Matrix3f calchomography(cv::Mat image, float rx, float ry, float rz){
 	Eigen::Matrix<float,8,1> Htmp; // column vector with 8 elements
 	Eigen::Matrix3f H;
 	Htmp = (M1.transpose()*M1).inverse()*(M1.transpose()*M2);
-	std::cerr << "Htmp:\n" << Htmp << "\n";
-	// TODO: maybe not transpose?
+//	std::cerr << "Htmp:\n" << Htmp << "\n";
 	H << Htmp; // Fill H with Htmp. First down, then right. Therefore needs to be transposed later.
-	std::cerr << "H:\n" << H << "\n";
+//	std::cerr << "H:\n" << H << "\n";
 	H.block<1,1>(2,2) << 1.0;
-	std::cerr << "H:\n" << H << "\n";
+//	std::cerr << "H:\n" << H << "\n";
 	H.transposeInPlace(); // in place transposition to avoid aliasing
-	std::cerr << "H:\n" << H << "\n";
+//	std::cerr << "H:\n" << H << "\n";
 	// H is calculated correct and results correspond with python script
 	return H;
 }
@@ -258,11 +258,11 @@ cv::Mat hom3(cv::Mat image, float rx, float ry, float rz){
 	//H	<<	1,0,0,
 	//		0,1,0,
 	//		0,0,1;
-	std::cerr << "H:\n" << H << std::endl;
+//	std::cerr << "H:\n" << H << std::endl;
 	Eigen::Vector4i rectangle = box_out(H, width, height);
 //	std::cerr <<"Rectangle:\n"<< rectangle << "\n"; // rectangle is xmin, ymin, width, height
 	Hi	= H.inverse(); // correct
-	std::cerr << "Hi:\n" << Hi << std::endl;
+//	std::cerr << "Hi:\n" << Hi << std::endl;
 	int xmin_out, ymin_out, xmax_out, ymax_out, width_out, height_out;
 	xmin_out	= rectangle[0];
 	ymin_out	= rectangle[1];
@@ -296,7 +296,7 @@ cv::Mat hom3(cv::Mat image, float rx, float ry, float rz){
 //	W.print("W:") ;
 	arma::Cube<int> O = arma::Cube<int>(height_out, width_out, 2);
 	O = arma::join_slices(arma::join_slices(X,Y),W);
-//	O.print("O:");// Matrix seems to be correct
+	//O.print("O:");// Matrix seems to be correct, like in python.
 //	map_out	= np.einsum('kp,ijp->ijk',Hi,O)
 //	TODO: Hi naar arma type?
 	arma::Cube<float> M = arma::zeros<arma::Cube<float>>(height_out, width_out, 3);
@@ -317,49 +317,109 @@ cv::Mat hom3(cv::Mat image, float rx, float ry, float rz){
 	// Element wise division by scale
 	M.slice(0)	= M.slice(0)/M.slice(2);
 	M.slice(1)	= M.slice(1)/M.slice(2);
-	M.slice(1).print("M:");
-	arma::Cube<int> Mi = arma::conv_to<arma::Cube<int>>::from(M); // mapping must be of integer type because it is used directly for indexing
-	Mi.slice(1).print("Mi:");
+	//M.print("M:");
+	// Round is very important in this conversion, otherwise major errors
+	// TODO: Check if this still works for negative values (if necessary)
+	arma::Cube<int> Mi = arma::conv_to<arma::Cube<int>>::from(round(M)); // mapping must be of integer type because it is used directly for indexing
+	//Mi.print("Mi:");
+	//M.slice.print("M:");
+	//Mi.slice(0).print("Mi:");
+	//Mi.slice(1).print("Mi:");
 //	# construct empty image
-	arma::Cube<uchar> image_out_arma = arma::zeros<arma::Cube<uchar>>(height_out,width_out,channels);
-//	// image is Mat opencv_mat;    //opencv's mat, already transposed.
-//	// opencv mat to arma cube, copying is true by default
-	std::cerr << "cv -> arma" << std::endl;
-	//std::cerr << image << std::endl;
+	int dims[3] = {height_out, width_out, 3};
+	//cv::Mat image_out = cv::Mat( 3, dims, CV_8UC3 , 0.0);
+	cv::Mat image_out = cv::Mat( 3, dims, CV_8UC3 , cv::Scalar(0));
+	std::cerr << "rows:"<<image_out.size().height	<< std::endl;
+	std::cerr << "cols:"<<image_out.size().width	<< std::endl;
+	std::cerr << "chan:"<<image_out.channels()		<< std::endl;
 	std::cerr << "Image type:" << image.type() << std::endl;
-	// cv::mat to arma
-	arma::Cube<uchar> image_arma( image.ptr(), image.rows, image.cols , image.channels());
+	std::cerr << "Image_out type:" << image_out.type() << std::endl;
+	std::cerr<<"image original"<<std::endl;
+	for(int k=0;k<3;k++){
+		for(int i=0; i<20; i++){
+			for(int j=0; j<20; j++){
+				std::cerr<<int(image.at<uchar>(i,j,k))<< "\t";
+			}
+			std::cerr<<std::endl;
+		}
+		std::cerr<<std::endl;
+	}
+	std::cerr<<"image out"<<std::endl;
+	for(int k=0;k<3;k++){
+		for(int i=0; i<20; i++){
+			for(int j=0; j<20; j++){
+				std::cerr<<int(image_out.at<uchar>(i,j,k)) << "\t";
+			}
+			std::cerr<<std::endl;
+		}
+		std::cerr<<std::endl;
+	}
+	int sz[2] = {height,width};
+	cv::Mat image_test = cv::Mat::zeros(height_out, width_out,CV_8UC1);
+	cv::imshow("image_test",image_test);
+	cv::waitKey(0);
 	// arma to cv::mat
-	cv::Mat image_test( height_out, width_out, CV_8UC3, image_arma.memptr());
+	//cv::Mat image_test( height_out, width_out, CV_8UC3, image_arma.memptr());
 	// show result
-	cv::imshow("Back",image_test);
+	//cv::imshow("Back",image_test);
 	// So data cast is correct.
 	//image_arma.print("image_arma:");
-	std::cerr << "cv -> arma finished" << std::endl;
-	std::cerr << size(image_arma) << std::endl;
+//	std::cerr << "cv -> arma finished" << std::endl;
+//	std::cerr << size(image_arma) << std::endl;
 	int xtmp,ytmp;
 	std::cerr << width << std::endl;
 	std::cerr << height << std::endl;
+	std::cerr << "width:  "<<width << std::endl;
+	std::cerr << "height: "<<height << std::endl;
 	for(int h = 0; h<height_out; h++){
 		for(int w = 0; w<width_out; w++){
+			//xtmp = Mi.slice(0)(h,w);
 			xtmp = Mi(h,w,0);
 			ytmp = Mi(h,w,1);
 			if(xtmp<0 || xtmp >= width || ytmp<0 || ytmp>=height){
+				std::cerr<<"NOT x:"<<xtmp<<"->"<<w<<std::endl;
+				std::cerr<<"NOT y:"<<ytmp<<"->"<<h<<std::endl;
 				continue;
 			}
 			//std::cerr<<"x:"<<xtmp<<"->"<<w<<std::endl;
 			//std::cerr<<"y:"<<ytmp<<"->"<<h<<std::endl;
-			image_out_arma(h,w,0) = image_arma(ytmp,xtmp,0);
-			image_out_arma(h,w,1) = image_arma(ytmp,xtmp,1);
-			image_out_arma(h,w,2) = image_arma(ytmp,xtmp,2);
+			//std::cerr<<"y:"<<h<<",x:"<<w<<",R:"<<int(image_arma(h,w,0))<<std::endl;
+			//std::cerr<< "R:"<<int(image_arma(ytmp,xtmp,0)) << "==" << int(image_out_arma(h,w,0))<< std::endl;
+		//	std::cerr<< int(image_arma(ytmp,xtmp,1)) << "==" << int(image_out_arma(h,w,1))<< std::endl;
+		//	std::cerr<< int(image_arma(ytmp,xtmp,2)) << "==" << int(image_out_arma(h,w,2))<< std::endl;
+			image_out.at<uchar>(h,w,0) = image.at<uchar>(ytmp,xtmp,0);
+			image_out.at<uchar>(h,w,1) = image.at<uchar>(ytmp,xtmp,1);
+			image_out.at<uchar>(h,w,2) = image.at<uchar>(ytmp,xtmp,2);
+			//image_out_arma(h,w,1) = image_arma(ytmp,xtmp,1);
+			//image_out_arma(h,w,2) = image_arma(ytmp,xtmp,2);
+		//	std::cerr<< int(image_arma(ytmp,xtmp,0)) << "==" << int(image_out_arma(h,w,0))<< std::endl;
+		//	std::cerr<< int(image_arma(ytmp,xtmp,1)) << "==" << int(image_out_arma(h,w,1))<< std::endl;
+		//	std::cerr<< int(image_arma(ytmp,xtmp,2)) << "==" << int(image_out_arma(h,w,2))<< std::endl;
+		//  Values seem to be correct
 		}
 	}
-	cv::Mat image_out( height_out, width_out, CV_8UC3, image_out_arma.memptr());
-	//cv::Mat image_out( height_out, width_out, CV_8UC3, CV_RGB(1,1,1));
+	std::cerr<<"image out"<<std::endl;
+	for(int k=0;k<3;k++){
+		for(int i=0; i<20; i++){
+			for(int j=0; j<20; j++){
+				std::cerr<<int(image_out.at<uchar>(i,j,k)) << "\t";
+			}
+			std::cerr<<std::endl;
+		}
+		std::cerr<<std::endl;
+	}
+	//image_arma.print("image_arma:");
+//	image_out_arma.slice(0).print("R:");
+//	image_out_arma.slice(1).print("G:");
+//	image_out_arma.slice(2).print("B:");
+//	cv::Mat image_out( height_out, width_out, CV_8UC3, image_out_arma.memptr());
 	//std::cerr << image_out << std::endl;
 	//std::cerr << image_out.rows << ", " << image_out.cols << ", " << image_out.channels() << std::endl;
 	std::chrono::duration<double> elapsed_seconds = std::chrono::system_clock::now()-start;
 	std::cerr << std::printf ("Hom3: Elapsed time %f",elapsed_seconds.count())<<std::endl;
+	cv::imshow("image_out",image_out);
+	cv::waitKey(0);
+	std::cerr << "Finished" << std::endl;
 	return image_out;
 }
 
@@ -373,19 +433,17 @@ int main(){
 	
 	float	rx = 0.0*PI;
 	float	ry = 0.0*PI;
+	//float	rz = 0.5*PI;
 	float	rz = 0.5*PI;
 	
-	//im0 = hom0(image,rx,ry,rz)
-	//im1 = hom1(image,rx,ry,rz)
-	//im2 = hom2(image,rx,ry,rz)
 	cv::Mat im3 = hom3(image,rx,ry,rz);
 
 //	Show results
 //	cv2.imshow('Hom0',im0)
 //	cv2.imshow('Hom1',im1)
 //	cv2.imshow('Hom2',im2)
-	cv::imshow("Hom3",im3);
-	cv::waitKey(0);
+	//cv::imshow("Hom3",im3);
+	//cv::waitKey(0);
 
 // Python:
 //#	Hom0: Elapsed time 0.00331997871399
