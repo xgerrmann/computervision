@@ -6,7 +6,6 @@ rotations calcrotationmatrix(float rx, float ry, float rz){
 //	source: http://nghiaho.com/?page_id=846
 //	source: https://en.wikipedia.org/wiki/3D_projection (uses negative angles?)
 //	Results of rotation matrices are consistent with python script
-	std::cerr<<"rz: "<<rz<<std::endl;
 	Eigen::Matrix3f Rx;
 	Rx <<	1.0,		0.0,		0.0,
 			0.0,		cos(rx),	-sin(rx),
@@ -33,9 +32,9 @@ rotations calcrotationmatrix(float rx, float ry, float rz){
 Eigen::Vector4i box_out(Eigen::Matrix3f H, int width, int height){
 	Eigen::Vector2f c0, c1, c2, c3;
 	c0	<< 0,				0;
-	c1	<< float(width),	0;
-	c2	<< float(width),	float(height);
-	c3	<< 0,				float(height);
+	c1	<< float(width-1),	0;
+	c2	<< float(width-1),	float(height-1);
+	c3	<< 0,				float(height-1);
 	std::vector<Eigen::Vector2f> corners;
 	corners.push_back(c0);
 	corners.push_back(c1);
@@ -81,25 +80,25 @@ Eigen::Vector4i box_out(Eigen::Matrix3f H, int width, int height){
 //	std::cerr << "xmax: \t" << xmax_out << "\n";
 //	std::cerr << "ymin: \t" << ymin_out << "\n";
 //	std::cerr << "ymax: \t" << ymax_out << "\n";
-	int height_out, width_out;
-	height_out	= ymax_out - ymin_out;
-	width_out	= xmax_out - xmin_out;
+	int height_image_out, width_image_out;
+	height_image_out	= ymax_out - ymin_out + 1; // height_image_out is in pixels so +1
+	width_image_out		= xmax_out - xmin_out + 1; // width_image_out  is in pixels so +1
 //	std::cerr << "Height: " << height_out << "\n";
 //	std::cerr << "Width:  " << width_out << "\n";
 //	std::cerr << "xmin:   " << xmin_out << "\n";
 //	std::cerr << "ymin:   " << ymin_out << "\n";
 	Eigen::Vector4i rectangle;
-	rectangle << xmin_out,ymin_out,width_out,height_out;
+	rectangle << xmin_out,ymin_out,width_image_out,height_image_out;
 	return rectangle; // xmin, ymin, width, height
 }
 
-Eigen::Matrix3f calchomography(cv::Mat image, float rx, float ry, float rz){
+Eigen::Matrix3f calchomography(int width, int height, float rx, float ry, float rz){
+	// Width and height of an image must be > 0
+	assert(width>0&&height>0);
 	float pitch = 0.2625*(std::pow(10.0,-3.0)); // [m] pixel pitch (pixel size) assume square pixels, which is generally true
-	printf("Pitch: %.6f\n",pitch);
+	// TODO: pitch is different per device
+//	printf("Pitch: %.6f\n",pitch);
 
-	int height	= image.size().height;
-	int width	= image.size().width;
-	int channels= image.channels();
 	rotations rot = calcrotationmatrix(rx,ry,rz);
 	//Rt = Rz*Ry*Rx
 	Eigen::Matrix3f Rt	= rot.Rz*rot.Ry*rot.Rx;
@@ -126,13 +125,13 @@ Eigen::Matrix3f calchomography(cv::Mat image, float rx, float ry, float rz){
 //	|		|
 //	3-------2
 //	pixels
-//	corner [x,y]
+//	First define the cornerscorner [x,y]
 	Eigen::Vector2f cp0, cp1, cp2, cp3;
 	cp0	<< 0.0,				0.0;
-	cp1	<< float(width),	0.0;			// -1 ?
-	cp2	<< float(width),	float(height);// -1 ?
-	cp3	<< 0.0,				float(height);// -1 ?
-	// TODO: above -1?
+	cp1	<< float(width-1),	0.0;			
+	cp2	<< float(width-1),	float(height-1);
+	cp3	<< 0.0,				float(height-1);
+	// TODO: above -1 for width and height?
 	std::vector<Eigen::Vector2f> corners_p;
 	corners_p.push_back(cp0);
 	corners_p.push_back(cp1);
@@ -145,8 +144,8 @@ Eigen::Matrix3f calchomography(cv::Mat image, float rx, float ry, float rz){
 	Eigen::Vector3f	e;
 	e << 0.0,0.0,f;			// position of viewer (user)
 //	#print e
-	wx	= float(width)*pitch;	// [m]
-	hy	= float(height)*pitch;	// [m]
+	wx	= float(width-1)*pitch;	// [m]
+	hy	= float(height-1)*pitch;// [m]
 	Eigen::Vector3f c0, c1, c2, c3;
 	c0	<< -wx/2,+hy/2,0;// location of corner 0
 	c1	<< +wx/2,+hy/2,0;// location of corner 1
@@ -210,8 +209,8 @@ Eigen::Matrix3f calchomography(cv::Mat image, float rx, float ry, float rz){
 		yA	= corners_p.at(i)[1];	// original corner
 		xB	= corners_proj.at(i)[0];// new corner (projected)
 		yB	= corners_proj.at(i)[1];// new corner (projected)
-		//std::cerr << "xA: " << xA <<", xB: " << xB << "\n";
-		//std::cerr << "yA: " << yA <<", yB: " << yB << "\n";
+		//std::cerr << "xA: " << xA <<"\t-> xB: " << xB << "\n";
+		//std::cerr << "yA: " << yA <<"\t-> yB: " << yB << "\n";
 		M1.row(i*2)		<< xA,yA,1,0,0,0,-xA*xB,-yA*xB;
 		M1.row(i*2+1)	<< 0,0,0,xA,yA,1,-xA*yB,-yA*yB;
 		M2.row(i*2)		<< xB;
@@ -222,13 +221,10 @@ Eigen::Matrix3f calchomography(cv::Mat image, float rx, float ry, float rz){
 	Eigen::Matrix<float,8,1> Htmp; // column vector with 8 elements
 	Eigen::Matrix3f H;
 	Htmp = (M1.transpose()*M1).inverse()*(M1.transpose()*M2);
-//	std::cerr << "Htmp:\n" << Htmp << "\n";
 	H << Htmp; // Fill H with Htmp. First down, then right. Therefore needs to be transposed later.
-//	std::cerr << "H:\n" << H << "\n";
 	H.block<1,1>(2,2) << 1.0;
-//	std::cerr << "H:\n" << H << "\n";
 	H.transposeInPlace(); // in place transposition to avoid aliasing
-//	std::cerr << "H:\n" << H << "\n";
+	//std::cerr << "H:\n" << H << "\n";
 	// H is calculated correct and results correspond with python script
 	return H;
 }
@@ -244,7 +240,7 @@ Eigen::Matrix3f calchomography(cv::Mat image, float rx, float ry, float rz){
 //// linspace etc
 //}
 
-int hom3(cv::Mat image, float rx, float ry, float rz){
+cv::Mat hom3(cv::Mat image, float rx, float ry, float rz){
 // Faster backward homography, mapping by masking and matrix indices method # 0.007 seconds
 	std::chrono::time_point<std::chrono::system_clock> start, end;
 	start = std::chrono::system_clock::now();
@@ -254,13 +250,15 @@ int hom3(cv::Mat image, float rx, float ry, float rz){
 	int channels= image.channels();
 	
 	Eigen::Matrix3f H, Hi;
-	H	= calchomography(image,rx,ry,rz);
+	H	= calchomography(width,height,rx,ry,rz);
 	//H	<<	1,0,0,
 	//		0,1,0,
 	//		0,0,1;
 //	std::cerr << "H:\n" << H << std::endl;
+//	std::cerr << width << std::endl;
+//	std::cerr << height << std::endl;
 	Eigen::Vector4i rectangle = box_out(H, width, height);
-//	std::cerr <<"Rectangle:\n"<< rectangle << "\n"; // rectangle is xmin, ymin, width, height
+	//std::cerr <<"Rectangle:\n"<< rectangle << "\n"; // rectangle is xmin, ymin, width, height
 	Hi	= H.inverse(); // correct
 //	std::cerr << "Hi:\n" << Hi << std::endl;
 	int xmin_out, ymin_out, xmax_out, ymax_out, width_out, height_out;
@@ -270,33 +268,25 @@ int hom3(cv::Mat image, float rx, float ry, float rz){
 	height_out	= rectangle[3];
 	xmax_out	= xmin_out + width_out-1; // zero based, thus -1
 	ymax_out	= ymin_out + height_out-1;// zero based, thus -1
-	std::cerr << "xmin: " << xmin_out << std::endl;
-	std::cerr << "xmax: " << xmax_out << std::endl;
-	std::cerr << "ymin: " << ymin_out << std::endl;
-	std::cerr << "ymax: " << ymax_out << std::endl;
+//	std::cerr << "xmin: " << xmin_out << std::endl;
+//	std::cerr << "xmax: " << xmax_out << std::endl;
+//	std::cerr << "ymin: " << ymin_out << std::endl;
+//	std::cerr << "ymax: " << ymax_out << std::endl;
 	// calc mapping
 // meshgrid implementation from:	https://forum.kde.org/viewtopic.php?f=74&t=90876
-//	arma::mat Ht = arma::eye(3,3);
-//	std::cerr << "Ht:\n" << Ht << std::endl;
-//	width_out	= 2;
-//	height_out	= 2;
-//	xmin_out	= 0;
-//	xmax_out	= width_out-1;
-//	ymin_out	= 0;
-//	ymax_out	= height_out-1;
 	arma::Mat<int> x = arma::linspace<arma::Row<int>>(xmin_out,xmax_out,width_out);
 	arma::Mat<int> X = arma::repmat(x,height_out,1);
-	x.print("x:") ;
+//	x.print("x:") ;
 //	X.print("X:") ;
 	arma::Mat<int> y = arma::linspace<arma::Col<int>>(ymin_out,ymax_out,height_out);
 	arma::Mat<int> Y = arma::repmat(y,1,width_out);
-	y.print("y:") ;
+//	y.print("y:") ;
 //	Y.print("Y:") ;
 	arma::Mat<int> W = arma::ones<arma::Mat<int>>(height_out,width_out);
 //	W.print("W:") ;
 	arma::Cube<int> O = arma::Cube<int>(height_out, width_out, 2);
 	O = arma::join_slices(arma::join_slices(X,Y),W);
-	//O.print("O:");// Matrix seems to be correct, like in python.
+	//O.print("O:");// This is always correct.
 //	map_out	= np.einsum('kp,ijp->ijk',Hi,O)
 //	TODO: Hi naar arma type?
 	arma::Cube<float> M = arma::zeros<arma::Cube<float>>(height_out, width_out, 3);
@@ -305,11 +295,9 @@ int hom3(cv::Mat image, float rx, float ry, float rz){
 		for(int j = 0; j < width_out; j++){
 			for(int k = 0; k < 3; k++){
 				for(int p = 0; p < 3; p++){
-					//std::cerr << Hi(k,p) << std::endl;
-					//std::cerr << O(i,j,p) << std::endl;
 					//TODO: vector operation instead of loop for last loop.
 					M(i,j,k) += Hi(k,p)*float(O(i,j,p));
-					//M(i,j,k) += Ht(k,p)*O(i,j,p);
+					//TODO: or use i and j as values to use and do not construct O
 				}
 			}
 		}
@@ -321,53 +309,14 @@ int hom3(cv::Mat image, float rx, float ry, float rz){
 	// Round is very important in this conversion, otherwise major errors
 	// TODO: Check if this still works for negative values (if necessary)
 	arma::Cube<int> Mi = arma::conv_to<arma::Cube<int>>::from(round(M)); // mapping must be of integer type because it is used directly for indexing
-	//Mi.print("Mi:");
+//	Mi.print("Mi:");
 	//M.slice.print("M:");
-	//Mi.slice(0).print("Mi:");
-	//Mi.slice(1).print("Mi:");
 //	# construct empty image
-//	std::cerr << "Image type:" << image.type() << std::endl;
-//	std::cerr<<"image original"<<std::endl;
-//	for(int k=0;k<3;k++){
-//		for(int i=0; i<20; i++){
-//			for(int j=0; j<20; j++){
-//				std::cerr<<image.at<uchar>(i,j,k)<< "\t";
-//			}
-//			std::cerr<<std::endl;
-//		}
-//		std::cerr<<std::endl;
-//	}
-	//cv::Mat image_test = cv::Mat::zeros(height_out, width_out,CV_8UC1);
-//	cv::Mat image_test	= cv::Mat::zeros(height_out, width_out,CV_8UC3);
-	//cv::Mat image_out	= cv::Mat::zeros(height_out, width_out,CV_8UC3);
-	cv::Mat image_out	= image.clone();
+	cv::Mat image_out	= cv::Mat::zeros(height_out, width_out,CV_8UC3);
+//	cv::Mat image_out	= image.clone();
 	image_out = cv::Scalar(0,0,0);
-//	cv::Mat image_out	= image;
-//	image_out = cv::Scalar(0,0,0);
-	//cv::Mat image_out	= image;
-//	std::cerr<<"image test"<<std::endl;
-//	for(int k=0;k<3;k++){
-//		for(int i=0; i<20; i++){
-//			for(int j=0; j<20; j++){
-//				std::cerr<<int(image_out.at<uchar>(i,j,k)) << "\t";
-//			}
-//			std::cerr<<std::endl;
-//		}
-//		std::cerr<<std::endl;
-//	}
 	
 	int xtmp,ytmp;
-	std::cerr << width << std::endl;
-	std::cerr << height << std::endl;
-	std::cerr << "width:  "<<image_out.size().width << std::endl;
-	std::cerr << "height: "<<image_out.size().height << std::endl;
-	std::cerr << "chann:  "<<image_out.channels() << std::endl;
-	std::cerr << "depth:  "<<image_out.depth() << std::endl;
-	std::cerr << "depth original:  "<<image.depth() << std::endl;
-	std::cerr << "height_out:  "<<height_out << std::endl;
-	std::cerr << "width_out:   "<<width_out << std::endl;
-	std::cerr <<"type:" << typeid(image).name() << std::endl;
-	std::cerr <<"type:" << typeid(image_out).name() << std::endl;
 	for(int h = 0; h<height_out; h++){
 		for(int w = 0; w<width_out; w++){
 			//xtmp = Mi.slice(0)(h,w);
@@ -384,9 +333,6 @@ int hom3(cv::Mat image, float rx, float ry, float rz){
 			//std::cerr<< "R:"<<int(image_arma(ytmp,xtmp,0)) << "==" << int(image_out_arma(h,w,0))<< std::endl;
 		//	std::cerr<< int(image_arma(ytmp,xtmp,1)) << "==" << int(image_out_arma(h,w,1))<< std::endl;
 		//	std::cerr<< int(image_arma(ytmp,xtmp,2)) << "==" << int(image_out_arma(h,w,2))<< std::endl;
-//>>			((uchar*)image_out.data)[(w+h*width)*3] = ((uchar)image.data[(h*width+w)*3]) ;
-//>>			((uchar*)image_out.data)[(w+h*width)*3+1] = ((uchar)image.data[(h*width+w)*3+1]) ;
-//>>			((uchar*)image_out.data)[(w+h*width)*3+2] = ((uchar)image.data[(h*width+w)*3+2]) ;
 			((uchar*)image_out.data)[(w+h*width)*3]	= ((uchar)image.data[(ytmp*width+xtmp)*3]) ;
 			((uchar*)image_out.data)[(w+h*width)*3+1]	= ((uchar)image.data[(ytmp*width+xtmp)*3+1]) ;
 			((uchar*)image_out.data)[(w+h*width)*3+2]	= ((uchar)image.data[(ytmp*width+xtmp)*3+2]) ;
@@ -396,25 +342,11 @@ int hom3(cv::Mat image, float rx, float ry, float rz){
 		//  Values seem to be correct
 		}
 	}
-//	std::cerr<<"image out"<<std::endl;
-//	for(int k=0;k<3;k++){
-//		for(int i=0; i<20; i++){
-//			for(int j=0; j<20; j++){
-//				std::cerr<<image_out.at<uchar>(i,j,k) << "\t";
-//			}
-//			std::cerr<<std::endl;
-//		}
-//		std::cerr<<std::endl;
-//	}
-	//image_out = image;
-	//std::cerr << "image:\n" << image << std::endl;
-	//std::cerr << "image_out\n" << image_out << std::endl;
+	
 	std::chrono::duration<double> elapsed_seconds = std::chrono::system_clock::now()-start;
 	std::cerr << std::printf ("Hom3: Elapsed time %f",elapsed_seconds.count())<<std::endl;
-	cv::imshow("image_out",image_out);
-	cv::waitKey(0);
 	std::cerr << "Finished" << std::endl;
-	return 0;
+	return image_out;
 }
 
 int main(){
@@ -430,14 +362,17 @@ int main(){
 	//float	rz = 0.5*PI;
 	float	rz = 0.5*PI;
 	
-	int im3 = hom3(image,rx,ry,rz);
+	cv::Mat im3 = hom3(image,rx,ry,rz);
 
 //	Show results
 //	cv2.imshow('Hom0',im0)
 //	cv2.imshow('Hom1',im1)
 //	cv2.imshow('Hom2',im2)
-	//cv::imshow("Hom3",im3);
-	//cv::waitKey(0);
+	cv::imshow("Hom3",im3);
+	cv::waitKey(0);
+
+// C++
+// Looping: Elapsed time 0.004 (rough average)
 
 // Python:
 //#	Hom0: Elapsed time 0.00331997871399

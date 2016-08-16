@@ -21,9 +21,8 @@ typedef struct {
 } rotations;
 
 rotations calcrotationmatrix(double rx, double ry, double rz);
-Eigen::Matrix3f calchomography(cv::Mat image, double rx, double ry, double rz);
-//cv::Mat hom3(cv::Mat image, double rx, double ry, double rz);
-int hom3(cv::Mat image, double rx, double ry, double rz);
+Eigen::Matrix3f calchomography(int width, int height, double rx, double ry, double rz);
+cv::Mat hom3(cv::Mat image, double rx, double ry, double rz);
 Eigen::Vector4i calccorners(Eigen::Matrix3f H, int height, int width);
 
 const double PI		= 3.141592653589793;
