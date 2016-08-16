@@ -289,7 +289,7 @@ cv::Mat hom3(cv::Mat image, float rx, float ry, float rz){
 	//O.print("O:");// This is always correct.
 //	map_out	= np.einsum('kp,ijp->ijk',Hi,O)
 //	TODO: Hi naar arma type?
-	arma::Cube<float> M = arma::zeros<arma::Cube<float>>(height_out, width_out, 3);
+  arma::Cube<float> M = arma::zeros<arma::Cube<float>>(height_out, width_out, 3);
 	//M.print("M:");
 	for(int i = 0; i < height_out; i++){
 		for(int j = 0; j < width_out; j++){
@@ -297,11 +297,20 @@ cv::Mat hom3(cv::Mat image, float rx, float ry, float rz){
 				for(int p = 0; p < 3; p++){
 					//TODO: vector operation instead of loop for last loop.
 					M(i,j,k) += Hi(k,p)*float(O(i,j,p));
-					//TODO: or use i and j as values to use and do not construct O
 				}
 			}
 		}
 	}
+// Following method is slower
+//	for(int i = ymin_out; i <= ymax_out; i++){
+//		for(int j = xmin_out; j < xmax_out; j++){
+//			for(int k = 0; k < 3; k++){
+//				//TODO: vector operation instead of loop for last loop.
+//				M(i,j,k) = Hi(k,0)*float(j) + Hi(k,1)*float(i) + M(i,j,k) + Hi(k,2); // x,y,w (w=1) 
+//				//TODO: or use i and j as values to use and do not construct O
+//			}
+//		}
+//	}
 	// Element wise division by scale
 	M.slice(0)	= M.slice(0)/M.slice(2);
 	M.slice(1)	= M.slice(1)/M.slice(2);
