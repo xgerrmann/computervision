@@ -89,16 +89,14 @@ Eigen::Vector4i box_out(Eigen::Matrix3f H, int width_original, int height_origin
 	for(int i = 0; i<4; i++){
 		Eigen::Vector3f corner_original, corner_new;
 		corner_original = corners.at(i);
-		std::cerr << "Corner_original:\n" << corner_original << "\n";
+		//std::cerr << "Corner_original:\n" << corner_original << "\n";
 		corner_new = H*corner_original; // Perform a forward homography on the corner point.
-		std::cerr << "Corner_new:\n" << corner_new << "\n";
-		//scale = corner_new(2);
-		std::cerr << "Scale: " << scale << std::endl;
-		//corner_new = corner_new/scale; // DO NOT divide by scale TODO?? TODO
 		//std::cerr << "Corner_new:\n" << corner_new << "\n";
-		//corner_new(0) = (corner_new(0)+wx/2); // reset origin
-		//corner_new(1) = -(corner_new(1)-hy/2); // reset origin, change y direction
-		std::cerr << "Corner_new (transposed):\n" << corner_new << "\n";
+		scale = corner_new(2);
+		//std::cerr << "Scale: " << scale << std::endl;
+		corner_new = corner_new/scale; // !! divide by scale
+		//std::cerr << "Corner_new:\n" << corner_new << "\n";
+		//std::cerr << "Corner_new (transposed):\n" << corner_new << "\n";
 		corners_proj.push_back(corner_new.block<2,1>(0,0));
 	}
 	
@@ -303,19 +301,19 @@ cv::Mat hom(cv::Mat image, float rx, float ry, float rz){
 	height_out	= rectangle[3];
 	xmax_out	= xmin_out + width_out-1; // zero based, thus -1
 	ymax_out	= ymin_out + height_out-1;// zero based, thus -1
-	std::cerr << "xmin: " << xmin_out << std::endl;
-	std::cerr << "xmax: " << xmax_out << std::endl;
-	std::cerr << "ymin: " << ymin_out << std::endl;
-	std::cerr << "ymax: " << ymax_out << std::endl;
+//	std::cerr << "xmin: " << xmin_out << std::endl;
+//	std::cerr << "xmax: " << xmax_out << std::endl;
+//	std::cerr << "ymin: " << ymin_out << std::endl;
+//	std::cerr << "ymax: " << ymax_out << std::endl;
 	// calc mapping
 // meshgrid implementation from:	https://forum.kde.org/viewtopic.php?f=74&t=90876
 	arma::Mat<int> x = arma::linspace<arma::Row<int>>(xmin_out,xmax_out,width_out);
 	arma::Mat<int> X = arma::repmat(x,height_out,1);
-	x.print("x:") ;
+//	x.print("x:") ;
 //	X.print("X:") ;
 	arma::Mat<int> y = arma::linspace<arma::Col<int>>(ymin_out,ymax_out,height_out);
 	arma::Mat<int> Y = arma::repmat(y,1,width_out);
-	y.print("y:") ;
+//	y.print("y:") ;
 //	Y.print("Y:") ;
 	arma::Mat<int> W = arma::ones<arma::Mat<int>>(height_out,width_out);
 //	W.print("W:") ;
@@ -353,27 +351,27 @@ cv::Mat hom(cv::Mat image, float rx, float ry, float rz){
 	// Round is very important in this conversion, otherwise major errors
 	// TODO: Check if this still works for negative values (if necessary)
 	arma::Cube<int> Mi = arma::conv_to<arma::Cube<int>>::from(round(M)); // mapping must be of integer type because it is used directly for indexing
-	Mi.print("Mi:");
+	//Mi.print("Mi:");
 	//M.slice.print("M:");
 //	# construct empty image
 	cv::Mat image_out	= cv::Mat::zeros(height_out, width_out,CV_8UC3);
 	image_out			= cv::Scalar(0,0,0); //fill with zeros, TODO: can be done in previous step. 
 	
-	int xtmp,ytmp, wx, hy;
-	wx = int(round(float(width)))/2;
-	hy = int(round(float(height)))/2;
+	int xtmp,ytmp,trans_x, trans_y;
+	trans_x = int(round(width/2));
+	trans_y = int(round(height/2));
 	for(int h = 0; h<height_out; h++){
 		for(int w = 0; w<width_out; w++){
 			// Change origin from center of image to upper right corner.
-			xtmp = Mi(h,w,0)+wx;
-			ytmp = Mi(h,w,1)+hy;
+			xtmp = Mi(h,w,0)+trans_x;
+			ytmp = Mi(h,w,1)+trans_y;
 			if(xtmp<0 || xtmp >= width || ytmp<0 || ytmp>=height){
 				//std::cerr<<"NOT x:"<<xtmp<<"->"<<w<<std::endl;
 				//std::cerr<<"NOT y:"<<ytmp<<"->"<<h<<std::endl;
 				continue;
 			}
-			std::cerr<<"x:"<<xtmp<<"->"<<w<<std::endl;
-			std::cerr<<"y:"<<ytmp<<"->"<<h<<std::endl;
+			//std::cerr<<"x:"<<xtmp<<"->"<<w<<std::endl;
+			//std::cerr<<"y:"<<ytmp<<"->"<<h<<std::endl;
 			//std::cerr<<"y:"<<h<<",x:"<<w<<",R:"<<int(image_arma(h,w,0))<<std::endl;
 			//std::cerr<< "R:"<<int(image_arma(ytmp,xtmp,0)) << "==" << int(image_out_arma(h,w,0))<< std::endl;
 		//	std::cerr<< int(image_arma(ytmp,xtmp,1)) << "==" << int(image_out_arma(h,w,1))<< std::endl;
