@@ -244,7 +244,7 @@ Eigen::Matrix3f calchomography(cv::Mat image, float rx, float ry, float rz){
 //// linspace etc
 //}
 
-cv::Mat hom3(cv::Mat image, float rx, float ry, float rz){
+int hom3(cv::Mat image, float rx, float ry, float rz){
 // Faster backward homography, mapping by masking and matrix indices method # 0.007 seconds
 	std::chrono::time_point<std::chrono::system_clock> start, end;
 	start = std::chrono::system_clock::now();
@@ -326,51 +326,48 @@ cv::Mat hom3(cv::Mat image, float rx, float ry, float rz){
 	//Mi.slice(0).print("Mi:");
 	//Mi.slice(1).print("Mi:");
 //	# construct empty image
-	int dims[3] = {height_out, width_out, 3};
-	//cv::Mat image_out = cv::Mat( 3, dims, CV_8UC3 , 0.0);
-	cv::Mat image_out = cv::Mat( 3, dims, CV_8UC3 , cv::Scalar(0));
-	std::cerr << "rows:"<<image_out.size().height	<< std::endl;
-	std::cerr << "cols:"<<image_out.size().width	<< std::endl;
-	std::cerr << "chan:"<<image_out.channels()		<< std::endl;
-	std::cerr << "Image type:" << image.type() << std::endl;
-	std::cerr << "Image_out type:" << image_out.type() << std::endl;
-	std::cerr<<"image original"<<std::endl;
-	for(int k=0;k<3;k++){
-		for(int i=0; i<20; i++){
-			for(int j=0; j<20; j++){
-				std::cerr<<int(image.at<uchar>(i,j,k))<< "\t";
-			}
-			std::cerr<<std::endl;
-		}
-		std::cerr<<std::endl;
-	}
-	std::cerr<<"image out"<<std::endl;
-	for(int k=0;k<3;k++){
-		for(int i=0; i<20; i++){
-			for(int j=0; j<20; j++){
-				std::cerr<<int(image_out.at<uchar>(i,j,k)) << "\t";
-			}
-			std::cerr<<std::endl;
-		}
-		std::cerr<<std::endl;
-	}
-	int sz[2] = {height,width};
-	cv::Mat image_test = cv::Mat::zeros(height_out, width_out,CV_8UC1);
-	cv::imshow("image_test",image_test);
-	cv::waitKey(0);
-	// arma to cv::mat
-	//cv::Mat image_test( height_out, width_out, CV_8UC3, image_arma.memptr());
-	// show result
-	//cv::imshow("Back",image_test);
-	// So data cast is correct.
-	//image_arma.print("image_arma:");
-//	std::cerr << "cv -> arma finished" << std::endl;
-//	std::cerr << size(image_arma) << std::endl;
+//	std::cerr << "Image type:" << image.type() << std::endl;
+//	std::cerr<<"image original"<<std::endl;
+//	for(int k=0;k<3;k++){
+//		for(int i=0; i<20; i++){
+//			for(int j=0; j<20; j++){
+//				std::cerr<<image.at<uchar>(i,j,k)<< "\t";
+//			}
+//			std::cerr<<std::endl;
+//		}
+//		std::cerr<<std::endl;
+//	}
+	//cv::Mat image_test = cv::Mat::zeros(height_out, width_out,CV_8UC1);
+//	cv::Mat image_test	= cv::Mat::zeros(height_out, width_out,CV_8UC3);
+	//cv::Mat image_out	= cv::Mat::zeros(height_out, width_out,CV_8UC3);
+	cv::Mat image_out	= image.clone();
+	image_out = cv::Scalar(0,0,0);
+//	cv::Mat image_out	= image;
+//	image_out = cv::Scalar(0,0,0);
+	//cv::Mat image_out	= image;
+//	std::cerr<<"image test"<<std::endl;
+//	for(int k=0;k<3;k++){
+//		for(int i=0; i<20; i++){
+//			for(int j=0; j<20; j++){
+//				std::cerr<<int(image_out.at<uchar>(i,j,k)) << "\t";
+//			}
+//			std::cerr<<std::endl;
+//		}
+//		std::cerr<<std::endl;
+//	}
+	
 	int xtmp,ytmp;
 	std::cerr << width << std::endl;
 	std::cerr << height << std::endl;
-	std::cerr << "width:  "<<width << std::endl;
-	std::cerr << "height: "<<height << std::endl;
+	std::cerr << "width:  "<<image_out.size().width << std::endl;
+	std::cerr << "height: "<<image_out.size().height << std::endl;
+	std::cerr << "chann:  "<<image_out.channels() << std::endl;
+	std::cerr << "depth:  "<<image_out.depth() << std::endl;
+	std::cerr << "depth original:  "<<image.depth() << std::endl;
+	std::cerr << "height_out:  "<<height_out << std::endl;
+	std::cerr << "width_out:   "<<width_out << std::endl;
+	std::cerr <<"type:" << typeid(image).name() << std::endl;
+	std::cerr <<"type:" << typeid(image_out).name() << std::endl;
 	for(int h = 0; h<height_out; h++){
 		for(int w = 0; w<width_out; w++){
 			//xtmp = Mi.slice(0)(h,w);
@@ -387,40 +384,37 @@ cv::Mat hom3(cv::Mat image, float rx, float ry, float rz){
 			//std::cerr<< "R:"<<int(image_arma(ytmp,xtmp,0)) << "==" << int(image_out_arma(h,w,0))<< std::endl;
 		//	std::cerr<< int(image_arma(ytmp,xtmp,1)) << "==" << int(image_out_arma(h,w,1))<< std::endl;
 		//	std::cerr<< int(image_arma(ytmp,xtmp,2)) << "==" << int(image_out_arma(h,w,2))<< std::endl;
-			image_out.at<uchar>(h,w,0) = image.at<uchar>(ytmp,xtmp,0);
-			image_out.at<uchar>(h,w,1) = image.at<uchar>(ytmp,xtmp,1);
-			image_out.at<uchar>(h,w,2) = image.at<uchar>(ytmp,xtmp,2);
-			//image_out_arma(h,w,1) = image_arma(ytmp,xtmp,1);
-			//image_out_arma(h,w,2) = image_arma(ytmp,xtmp,2);
+//>>			((uchar*)image_out.data)[(w+h*width)*3] = ((uchar)image.data[(h*width+w)*3]) ;
+//>>			((uchar*)image_out.data)[(w+h*width)*3+1] = ((uchar)image.data[(h*width+w)*3+1]) ;
+//>>			((uchar*)image_out.data)[(w+h*width)*3+2] = ((uchar)image.data[(h*width+w)*3+2]) ;
+			((uchar*)image_out.data)[(w+h*width)*3]	= ((uchar)image.data[(ytmp*width+xtmp)*3]) ;
+			((uchar*)image_out.data)[(w+h*width)*3+1]	= ((uchar)image.data[(ytmp*width+xtmp)*3+1]) ;
+			((uchar*)image_out.data)[(w+h*width)*3+2]	= ((uchar)image.data[(ytmp*width+xtmp)*3+2]) ;
 		//	std::cerr<< int(image_arma(ytmp,xtmp,0)) << "==" << int(image_out_arma(h,w,0))<< std::endl;
 		//	std::cerr<< int(image_arma(ytmp,xtmp,1)) << "==" << int(image_out_arma(h,w,1))<< std::endl;
 		//	std::cerr<< int(image_arma(ytmp,xtmp,2)) << "==" << int(image_out_arma(h,w,2))<< std::endl;
 		//  Values seem to be correct
 		}
 	}
-	std::cerr<<"image out"<<std::endl;
-	for(int k=0;k<3;k++){
-		for(int i=0; i<20; i++){
-			for(int j=0; j<20; j++){
-				std::cerr<<int(image_out.at<uchar>(i,j,k)) << "\t";
-			}
-			std::cerr<<std::endl;
-		}
-		std::cerr<<std::endl;
-	}
-	//image_arma.print("image_arma:");
-//	image_out_arma.slice(0).print("R:");
-//	image_out_arma.slice(1).print("G:");
-//	image_out_arma.slice(2).print("B:");
-//	cv::Mat image_out( height_out, width_out, CV_8UC3, image_out_arma.memptr());
-	//std::cerr << image_out << std::endl;
-	//std::cerr << image_out.rows << ", " << image_out.cols << ", " << image_out.channels() << std::endl;
+//	std::cerr<<"image out"<<std::endl;
+//	for(int k=0;k<3;k++){
+//		for(int i=0; i<20; i++){
+//			for(int j=0; j<20; j++){
+//				std::cerr<<image_out.at<uchar>(i,j,k) << "\t";
+//			}
+//			std::cerr<<std::endl;
+//		}
+//		std::cerr<<std::endl;
+//	}
+	//image_out = image;
+	//std::cerr << "image:\n" << image << std::endl;
+	//std::cerr << "image_out\n" << image_out << std::endl;
 	std::chrono::duration<double> elapsed_seconds = std::chrono::system_clock::now()-start;
 	std::cerr << std::printf ("Hom3: Elapsed time %f",elapsed_seconds.count())<<std::endl;
 	cv::imshow("image_out",image_out);
 	cv::waitKey(0);
 	std::cerr << "Finished" << std::endl;
-	return image_out;
+	return 0;
 }
 
 int main(){
@@ -436,7 +430,7 @@ int main(){
 	//float	rz = 0.5*PI;
 	float	rz = 0.5*PI;
 	
-	cv::Mat im3 = hom3(image,rx,ry,rz);
+	int im3 = hom3(image,rx,ry,rz);
 
 //	Show results
 //	cv2.imshow('Hom0',im0)
