@@ -1,5 +1,7 @@
 #include "paths.hpp"
 
+#include "homography.hpp"
+
 // ## dlib
 #include <dlib/opencv.h>
 #include <dlib/image_processing/frontal_face_detector.h>

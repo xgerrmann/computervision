@@ -240,7 +240,7 @@ Eigen::Matrix3f calchomography(int width, int height, float rx, float ry, float 
 //// linspace etc
 //}
 
-cv::Mat hom3(cv::Mat image, float rx, float ry, float rz){
+cv::Mat hom(cv::Mat image, float rx, float ry, float rz){
 // Faster backward homography, mapping by masking and matrix indices method # 0.007 seconds
 	std::chrono::time_point<std::chrono::system_clock> start, end;
 	start = std::chrono::system_clock::now();
@@ -371,7 +371,7 @@ int main(){
 	//float	rz = 0.5*PI;
 	float	rz = 0.5*PI;
 	
-	cv::Mat im3 = hom3(image,rx,ry,rz);
+	cv::Mat im3 = hom(image,rx,ry,rz);
 
 //	Show results
 //	cv2.imshow('Hom0',im0)
