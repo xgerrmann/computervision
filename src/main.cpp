@@ -117,9 +117,13 @@ dlib::full_object_detection detect_face(std::string window_face, std::string win
 
 
 int main(){
-	dlib::frontal_face_detector detector = dlib::get_frontal_face_detector();
-	dlib::shape_predictor predictor;
-	dlib::deserialize(trained_model) >> predictor;
+// Partially based on sample of attention tracker
+
+    //auto estimator = HeadPoseEstimation(argv[1]);
+    auto estimator = HeadPoseEstimation(trained_model);
+	//dlib::frontal_face_detector detector = dlib::get_frontal_face_detector();
+	//dlib::shape_predictor predictor;
+	//dlib::deserialize(trained_model) >> predictor;
 
 	cv::Mat image;
 	image = cv::imread(default_image);
@@ -130,20 +134,32 @@ int main(){
 	cv::waitKey(1);
 	std::string window_face = "Face";
 	cv::namedWindow(window_face);
-	cv::VideoCapture vc =cv::VideoCapture(0);
-	if(!vc.isOpened()){ // Early return if no frame is captured by the cam
+	//cv::VideoCapture vc =cv::VideoCapture(0);
+	cv::VideoCapture video_in(0);
+	// adjust for your webcam!
+	video_in.set(CV_CAP_PROP_FRAME_WIDTH, 640);
+	video_in.set(CV_CAP_PROP_FRAME_HEIGHT, 480);
+	estimator.focalLength		= 500;
+	estimator.opticalCenterX	= 320;
+	estimator.opticalCenterY	= 240;
+
+	if(!video_in.isOpened()){ // Early return if no frame is captured by the cam
 		std::cerr << "No frame capured by camera, try running again.";
 		return -1;
 	}
 	for(EVER){
 		cv::Mat frame;
-		vc >> frame;
-		try{ // Try to detect a face, if no face it's ok.
-			dlib::full_object_detection shape = detect_face(window_face,window_image,predictor,detector,frame);
-		}catch(const char* msg){
-			std::cerr << msg << "\n";
-		}
+		video_in >> frame;
+//		try{ // Try to detect a face, if no face it's ok.
+//			dlib::full_object_detection shape = detect_face(window_face,window_image,predictor,detector,frame);
+//		}catch(const char* msg){
+//			std::cerr << msg << "\n";
+//		}
+		estimator.update(frame);
 		cv::imshow(window_face,frame);
+		for(auto pose : estimator.poses()) {
+			std::cout << "Head pose: (" << pose(0,3) << ", " << pose(1,3) << ", " << pose(2,3) << ")" << std::endl;
+		}
 		float rx, ry, rz;
 		rx = 0;
 		ry = 0;
@@ -156,13 +172,20 @@ int main(){
 		}
 	}
 	// Release webcam
-	vc.release();
+	video_in.release();
 	return 0;
 }
-//def main():
-//	while True:
-//		# TODO: calibrated shape is now same as current, calibrated shape must be indicated by used.
-//		shape_calibrated= shape
-//		shape_current	= shape
-//		headpose		= shape2pose(shape_calibrated, shape_current)
 //		adjustwindow(window_image, image, headpose)
+
+// Attention tracker sample
+//int main(int argc, char **argv)
+//{
+//
+//#ifdef HEAD_POSE_ESTIMATION_DEBUG
+//        imshow("headpose", estimator._debug);
+//        if (waitKey(10) >= 0) break;
+//#endif
+//
+//    }
+//}
+

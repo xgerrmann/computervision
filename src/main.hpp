@@ -17,6 +17,14 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+
+//Attention tracker
+//#include "../include/attention-tracker/src/head_pose_estimation.hpp"
+//#include "../include/attention-tracker/src/head_pose_estimation.hpp"
+//#include "attention-tracker/src/head_pose_estimation.hpp"
+//#include "../include/attention-tracker/head_pose_estimation.hpp"
+#include "/home/xander/computervision/include/attention-tracker/src/head_pose_estimation.hpp"
+
 //using namespace dlib;
 //using namespace std;
 //using namespace cv;

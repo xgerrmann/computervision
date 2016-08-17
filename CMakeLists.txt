@@ -31,7 +31,15 @@ ADD_EXECUTABLE(homography src/homography.cpp)
 
 include(include/dlib/cmake)
 include_directories(include/eigen)
-#include_directories(include/armadillo/include)
+#add_subdirectory(include/attention_tracker)
+#include_directories(${attention_tracker_SOURCE_DIR}))
+#add_subdirectory(include/attention_tracker)
+#add_library(attention_tracker /home/xander/computervision/include/attention-tracker/src/head_pose_estimation.hpp)
+#add_library(attention_tracker include/attention-tracker/src/head_pose_estimation.hpp)
+include_directories("${PROJECT_SOURCE_DIR}/include")
+add_subdirectory(include/attention-tracker)
+
+# Armadillo
 find_package(Armadillo REQUIRED)
 include_directories(${ARMADILLO_INCLUDE_DIRS})
 
@@ -47,7 +55,7 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 
 
 # Linking
-TARGET_LINK_LIBRARIES(main dlib ${OpenCV_LIBS})
+TARGET_LINK_LIBRARIES(main dlib attention_tracker ${OpenCV_LIBS})
 TARGET_LINK_LIBRARIES(homography ${OpenCV_LIBS} ${ARMADILLO_LIBRARIES})
 
 ##set(LAPACK_LIBDIRS "/usr/lib/liblapack")
