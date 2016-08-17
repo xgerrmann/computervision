@@ -19,11 +19,11 @@
 #include <opencv2/imgproc/imgproc.hpp>
 
 //Attention tracker
+//#include "../include/attention-tracker/src/head_pose_estimation.hpp"
+//#include <attention-tracker/src/head_pose_estimation.hpp>
 #include "../include/attention-tracker/src/head_pose_estimation.hpp"
 
-//using namespace dlib;
-//using namespace std;
-//using namespace cv;
+#define EVER ;;
 
 dlib::full_object_detection detect_face(std::string window_face, std::string window_image, dlib::shape_predictor predictor, dlib::frontal_face_detector detector, cv::Mat frame);
 void showshape(std::string window_face, cv::Mat frame, dlib::full_object_detection shape);

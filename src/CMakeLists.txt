@@ -31,9 +31,12 @@ include_directories(../include/eigen)
 find_package(Armadillo REQUIRED)
 include_directories(${ARMADILLO_INCLUDE_DIRS})
 
+# tracker
+include_directories(../include/attention-tracker)
+
 # Linker
 #-------------------
-target_link_libraries(main dlib ${OpenCV_LIBS})
+target_link_libraries(main dlib ${OpenCV_LIBS} head_pose_estimation)
 target_link_libraries(homography ${OpenCV_LIBS} ${ARMADILLO_LIBRARIES})
 
 #######include_directories(include/eigen)

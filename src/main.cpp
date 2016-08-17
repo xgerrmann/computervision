@@ -1,6 +1,5 @@
 #include "main.hpp"
 
-#define EVER ;;
 
 //## Sources
 //# Example:		http://dlib.net/face_landmark_detection.py.html
@@ -120,7 +119,7 @@ int main(){
 // Partially based on sample of attention tracker
 
     //auto estimator = HeadPoseEstimation(argv[1]);
-    //auto estimator = HeadPoseEstimation(trained_model);
+    auto estimator = HeadPoseEstimation(trained_model);
 	//dlib::frontal_face_detector detector = dlib::get_frontal_face_detector();
 	//dlib::shape_predictor predictor;
 	//dlib::deserialize(trained_model) >> predictor;
