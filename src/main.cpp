@@ -120,7 +120,7 @@ int main(){
 // Partially based on sample of attention tracker
 
     //auto estimator = HeadPoseEstimation(argv[1]);
-    auto estimator = HeadPoseEstimation(trained_model);
+    //auto estimator = HeadPoseEstimation(trained_model);
 	//dlib::frontal_face_detector detector = dlib::get_frontal_face_detector();
 	//dlib::shape_predictor predictor;
 	//dlib::deserialize(trained_model) >> predictor;
@@ -139,9 +139,9 @@ int main(){
 	// adjust for your webcam!
 	video_in.set(CV_CAP_PROP_FRAME_WIDTH, 640);
 	video_in.set(CV_CAP_PROP_FRAME_HEIGHT, 480);
-	estimator.focalLength		= 500;
-	estimator.opticalCenterX	= 320;
-	estimator.opticalCenterY	= 240;
+//	estimator.focalLength		= 500;
+//	estimator.opticalCenterX	= 320;
+//	estimator.opticalCenterY	= 240;
 
 	if(!video_in.isOpened()){ // Early return if no frame is captured by the cam
 		std::cerr << "No frame capured by camera, try running again.";
@@ -155,11 +155,11 @@ int main(){
 //		}catch(const char* msg){
 //			std::cerr << msg << "\n";
 //		}
-		estimator.update(frame);
+		//estimator.update(frame);
 		cv::imshow(window_face,frame);
-		for(auto pose : estimator.poses()) {
-			std::cout << "Head pose: (" << pose(0,3) << ", " << pose(1,3) << ", " << pose(2,3) << ")" << std::endl;
-		}
+		//for(auto pose : estimator.poses()) {
+		//	std::cout << "Head pose: (" << pose(0,3) << ", " << pose(1,3) << ", " << pose(2,3) << ")" << std::endl;
+		//}
 		float rx, ry, rz;
 		rx = 0;
 		ry = 0;

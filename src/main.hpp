@@ -2,7 +2,7 @@
 
 #include "homography.hpp"
 
-// ## dlib was dlib/...
+// ## dlib was
 #include <dlib/opencv.h>
 #include <dlib/image_processing/frontal_face_detector.h>
 #include <dlib/image_processing/render_face_detections.h>
@@ -13,7 +13,7 @@
 #include <iostream>
 
 // ## opencv2
-//#include <opencv2/opencv.hpp>
+#include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>

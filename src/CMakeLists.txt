@@ -14,8 +14,8 @@ message("${PROJECT_NAME}")
 
 # Create binaries
 #-------------------
-add_executable(homography homography.cpp)
-#add_executable(${PROJECT_NAME} ${${PROJECT_NAME}_headers} ${${PROJECT_NAME}_sources})
+add_executable(homography	homography.cpp)
+add_executable(main			main.cpp)
 
 # OPENCV
 find_package(OpenCV REQUIRED)
@@ -33,10 +33,7 @@ include_directories(${ARMADILLO_INCLUDE_DIRS})
 
 # Linker
 #-------------------
-#target_link_libraries(${PROJECT_NAME} dlib)
-#target_link_libraries(homography ${OpenCV_LIBS} ${ARMADILLO_LIBRARIES})
-#target_link_libraries(homography ${OpenCV_LIBS})
-#target_link_libraries(homography ${OpenCV_LIBS})
+target_link_libraries(main dlib ${OpenCV_LIBS})
 target_link_libraries(homography ${OpenCV_LIBS} ${ARMADILLO_LIBRARIES})
 
 #######include_directories(include/eigen)
