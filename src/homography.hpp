@@ -291,7 +291,7 @@ cv::Mat hom(cv::Mat image, float rx, float ry, float rz){
 //	std::cerr << width << std::endl;
 //	std::cerr << height << std::endl;
 	Eigen::Vector4i rectangle = box_out(H, width, height);
-	std::cerr <<"Rectangle:\n"<< rectangle << "\n"; // rectangle is xmin, ymin, width, height
+	//std::cerr <<"Rectangle:\n"<< rectangle << "\n"; // rectangle is xmin, ymin, width, height
 	Hi	= H.inverse(); // correct
 //	std::cerr << "Hi:\n" << Hi << std::endl;
 	int xmin_out, ymin_out, xmax_out, ymax_out, width_out, height_out;
@@ -387,7 +387,7 @@ cv::Mat hom(cv::Mat image, float rx, float ry, float rz){
 	}
 	
 	std::chrono::duration<double> elapsed_seconds = std::chrono::system_clock::now()-start;
-	std::cerr << std::printf ("Hom3: Elapsed time %f",elapsed_seconds.count())<<std::endl;
-	std::cerr << "Finished" << std::endl;
+	std::cerr << std::printf ("Homography: Elapsed time %f",elapsed_seconds.count())<<std::endl;
+	//std::cerr << "Finished" << std::endl;
 	return image_out;
 }
