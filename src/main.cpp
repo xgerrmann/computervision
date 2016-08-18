@@ -97,12 +97,12 @@ int main(){
 	}
 	timer watch;
 	cv::Mat frame;
+	double subsample_detection_frame = 2.0;
 	for(EVER){
 		watch.start();
 		video_in >> frame;
 		watch.lap("Get frame");
-
-		estimator.update(frame);
+		estimator.update(frame,subsample_detection_frame);
 		watch.lap("Update estimator");
 		cv::imshow(window_face,frame);
 		float rx, ry, rz;
