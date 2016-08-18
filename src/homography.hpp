@@ -150,12 +150,14 @@ Eigen::Matrix3f calchomography(int width, int height, Eigen::Matrix4f pose){
 
 	//rotations rot = calcrotationmatrix(rx,ry,rz);
 	//Rt = Rz*Ry*Rx
-	//Eigen::Matrix3f Rt	= rot.Rz*rot.Ry*rot.Rx;
-	std::cerr << "Pose:\n" << pose << std::endl;
-	std::cerr << "Rt:\n" << pose.block<3,3>(0,0) << std::endl;
-	Eigen::Matrix3f Rt	= pose.block<3,3>(0,0); // extract upper left 3x3 block from the pose, this is the rotation matrix
-	std::cerr << "Rt:\n" << Rt << std::endl;
+	//Eigen::Matrix3f Rt = rot.Rz*rot.Ry*rot.
+	//Extract upper left 3x3 block from the pose, this is the rotation matrixRx;
+	//std::cerr << "Pose:\n" << pose << std::endl;
+	//std::cerr << "Rt:\n" << pose.block<3,3>(0,0) << std::endl;
+	Eigen::Matrix3f Rt	= pose.block<3,3>(0,0);
+	//std::cerr << "Rt:\n" << Rt << std::endl;
 //	std::cerr<<"Rt:\n"<<Rt<<std::endl;
+	//Rt.transposeInPlace(); // in place transposition to avoid aliasing
 	Eigen::Matrix3f Rti	= Rt.inverse();
 //	# define 3 points on the virtual image plane
 	Eigen::Vector3f p0, p1, p2, pr0, pr1, pr2;
