@@ -126,21 +126,19 @@ int main(){
 
 	cv::Mat image;
 	image = cv::imread(default_image);
-	//cv::namedWindow("Image",cv::WINDOW_AUTOSIZE);
 	std::string window_image = "Image";
 	cv::namedWindow("Image");
 	cv::imshow("Image",image);
 	cv::waitKey(1);
 	std::string window_face = "Face";
 	cv::namedWindow(window_face);
-	//cv::VideoCapture vc =cv::VideoCapture(0);
 	cv::VideoCapture video_in(0);
 	// adjust for your webcam!
 	video_in.set(CV_CAP_PROP_FRAME_WIDTH, 640);
 	video_in.set(CV_CAP_PROP_FRAME_HEIGHT, 480);
-//	estimator.focalLength		= 500;
-//	estimator.opticalCenterX	= 320;
-//	estimator.opticalCenterY	= 240;
+	estimator.focalLength		= 500;
+	estimator.opticalCenterX	= 320;
+	estimator.opticalCenterY	= 240;
 
 	if(!video_in.isOpened()){ // Early return if no frame is captured by the cam
 		std::cerr << "No frame capured by camera, try running again.";
@@ -150,20 +148,21 @@ int main(){
 		cv::Mat frame;
 		video_in >> frame;
 //		try{ // Try to detect a face, if no face it's ok.
-//			dlib::full_object_detection shape = detect_face(window_face,window_image,predictor,detector,frame);
+//			dlib::full_object_detection shape = detect_face(windowe,window_image,predictor,detector,frame);
 //		}catch(const char* msg){
 //			std::cerr << msg << "\n";
 //		}
-		//estimator.update(frame);
+		estimator.update(frame);
 		cv::imshow(window_face,frame);
-		//for(auto pose : estimator.poses()) {
-		//	std::cout << "Head pose: (" << pose(0,3) << ", " << pose(1,3) << ", " << pose(2,3) << ")" << std::endl;
-		//}
 		float rx, ry, rz;
-		rx = 0;
-		ry = 0;
-		rz = 0;
-		cv::Mat im = hom(image,rx,ry,rz);
+		for(auto pose : estimator.poses()) {
+			std::cout << "Head pose: (" << pose(0,3) << ", " << pose(1,3) << ", " << pose(2,3) << ")" << std::endl;
+			rx = pose(0,3);
+			ry = pose(1,3);
+			rz = pose(2,3);
+			cv::Mat im = hom(image,rx,ry,rz);
+			cv::imshow(window_image,im);
+		}
 		char key = (char)cv::waitKey(1);
 		if(key == 27){
 			std::cerr << "Program halted by user.";
@@ -177,14 +176,8 @@ int main(){
 //		adjustwindow(window_image, image, headpose)
 
 // Attention tracker sample
-//int main(int argc, char **argv)
-//{
-//
 //#ifdef HEAD_POSE_ESTIMATION_DEBUG
 //        imshow("headpose", estimator._debug);
 //        if (waitKey(10) >= 0) break;
 //#endif
-//
-//    }
-//}
 
