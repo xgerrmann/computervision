@@ -37,6 +37,6 @@ include_directories(../include/attention-tracker)
 # Linker
 #-------------------
 target_link_libraries(main dlib ${OpenCV_LIBS} head_pose_estimation)
-target_link_libraries(homography ${OpenCV_LIBS} ${ARMADILLO_LIBRARIES})
+target_link_libraries(homography ${OpenCV_LIBS} ${ARMADILLO_LIBRARIES} head_pose_estimation)
 
 #######include_directories(include/eigen)

@@ -15,13 +15,15 @@ int main(){
 	//float	rz = 0.5*PI;
 	float	rz = 0.5*PI;
 	
-	cv::Mat im3 = hom(image,rx,ry,rz);
+	rotations rot			= calcrotationmatrix(rx, ry, rz);
+	Eigen::Matrix3f Rt		= rot.Rz*rot.Ry*rot.Rx;
+	Eigen::MatrixXf pose	= Eigen::MatrixXf::Identity(4,4);
+	pose.block<3,3>(0,0)	= Rt;
+	std::cerr << "Pose: \n" << pose << std::endl;
+	cv::Mat im				= hom(image,pose);
 
 //	Show results
-//	cv2.imshow('Hom0',im0)
-//	cv2.imshow('Hom1',im1)
-//	cv2.imshow('Hom2',im2)
-	cv::imshow("Hom3",im3);
+	cv::imshow("Hom",im);
 	cv::waitKey(0);
 
 // C++

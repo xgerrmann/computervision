@@ -17,10 +17,8 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-
+#include <opencv2/core/eigen.hpp> // for cast from cv::Mat to Eigen::Matrix
 //Attention tracker
-//#include "../include/attention-tracker/src/head_pose_estimation.hpp"
-//#include <attention-tracker/src/head_pose_estimation.hpp>
 #include "../include/attention-tracker/src/head_pose_estimation.hpp"
 
 #define EVER ;;

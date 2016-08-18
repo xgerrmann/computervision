@@ -66,55 +66,6 @@ dlib::full_object_detection detect_face(std::string window_face, std::string win
 	return shape;
 }
 
-//def shape2pose(shape_calibrated, shape_current):
-//# This function determines the pose of the head by using the foudn markers on the face.
-//# The current markers are compared to the calibrated markers and from this the head pose is determined.
-//# Currently only the nos bridge length is used, which is only to allow for a proof of concept.
-//# Definition of head pose: x, y, z, rx (pitch), ry (yaw), rz (roll) -> http://gi4e.unavarra.es/databases/hpdb/
-//	# Initialization of head pose
-//	headpose = pose()
-//
-//	pts		= shape_current.parts()
-//	#for pt in pts:
-//	#	print pt
-//	nose_bridge	= pts[27:31]
-//	jaw_line	= pts[0:16]
-//	
-//	# TODO: no rotation is assumed
-//	ymin = np.inf
-//	ymax = -1
-//	for pt in nose_bridge:
-//		x = pt.x
-//		y = pt.y
-//		if y<ymin:
-//			ymin = y
-//		if y>ymax:
-//			ymax = y
-//	# TODO: use calibrated shape do determine normal nose bridge length
-//	nb_length_cal = 35
-//	nb_length_cur = ymax - ymin
-//
-//	print 'Bridge length:, ',nb_length_cur
-//	print 'Normal length:  ',nb_length_cal
-//	headpose.rx = -math.acos(float(nb_length_cur)/float(nb_length_cal))
-//	#print	math.acos(float(nb_length_cur)/float(nb_length_cal))
-//
-//	return headpose
-//
-//def adjustwindow(windowname,image,headpose):
-//	rx = headpose.rx
-//	ry = headpose.ry
-//	rz = headpose.rz
-//	print 'rx: ',rx
-//	print 'ry: ',ry
-//	print 'rz: ',rz
-//	image_adj = hom3(image,rx,ry,rz)
-//	cv2.imshow('Image adjusted',image_adj)
-//	cv2.waitKey(1)
-//	return 0
-//
-
-
 int main(){
 // Partially based on sample of attention tracker
 
@@ -155,12 +106,17 @@ int main(){
 		estimator.update(frame);
 		cv::imshow(window_face,frame);
 		float rx, ry, rz;
-		for(auto pose : estimator.poses()) {
-			std::cout << "Head pose: (" << pose(0,3) << ", " << pose(1,3) << ", " << pose(2,3) << ")" << std::endl;
-			rx = pose(0,3);
-			ry = pose(1,3);
-			rz = pose(2,3);
-			cv::Mat im = hom(image,rx,ry,rz);
+		//for(auto pose : estimator.poses()) {
+		for(head_pose pose_head : estimator.poses()) {
+			std::cerr << "Head pose (pose_head):\n" << pose_head << std::endl;
+			cv::Mat tmp(4,4,CV_64FC1); // double data type, single channel
+			tmp = cv::Mat(pose_head.get_minor<4,4>(0,0));
+			std::cerr << "Head pose (tmp):\n" << tmp << std::endl;
+			Eigen::Matrix4d tmp1;
+			cv::cv2eigen(tmp,tmp1);
+			Eigen::Matrix4f pose = tmp1.cast<float>();
+			std::cerr << "Head pose (pose):\n" << pose << std::endl;
+			cv::Mat im = hom(image,pose);
 			cv::imshow(window_image,im);
 		}
 		char key = (char)cv::waitKey(1);

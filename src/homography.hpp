@@ -13,6 +13,8 @@
 #include <limits.h> // for max values of datatypes
 // ## Armadillo
 #include <armadillo>
+//Attention tracker
+#include "../include/attention-tracker/src/head_pose_estimation.hpp"
 
 #define EVER ;;
 
@@ -23,9 +25,9 @@ typedef struct {
 	Eigen::Matrix3f Rz;
 } rotations;
 
-cv::Mat hom(cv::Mat image, double rx, double ry, double rz);
+cv::Mat hom(cv::Mat image, Eigen::Matrix4f pose); // head_pose is a 4x4 cv::Mat doubles
 rotations calcrotationmatrix(double rx, double ry, double rz);
-Eigen::Matrix3f calchomography(int width, int height, double rx, double ry, double rz);
+Eigen::Matrix3f calchomography(int width, int height, Eigen::Matrix4f pose);
 Eigen::Vector4i calccorners(Eigen::Matrix3f H, int height, int width);
 
 const double PI		= 3.141592653589793;
@@ -136,7 +138,7 @@ Eigen::Vector4i box_out(Eigen::Matrix3f H, int width_original, int height_origin
 	return rectangle; // xmin, ymin, width, height
 }
 
-Eigen::Matrix3f calchomography(int width, int height, float rx, float ry, float rz){
+Eigen::Matrix3f calchomography(int width, int height, Eigen::Matrix4f pose){
 // This function calculates the homography matrix, given the rotations rx,ry,rz.
 // Coordinate system:
 // ^ y+
@@ -146,9 +148,13 @@ Eigen::Matrix3f calchomography(int width, int height, float rx, float ry, float 
 	// Width and height of an image must be > 0
 	assert(width>0&&height>0);
 
-	rotations rot = calcrotationmatrix(rx,ry,rz);
+	//rotations rot = calcrotationmatrix(rx,ry,rz);
 	//Rt = Rz*Ry*Rx
-	Eigen::Matrix3f Rt	= rot.Rz*rot.Ry*rot.Rx;
+	//Eigen::Matrix3f Rt	= rot.Rz*rot.Ry*rot.Rx;
+	std::cerr << "Pose:\n" << pose << std::endl;
+	std::cerr << "Rt:\n" << pose.block<3,3>(0,0) << std::endl;
+	Eigen::Matrix3f Rt	= pose.block<3,3>(0,0); // extract upper left 3x3 block from the pose, this is the rotation matrix
+	std::cerr << "Rt:\n" << Rt << std::endl;
 //	std::cerr<<"Rt:\n"<<Rt<<std::endl;
 	Eigen::Matrix3f Rti	= Rt.inverse();
 //	# define 3 points on the virtual image plane
@@ -273,7 +279,7 @@ Eigen::Matrix3f calchomography(int width, int height, float rx, float ry, float 
 	return H;
 }
 
-cv::Mat hom(cv::Mat image, float rx, float ry, float rz){
+cv::Mat hom(cv::Mat image, Eigen::Matrix4f pose){
 // Faster backward homography, mapping by masking and matrix indices method # 0.007 seconds
 	std::chrono::time_point<std::chrono::system_clock> start, end;
 	start = std::chrono::system_clock::now();
@@ -283,7 +289,8 @@ cv::Mat hom(cv::Mat image, float rx, float ry, float rz){
 	int channels= image.channels();
 	
 	Eigen::Matrix3f H, Hi;
-	H	= calchomography(width,height,rx,ry,rz);
+	
+	H	= calchomography(width,height,pose);
 	//H	<<	1,0,0,
 	//		0,1,0,
 	//		0,0,1;
