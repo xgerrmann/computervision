@@ -95,24 +95,22 @@ int main(){
 		std::cerr << "No frame capured by camera, try running again.";
 		return -1;
 	}
-	std::chrono::time_point<std::chrono::system_clock> start, end;
-	std::chrono::duration<double> elapsed_seconds;
+	timer watch;
 	cv::Mat frame;
 	for(EVER){
-		start = std::chrono::system_clock::now();
+		watch.start();
 		video_in >> frame;
-		elapsed_seconds = std::chrono::system_clock::now()-start;
-		std::cerr << std::printf ("Get frame: Elapsed time %f",elapsed_seconds.count())<<std::endl;
+		watch.lap("Get frame");
 
-		start = std::chrono::system_clock::now();
+		//start = std::chrono::system_clock::now();
 		estimator.update(frame);
-		elapsed_seconds = std::chrono::system_clock::now()-start;
-		std::cerr << std::printf ("Update estimator: Elapsed time %f",elapsed_seconds.count())<<std::endl;
+		//elapsed_seconds = std::chrono::system_clock::now()-start;
+		//std::cerr << std::printf ("Update estimator: Elapsed time %f",elapsed_seconds.count())<<std::endl;
 		cv::imshow(window_face,frame);
 		float rx, ry, rz;
 		//for(auto pose : estimator.poses()) {
 		for(head_pose pose_head : estimator.poses()) {
-			start = std::chrono::system_clock::now();
+			//start = std::chrono::system_clock::now();
 			//std::cerr << "Head pose (pose_head):\n" << pose_head << std::endl;
 			cv::Mat tmp(4,4,CV_64FC1); // double data type, single channel
 			tmp = cv::Mat(pose_head.get_minor<4,4>(0,0));
@@ -122,8 +120,8 @@ int main(){
 			Eigen::Matrix4f pose = tmp1.cast<float>();
 			std::cerr << "Head pose (pose):\n" << pose << std::endl;
 			cv::Mat im = hom(image,pose);
-			elapsed_seconds = std::chrono::system_clock::now()-start;
-			std::cerr << std::printf ("Calculate new image: Elapsed time %f",elapsed_seconds.count())<<std::endl;
+			//elapsed_seconds = std::chrono::system_clock::now()-start;
+			//std::cerr << std::printf ("Calculate new image: Elapsed time %f",elapsed_seconds.count())<<std::endl;
 			//cv::imshow(window_face,frame);
 			cv::imshow(window_image,im);
 		}

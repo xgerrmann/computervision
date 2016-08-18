@@ -1,6 +1,7 @@
 #include "paths.hpp"
 
 #include "homography.hpp"
+#include "../lib/timer/timer.hpp"
 
 // ## dlib was
 #include <dlib/opencv.h>

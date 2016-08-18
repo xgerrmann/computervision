@@ -1,13 +1,15 @@
 #include <iostream>
 
+#include "../lib/timer/timer.hpp"
+
 //#include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include "paths.hpp"
 #include <math.h>
-#include <chrono>
-#include <ctime>
+//#include <chrono>
+//#include <ctime>
 // ## Eigen
 #include <Eigen/Dense>
 #include <limits.h> // for max values of datatypes
@@ -283,8 +285,8 @@ Eigen::Matrix3f calchomography(int width, int height, Eigen::Matrix4f pose){
 
 cv::Mat hom(cv::Mat image, Eigen::Matrix4f pose){
 // Faster backward homography, mapping by masking and matrix indices method # 0.007 seconds
-	std::chrono::time_point<std::chrono::system_clock> start, end;
-	start = std::chrono::system_clock::now();
+	timer watch;
+	watch.start();
 
 	int height	= image.size().height;
 	int width	= image.size().width;
@@ -394,9 +396,7 @@ cv::Mat hom(cv::Mat image, Eigen::Matrix4f pose){
 		//  Values seem to be correct
 		}
 	}
-	
-	std::chrono::duration<double> elapsed_seconds = std::chrono::system_clock::now()-start;
-	std::cerr << std::printf ("Homography: Elapsed time %f",elapsed_seconds.count())<<std::endl;
-	//std::cerr << "Finished" << std::endl;
+
+	watch.stop("Homography: Elapsed time %f");
 	return image_out;
 }
