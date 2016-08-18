@@ -102,28 +102,23 @@ int main(){
 		video_in >> frame;
 		watch.lap("Get frame");
 
-		//start = std::chrono::system_clock::now();
 		estimator.update(frame);
-		//elapsed_seconds = std::chrono::system_clock::now()-start;
-		//std::cerr << std::printf ("Update estimator: Elapsed time %f",elapsed_seconds.count())<<std::endl;
+		watch.lap("Update estimator");
 		cv::imshow(window_face,frame);
 		float rx, ry, rz;
-		//for(auto pose : estimator.poses()) {
+		cv::Mat tmp_cv(4,4,CV_64FC1); // double data type, single channel
+		Eigen::Matrix4d tmp_eigen;
+		Eigen::Matrix4f pose;
 		for(head_pose pose_head : estimator.poses()) {
-			//start = std::chrono::system_clock::now();
-			//std::cerr << "Head pose (pose_head):\n" << pose_head << std::endl;
-			cv::Mat tmp(4,4,CV_64FC1); // double data type, single channel
-			tmp = cv::Mat(pose_head.get_minor<4,4>(0,0));
-			//std::cerr << "Head pose (tmp):\n" << tmp << std::endl;
-			Eigen::Matrix4d tmp1;
-			cv::cv2eigen(tmp,tmp1);
-			Eigen::Matrix4f pose = tmp1.cast<float>();
-			std::cerr << "Head pose (pose):\n" << pose << std::endl;
+			watch.start();
+			tmp_cv = cv::Mat(pose_head.get_minor<4,4>(0,0));
+			cv::cv2eigen(tmp_cv,tmp_eigen);
+			pose = tmp_eigen.cast<float>();
+			//std::cerr << "Head pose (pose):\n" << pose << std::endl;
 			cv::Mat im = hom(image,pose);
-			//elapsed_seconds = std::chrono::system_clock::now()-start;
-			//std::cerr << std::printf ("Calculate new image: Elapsed time %f",elapsed_seconds.count())<<std::endl;
-			//cv::imshow(window_face,frame);
+			watch.lap("Calculate new image");
 			cv::imshow(window_image,im);
+			watch.lap("imshow");
 		}
 		char key = (char)cv::waitKey(1);
 		if(key == 27){
