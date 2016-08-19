@@ -29,14 +29,16 @@ typedef struct {
 	Eigen::Matrix3f Rz;
 } Rxyz;
 
-typedef struct {
-	float dx;
-	float dy;
-	float dz;
-	float rx;
-	float ry;
-	float rz;
-} trans;
+//typedef struct {
+//	float dx;
+//	float dy;
+//	float dz;
+//	float rx;
+//	float ry;
+//	float rz;
+//} trans;
+
+typedef std::map<std::string,float> trans;
 
 cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max);
 Rxyz calcrotationmatrix(double rx, double ry, double rz);
@@ -58,7 +60,7 @@ Rxyz calcrotationmatrix(float rx, float ry, float rz){
 //	source: http://nghiaho.com/?page_id=846
 //	source: https://en.wikipedia.org/wiki/3D_projection (uses negative angles?)
 //	Results of rotation matrices are consistent with python script
-	std::cerr << "Calcrotationmatrix (input): rx, ry, rz: "<< rx << ", "<< ry << ", "<< rz << std::endl;
+//	std::cerr << "Calcrotationmatrix (input): rx, ry, rz: "<< rx << ", "<< ry << ", "<< rz << std::endl;
 	Eigen::Matrix3f Rx;
 	Rx <<	1.0,		0.0,		0.0,
 			0.0,		cos(rx),	-sin(rx),
@@ -97,7 +99,7 @@ std::vector<float> calcrotations(Eigen::Matrix3f Rt){
 	rots.push_back(rx);
 	rots.push_back(ry);
 	rots.push_back(rz);
-	std::cerr << "calcrotations (output): rx, ry, rz: "<< rx << ", "<< ry << ", "<< rz << std::endl;
+//	std::cerr << "calcrotations (output): rx, ry, rz: "<< rx << ", "<< ry << ", "<< rz << std::endl;
 	return rots;
 }
 
@@ -183,12 +185,12 @@ Eigen::Matrix3f calchomography(int width, int height, trans transformations){
 	assert(width>0&&height>0);
 
 	//Rt = Rz*Ry*Rx
-	Rxyz rot			= calcrotationmatrix(transformations.rx, transformations.ry, transformations.rz);
+	Rxyz rot			= calcrotationmatrix(transformations["rx"], transformations["ry"], transformations["rz"]);
 	Eigen::Matrix3f Rt	= rot.Rz*rot.Ry*rot.Rx;
 	//std::cerr << "Rt:\n"	<< Rt	<< std::endl;
 	
 	Eigen::Matrix3f Rti	= Rt.inverse();
-	std::cerr << "Rti:\n"	<< Rti	<< std::endl;
+//	std::cerr << "Rti:\n"	<< Rti	<< std::endl;
 //	# define 3 points on the virtual image plane
 	Eigen::Vector3f p0, p1, p2, pr0, pr1, pr2;
 	p0 << 0.0, 0.0, 0.0;	// [m]

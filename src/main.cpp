@@ -112,46 +112,53 @@ int main(){
 	for(EVER){
 		watch.start();
 		video_in >> frame;
-		watch.lap("Get frame");
+		//watch.lap("Get frame");
 		estimator.update(frame,subsample_detection_frame);
-		watch.lap("Update estimator");
+		//watch.lap("Update estimator");
 		//cv::imshow(window_face,frame);
 		// Reset im_out
 		im_out = cv::Scalar(0);
+		transformation_manager trans_mngr;
 		for(head_pose pose_head : estimator.poses()) {
 			watch.start();
 			tmp_cv = cv::Mat(pose_head.get_minor<4,4>(0,0));
 			cv::cv2eigen(tmp_cv,tmp_eigen);
 			pose = tmp_eigen.cast<float>();
-			std::cerr << "Head pose (pose):\n" << pose << std::endl;
+			//std::cerr << "Head pose (pose):\n" << pose << std::endl;
 			// TODO: pass im_out by reference, so no copying happens
 			//Extract upper left 3x3 block from the pose, this is the rotation matrixRx;
 			Eigen::Matrix3f Rt				= pose.block<3,3>(0,0);
 			std::vector<float> rotations	= calcrotations(Rt);
-			trans transformations;
-			transformations.dx = 0;
-			transformations.dy = 0;
-			transformations.dz = 0;
-			transformations.rx = rotations.at(0);
-			transformations.ry = rotations.at(0);
-			transformations.rz = rotations.at(0);
-			im_out = hom(image,transformations,width_screen,height_screen);
-			watch.lap("Calculate new image");
+			std::cerr << "Rotations:" ;
+			for(float rotation : rotations){
+				std::cerr << "\t" << rotation;
+			}
+			std::cerr << std::endl;
+			trans transformation;
+			transformation["dx"] = 0;
+			transformation["dy"] = 0;
+			transformation["dz"] = 0;
+			transformation["rx"] = rotations.at(0);
+			transformation["ry"] = rotations.at(1);
+			transformation["rz"] = rotations.at(2);
+			trans transformation_update  = trans_mngr.add(transformation);
+			im_out = hom(image,transformation_update,width_screen,height_screen);
+			//watch.lap("Calculate new image");
 		}
 		#ifdef _DEBUG_
 			cv::Rect slice	= cv::Rect(width_screen-width_webcam,height_screen-height_webcam,width_webcam, height_webcam);
 			frame.copyTo(im_out(slice));
 		#endif
 		cv::imshow(window_image,im_out);
-		watch.lap("Imshow");
+		//watch.lap("Imshow");
 		
 		char key = (char)cv::waitKey(1);
 		if(key == 27){
 			std::cerr << "Program halted by user.";
 			return 0;
 		}
-		double t_total = watch.stop();
-		std::cerr << "Framerate: " << 1/t_total << std::endl;
+		//double t_total = watch.stop();
+		//std::cerr << "Framerate: " << 1/t_total << std::endl;
 	}
 	// Release webcam
 	video_in.release();

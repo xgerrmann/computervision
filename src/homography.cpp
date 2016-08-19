@@ -16,12 +16,12 @@ int main(){
 	
 	Rxyz rot			= calcrotationmatrix(rx, ry, rz);
 	trans transformations;
-	transformations.dx	= 0;
-	transformations.dy	= 0;
-	transformations.dz	= 0;
-	transformations.rx	= rx;
-	transformations.ry	= ry;
-	transformations.rz	= rx;
+	transformations["dx"]	= 0;
+	transformations["dy"]	= 0;
+	transformations["dz"]	= 0;
+	transformations["rx"]	= rx;
+	transformations["ry"]	= ry;
+	transformations["rz"]	= rx;
 	Eigen::Matrix3f Rt	= rot.Rz*rot.Ry*rot.Rx;
 	int wmax, hmax;
 	wmax = 1920;
