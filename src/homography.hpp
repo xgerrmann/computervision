@@ -1,4 +1,5 @@
-#include <iostream>
+#include <iostream>     // std::cout
+//#include <algorithm>    // std::max
 
 #include "../lib/timer/timer.hpp"
 
@@ -8,15 +9,16 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include "paths.hpp"
 #include <math.h>
-//#include <chrono>
-//#include <ctime>
 // ## Eigen
 #include <Eigen/Dense>
 #include <limits.h> // for max values of datatypes
 // ## Armadillo
 #include <armadillo>
-//Attention tracker
+// ## Attention tracker
 #include "../include/attention-tracker/src/head_pose_estimation.hpp"
+// ## Xlib
+#include <X11/Xlib.h>
+
 
 #define EVER ;;
 
@@ -316,27 +318,45 @@ cv::Mat hom(cv::Mat image, Eigen::Matrix4f pose){
 //	std::cerr << "xmax: " << xmax_out << std::endl;
 //	std::cerr << "ymin: " << ymin_out << std::endl;
 //	std::cerr << "ymax: " << ymax_out << std::endl;
+	std::cerr << "width_out:  " << width_out << std::endl;
+	std::cerr << "height_out: " << height_out << std::endl;
+
+// Determine size of matrices for performing the mapping.
+// Mapping must stay within screen size, thus first get
+// the display size of main display of the device.
+	Display* disp = XOpenDisplay(NULL);
+	Screen*  scrn = DefaultScreenOfDisplay(disp);
+	int height_screen	= scrn->height;
+	int width_screen	= scrn->width;
+	std::cerr << "Screen size (wxh): "<<width_screen<<", "<<height_screen<<std::endl;
+// Max size of mapping matrices is minimum of outgoing image dimensions and the display dimensions
+	int wmax = std::min(width_out, width_screen);
+	int hmax = std::min(height_out, height_screen);
+	
 	// calc mapping
 // meshgrid implementation from:	https://forum.kde.org/viewtopic.php?f=74&t=90876
-	arma::Mat<int> x = arma::linspace<arma::Row<int>>(xmin_out,xmax_out,width_out);
-	arma::Mat<int> X = arma::repmat(x,height_out,1);
+	int xmax,ymax;
+	xmax = wmax-xmin_out-1;
+	ymax = hmax-ymin_out-1;
+	arma::Mat<int> x = arma::linspace<arma::Row<int>>(xmin_out,xmax,wmax);
+	arma::Mat<int> X = arma::repmat(x,hmax,1);
 //	x.print("x:") ;
 //	X.print("X:") ;
-	arma::Mat<int> y = arma::linspace<arma::Col<int>>(ymin_out,ymax_out,height_out);
-	arma::Mat<int> Y = arma::repmat(y,1,width_out);
+	arma::Mat<int> y = arma::linspace<arma::Col<int>>(ymin_out,ymax,hmax);
+	arma::Mat<int> Y = arma::repmat(y,1,wmax);
 //	y.print("y:") ;
 //	Y.print("Y:") ;
-	arma::Mat<int> W = arma::ones<arma::Mat<int>>(height_out,width_out);
+	arma::Mat<int> W = arma::ones<arma::Mat<int>>(hmax,wmax);
 //	W.print("W:") ;
-	arma::Cube<int> O = arma::Cube<int>(height_out, width_out, 2);
+	arma::Cube<int> O = arma::Cube<int>(hmax, wmax, 2);
 	O = arma::join_slices(arma::join_slices(X,Y),W);
 	//O.print("O:");// This is always correct.
 //	map_out	= np.einsum('kp,ijp->ijk',Hi,O)
 //	TODO: Hi naar arma type?
-  arma::Cube<float> M = arma::zeros<arma::Cube<float>>(height_out, width_out, 3);
+	arma::Cube<float> M = arma::zeros<arma::Cube<float>>(hmax, wmax, 3);
 	//M.print("M:");
-	for(int i = 0; i < height_out; i++){
-		for(int j = 0; j < width_out; j++){
+	for(int i = 0; i < hmax; i++){
+		for(int j = 0; j < wmax; j++){
 			for(int k = 0; k < 3; k++){
 				for(int p = 0; p < 3; p++){
 					//TODO: vector operation instead of loop for last loop.
@@ -345,34 +365,28 @@ cv::Mat hom(cv::Mat image, Eigen::Matrix4f pose){
 			}
 		}
 	}
-// Following method is slower
-//	for(int i = ymin_out; i <= ymax_out; i++){
-//		for(int j = xmin_out; j < xmax_out; j++){
-//			for(int k = 0; k < 3; k++){
-//				//TODO: vector operation instead of loop for last loop.
-//				M(i,j,k) = Hi(k,0)*float(j) + Hi(k,1)*float(i) + M(i,j,k) + Hi(k,2); // x,y,w (w=1) 
-//				//TODO: or use i and j as values to use and do not construct O
-//			}
-//		}
-//	}
+	
 	// Element wise division by scale
 	M.slice(0)	= M.slice(0)/M.slice(2);
 	M.slice(1)	= M.slice(1)/M.slice(2);
 	//M.print("M:");
 	// Round is very important in this conversion, otherwise major errors
-	// TODO: Check if this still works for negative values (if necessary)
+	// TODO (solved, answer = yes): Check if this still works for negative values (if necessary)
 	arma::Cube<int> Mi = arma::conv_to<arma::Cube<int>>::from(round(M)); // mapping must be of integer type because it is used directly for indexing
 	//Mi.print("Mi:");
 	//M.slice.print("M:");
 //	# construct empty image
-	cv::Mat image_out	= cv::Mat::zeros(height_out, width_out,CV_8UC3);
-	image_out			= cv::Scalar(0,0,0); //fill with zeros, TODO: can be done in previous step. 
+
+	cv::Mat image_out	= cv::Mat::zeros(height_screen, width_screen,CV_8UC3); // 3 channel 8-bit character
 	
 	int xtmp,ytmp,trans_x, trans_y;
 	trans_x = int(round(width/2));
 	trans_y = int(round(height/2));
-	for(int h = 0; h<height_out; h++){
-		for(int w = 0; w<width_out; w++){
+	for(int h = 0; h<hmax; h++){
+		for(int w = 0; w<wmax; w++){
+	//		std::cerr<<"h:"<<h<<std::endl;
+	//		std::cerr<<"height_out:"<<height_out<<std::endl;
+	//		std::cerr<<arma::size(Mi);
 			// Change origin from center of image to upper right corner.
 			xtmp = Mi(h,w,0)+trans_x;
 			ytmp = Mi(h,w,1)+trans_y;
@@ -381,15 +395,16 @@ cv::Mat hom(cv::Mat image, Eigen::Matrix4f pose){
 				//std::cerr<<"NOT y:"<<ytmp<<"->"<<h<<std::endl;
 				continue;
 			}
-			//std::cerr<<"x:"<<xtmp<<"->"<<w<<std::endl;
-			//std::cerr<<"y:"<<ytmp<<"->"<<h<<std::endl;
+		//	std::cerr<<"x:"<<xtmp<<"->"<<w<<std::endl;
+		//	std::cerr<<"y:"<<ytmp<<"->"<<h<<std::endl;
 			//std::cerr<<"y:"<<h<<",x:"<<w<<",R:"<<int(image_arma(h,w,0))<<std::endl;
 			//std::cerr<< "R:"<<int(image_arma(ytmp,xtmp,0)) << "==" << int(image_out_arma(h,w,0))<< std::endl;
 		//	std::cerr<< int(image_arma(ytmp,xtmp,1)) << "==" << int(image_out_arma(h,w,1))<< std::endl;
 		//	std::cerr<< int(image_arma(ytmp,xtmp,2)) << "==" << int(image_out_arma(h,w,2))<< std::endl;
-			((uchar*)image_out.data)[(w+h*width_out)*3]		= ((uchar)image.data[(ytmp*width+xtmp)*3]) ;
-			((uchar*)image_out.data)[(w+h*width_out)*3+1]	= ((uchar)image.data[(ytmp*width+xtmp)*3+1]) ;
-			((uchar*)image_out.data)[(w+h*width_out)*3+2]	= ((uchar)image.data[(ytmp*width+xtmp)*3+2]) ;
+			((uchar*)image_out.data)[(w+h*width_screen)*3]		= ((uchar)image.data[(ytmp*width+xtmp)*3]) ;
+			((uchar*)image_out.data)[(w+h*width_screen)*3+1]	= ((uchar)image.data[(ytmp*width+xtmp)*3+1]) ;
+			((uchar*)image_out.data)[(w+h*width_screen)*3+2]	= ((uchar)image.data[(ytmp*width+xtmp)*3+2]) ;
+		//	std::cerr << "Test";
 		//	std::cerr<< int(image_arma(ytmp,xtmp,0)) << "==" << int(image_out_arma(h,w,0))<< std::endl;
 		//	std::cerr<< int(image_arma(ytmp,xtmp,1)) << "==" << int(image_out_arma(h,w,1))<< std::endl;
 		//	std::cerr<< int(image_arma(ytmp,xtmp,2)) << "==" << int(image_out_arma(h,w,2))<< std::endl;
