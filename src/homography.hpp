@@ -29,7 +29,7 @@ typedef struct {
 	Eigen::Matrix3f Rz;
 } rotations;
 
-cv::Mat hom(cv::Mat image, Eigen::Matrix4f pose); // head_pose is a 4x4 cv::Mat doubles
+cv::Mat hom(cv::Mat image, Eigen::Matrix4f pose, int width_max, int height_max); // head_pose is a 4x4 cv::Mat doubles
 rotations calcrotationmatrix(double rx, double ry, double rz);
 Eigen::Matrix3f calchomography(int width, int height, Eigen::Matrix4f pose);
 Eigen::Vector4i calccorners(Eigen::Matrix3f H, int height, int width);
@@ -285,7 +285,7 @@ Eigen::Matrix3f calchomography(int width, int height, Eigen::Matrix4f pose){
 	return H;
 }
 
-cv::Mat hom(cv::Mat image, Eigen::Matrix4f pose){
+cv::Mat hom(cv::Mat image, Eigen::Matrix4f pose, int width_max, int height_max){
 // Faster backward homography, mapping by masking and matrix indices method # 0.007 seconds
 	timer watch;
 	watch.start();
@@ -322,16 +322,10 @@ cv::Mat hom(cv::Mat image, Eigen::Matrix4f pose){
 	std::cerr << "height_out: " << height_out << std::endl;
 
 // Determine size of matrices for performing the mapping.
-// Mapping must stay within screen size, thus first get
-// the display size of main display of the device.
-	Display* disp = XOpenDisplay(NULL);
-	Screen*  scrn = DefaultScreenOfDisplay(disp);
-	int height_screen	= scrn->height;
-	int width_screen	= scrn->width;
-	std::cerr << "Screen size (wxh): "<<width_screen<<", "<<height_screen<<std::endl;
-// Max size of mapping matrices is minimum of outgoing image dimensions and the display dimensions
-	int wmax = std::min(width_out, width_screen);
-	int hmax = std::min(height_out, height_screen);
+// Mapping must stay within max size.
+// Max size of mapping matrices is minimum of outgoing image dimensions and the max dimensions
+	int wmax = std::min(width_out, width_max);
+	int hmax = std::min(height_out, height_max);
 	
 	// calc mapping
 // meshgrid implementation from:	https://forum.kde.org/viewtopic.php?f=74&t=90876
@@ -377,7 +371,7 @@ cv::Mat hom(cv::Mat image, Eigen::Matrix4f pose){
 	//M.slice.print("M:");
 //	# construct empty image
 
-	cv::Mat image_out	= cv::Mat::zeros(height_screen, width_screen,CV_8UC3); // 3 channel 8-bit character
+	cv::Mat image_out	= cv::Mat::zeros(height_max, width_max,CV_8UC3); // 3 channel 8-bit character
 	
 	int xtmp,ytmp,trans_x, trans_y;
 	trans_x = int(round(width/2));
@@ -401,9 +395,9 @@ cv::Mat hom(cv::Mat image, Eigen::Matrix4f pose){
 			//std::cerr<< "R:"<<int(image_arma(ytmp,xtmp,0)) << "==" << int(image_out_arma(h,w,0))<< std::endl;
 		//	std::cerr<< int(image_arma(ytmp,xtmp,1)) << "==" << int(image_out_arma(h,w,1))<< std::endl;
 		//	std::cerr<< int(image_arma(ytmp,xtmp,2)) << "==" << int(image_out_arma(h,w,2))<< std::endl;
-			((uchar*)image_out.data)[(w+h*width_screen)*3]		= ((uchar)image.data[(ytmp*width+xtmp)*3]) ;
-			((uchar*)image_out.data)[(w+h*width_screen)*3+1]	= ((uchar)image.data[(ytmp*width+xtmp)*3+1]) ;
-			((uchar*)image_out.data)[(w+h*width_screen)*3+2]	= ((uchar)image.data[(ytmp*width+xtmp)*3+2]) ;
+			((uchar*)image_out.data)[(w+h*width_max)*3]		= ((uchar)image.data[(ytmp*width+xtmp)*3]) ;
+			((uchar*)image_out.data)[(w+h*width_max)*3+1]	= ((uchar)image.data[(ytmp*width+xtmp)*3+1]) ;
+			((uchar*)image_out.data)[(w+h*width_max)*3+2]	= ((uchar)image.data[(ytmp*width+xtmp)*3+2]) ;
 		//	std::cerr << "Test";
 		//	std::cerr<< int(image_arma(ytmp,xtmp,0)) << "==" << int(image_out_arma(h,w,0))<< std::endl;
 		//	std::cerr<< int(image_arma(ytmp,xtmp,1)) << "==" << int(image_out_arma(h,w,1))<< std::endl;

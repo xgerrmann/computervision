@@ -24,6 +24,8 @@
 
 #define EVER ;;
 
+#define _DEBUG_
+
 dlib::full_object_detection detect_face(std::string window_face, std::string window_image, dlib::shape_predictor predictor, dlib::frontal_face_detector detector, cv::Mat frame);
 void showshape(std::string window_face, cv::Mat frame, dlib::full_object_detection shape);
 void draw_polyline(cv::Mat img,dlib::full_object_detection shape, int start, int stop, bool isClosed = false);

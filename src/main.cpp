@@ -69,24 +69,25 @@ dlib::full_object_detection detect_face(std::string window_face, std::string win
 int main(){
 // Partially based on sample of attention tracker
 
-    //auto estimator = HeadPoseEstimation(argv[1]);
     auto estimator = HeadPoseEstimation(trained_model);
-	//dlib::frontal_face_detector detector = dlib::get_frontal_face_detector();
-	//dlib::shape_predictor predictor;
-	//dlib::deserialize(trained_model) >> predictor;
 
-	cv::Mat image;
+	cv::Mat image,frame;
 	image = cv::imread(default_image);
 	std::string window_image = "Image";
-	cv::namedWindow("Image");
-	cv::imshow("Image",image);
+	cv::namedWindow(window_image);
+	//cv::setWindowProperty(window_image, CV_WND_PROP_FULLSCREEN, CV_WINDOW_FULLSCREEN);
+	cv::imshow(window_image,image);
 	cv::waitKey(1);
-	std::string window_face = "Face";
-	cv::namedWindow(window_face);
+	//std::string window_face = "Face";
+	//cv::namedWindow(window_face);
 	cv::VideoCapture video_in(0);
 	// adjust for your webcam!
-	video_in.set(CV_CAP_PROP_FRAME_WIDTH, 640);
-	video_in.set(CV_CAP_PROP_FRAME_HEIGHT, 480);
+	int width_webcam, height_webcam;
+	// TODO: get width and height from webcam instead of hardcoding
+	width_webcam	= 640;
+	height_webcam	= 480;
+	video_in.set(CV_CAP_PROP_FRAME_WIDTH, width_webcam);
+	video_in.set(CV_CAP_PROP_FRAME_HEIGHT, height_webcam);
 	estimator.focalLength		= 500;
 	estimator.opticalCenterX	= 320;
 	estimator.opticalCenterY	= 240;
@@ -95,8 +96,13 @@ int main(){
 		std::cerr << "No frame capured by camera, try running again.";
 		return -1;
 	}
+	// Determine size of device main display
+	Display* disp = XOpenDisplay(NULL);
+	Screen*  scrn = DefaultScreenOfDisplay(disp);
+	int height_screen	= scrn->height- 30; // adjust for top menu in ubuntu
+	int width_screen	= scrn->width - 64; // adjust for sidebar in ubuntu
+	std::cerr << "Screen size (wxh): "<<width_screen<<", "<<height_screen<<std::endl;
 	timer watch;
-	cv::Mat frame;
 	double subsample_detection_frame = 2.0;
 	for(EVER){
 		watch.start();
@@ -104,7 +110,7 @@ int main(){
 		watch.lap("Get frame");
 		estimator.update(frame,subsample_detection_frame);
 		watch.lap("Update estimator");
-		cv::imshow(window_face,frame);
+		//cv::imshow(window_face,frame);
 		float rx, ry, rz;
 		cv::Mat tmp_cv(4,4,CV_64FC1); // double data type, single channel
 		Eigen::Matrix4d tmp_eigen;
@@ -115,8 +121,16 @@ int main(){
 			cv::cv2eigen(tmp_cv,tmp_eigen);
 			pose = tmp_eigen.cast<float>();
 			//std::cerr << "Head pose (pose):\n" << pose << std::endl;
-			cv::Mat im = hom(image,pose);
+			cv::Mat im = hom(image,pose,width_screen,height_screen);
 			watch.lap("Calculate new image");
+			#ifdef _DEBUG_
+				std::cerr << "Show webcam" << std::endl;
+				cv::Rect slice	= cv::Rect(width_screen-width_webcam,height_screen-height_webcam,width_webcam, height_webcam);
+				cv::Mat mask	= cv::Mat::zeros(cv::Size(width_screen,height_screen), CV_8U);
+				mask(slice)		= 1;
+				frame.copyTo(im(slice));
+				//cv::cvCopy(frame, im, mask);
+			#endif
 			cv::imshow(window_image,im);
 			watch.lap("imshow");
 		}

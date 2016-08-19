@@ -20,7 +20,10 @@ int main(){
 	Eigen::MatrixXf pose	= Eigen::MatrixXf::Identity(4,4);
 	pose.block<3,3>(0,0)	= Rt;
 	std::cerr << "Pose: \n" << pose << std::endl;
-	cv::Mat im				= hom(image,pose);
+	int wmax, hmax;
+	wmax = 1920;
+	hmax = 1080;
+	cv::Mat im			= hom(image,pose,wmax,hmax);
 
 //	Show results
 	cv::imshow("Hom",im);
