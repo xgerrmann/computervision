@@ -27,11 +27,21 @@ typedef struct {
 	Eigen::Matrix3f Rx;
 	Eigen::Matrix3f Ry;
 	Eigen::Matrix3f Rz;
-} rotations;
+} Rxyz;
 
-cv::Mat hom(cv::Mat image, Eigen::Matrix4f pose, int width_max, int height_max); // head_pose is a 4x4 cv::Mat doubles
-rotations calcrotationmatrix(double rx, double ry, double rz);
-Eigen::Matrix3f calchomography(int width, int height, Eigen::Matrix4f pose);
+typedef struct {
+	float dx;
+	float dy;
+	float dz;
+	float rx;
+	float ry;
+	float rz;
+} trans;
+
+cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max);
+Rxyz calcrotationmatrix(double rx, double ry, double rz);
+std::vector<float> calcrotations(Eigen::Matrix3f Rt);
+Eigen::Matrix3f calchomography(int width, int height, trans transformations);
 Eigen::Vector4i calccorners(Eigen::Matrix3f H, int height, int width);
 
 const double PI		= 3.141592653589793;
@@ -44,10 +54,11 @@ const float PITCH	= 0.2625*(std::pow(10.0,-3.0)); // [m] pixel pitch (pixel size
 // script to test and perform homographies on an example image
 // script based on: http://math.stackexchange.com/questions/494238/how-to-compute-homography-matrix-h-from-corresponding-points-2d-2d-planar-homog/1886060#1886060
 
-rotations calcrotationmatrix(float rx, float ry, float rz){
+Rxyz calcrotationmatrix(float rx, float ry, float rz){
 //	source: http://nghiaho.com/?page_id=846
 //	source: https://en.wikipedia.org/wiki/3D_projection (uses negative angles?)
 //	Results of rotation matrices are consistent with python script
+	std::cerr << "Calcrotationmatrix (input): rx, ry, rz: "<< rx << ", "<< ry << ", "<< rz << std::endl;
 	Eigen::Matrix3f Rx;
 	Rx <<	1.0,		0.0,		0.0,
 			0.0,		cos(rx),	-sin(rx),
@@ -64,11 +75,30 @@ rotations calcrotationmatrix(float rx, float ry, float rz){
 //	std::cerr << "Rx:\n"<< Rx<<"\n";
 //	std::cerr << "Ry:\n"<< Ry<<"\n";
 //	std::cerr << "Rz:\n"<< Rz<<"\n";
-	rotations rot;
+	Rxyz rot;
 	rot.Rx=Rx;
 	rot.Ry=Ry;
 	rot.Rz=Rz;
 	return rot;
+}
+
+std::vector<float> calcrotations(Eigen::Matrix3f Rt){
+//	source: http://stackoverflow.com/questions/15022630/how-to-calculate-the-angle-from-roational-matrix
+	float rx, ry, rz;
+	std::vector<float> rots;
+	double r11, r21, r31, r32, r33;
+	r11 = Rt(0,0);
+	r21 = Rt(1,0);
+	r31 = Rt(2,0);
+	r33 = Rt(2,2);
+	rx = (float) atan2( r32, r33);
+	ry = (float) atan2(-r31, sqrt(pow(r32,2)+pow(r33,2)));
+	rz = (float) atan2( r21, r11);
+	rots.push_back(rx);
+	rots.push_back(ry);
+	rots.push_back(rz);
+	std::cerr << "calcrotations (output): rx, ry, rz: "<< rx << ", "<< ry << ", "<< rz << std::endl;
+	return rots;
 }
 
 Eigen::Vector4i box_out(Eigen::Matrix3f H, int width_original, int height_original){
@@ -142,7 +172,7 @@ Eigen::Vector4i box_out(Eigen::Matrix3f H, int width_original, int height_origin
 	return rectangle; // xmin, ymin, width, height
 }
 
-Eigen::Matrix3f calchomography(int width, int height, Eigen::Matrix4f pose){
+Eigen::Matrix3f calchomography(int width, int height, trans transformations){
 // This function calculates the homography matrix, given the rotations rx,ry,rz.
 // Coordinate system:
 // ^ y+
@@ -152,17 +182,13 @@ Eigen::Matrix3f calchomography(int width, int height, Eigen::Matrix4f pose){
 	// Width and height of an image must be > 0
 	assert(width>0&&height>0);
 
-	//rotations rot = calcrotationmatrix(rx,ry,rz);
 	//Rt = Rz*Ry*Rx
-	//Eigen::Matrix3f Rt = rot.Rz*rot.Ry*rot.
-	//Extract upper left 3x3 block from the pose, this is the rotation matrixRx;
-	//std::cerr << "Pose:\n" << pose << std::endl;
-	//std::cerr << "Rt:\n" << pose.block<3,3>(0,0) << std::endl;
-	Eigen::Matrix3f Rt	= pose.block<3,3>(0,0);
-	//std::cerr << "Rt:\n" << Rt << std::endl;
-//	std::cerr<<"Rt:\n"<<Rt<<std::endl;
-	//Rt.transposeInPlace(); // in place transposition to avoid aliasing
+	Rxyz rot			= calcrotationmatrix(transformations.rx, transformations.ry, transformations.rz);
+	Eigen::Matrix3f Rt	= rot.Rz*rot.Ry*rot.Rx;
+	//std::cerr << "Rt:\n"	<< Rt	<< std::endl;
+	
 	Eigen::Matrix3f Rti	= Rt.inverse();
+	std::cerr << "Rti:\n"	<< Rti	<< std::endl;
 //	# define 3 points on the virtual image plane
 	Eigen::Vector3f p0, p1, p2, pr0, pr1, pr2;
 	p0 << 0.0, 0.0, 0.0;	// [m]
@@ -285,7 +311,7 @@ Eigen::Matrix3f calchomography(int width, int height, Eigen::Matrix4f pose){
 	return H;
 }
 
-cv::Mat hom(cv::Mat image, Eigen::Matrix4f pose, int width_max, int height_max){
+cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max){
 // Faster backward homography, mapping by masking and matrix indices method # 0.007 seconds
 //	timer watch;
 //	watch.start();
@@ -296,7 +322,7 @@ cv::Mat hom(cv::Mat image, Eigen::Matrix4f pose, int width_max, int height_max){
 	
 	Eigen::Matrix3f H, Hi;
 	
-	H	= calchomography(width,height,pose);
+	H	= calchomography(width,height,transformations);
 	//H	<<	1,0,0,
 	//		0,1,0,
 	//		0,0,1;
@@ -318,8 +344,8 @@ cv::Mat hom(cv::Mat image, Eigen::Matrix4f pose, int width_max, int height_max){
 //	std::cerr << "xmax: " << xmax_out << std::endl;
 //	std::cerr << "ymin: " << ymin_out << std::endl;
 //	std::cerr << "ymax: " << ymax_out << std::endl;
-	std::cerr << "width_out:  " << width_out << std::endl;
-	std::cerr << "height_out: " << height_out << std::endl;
+//	std::cerr << "width_out:  " << width_out << std::endl;
+//	std::cerr << "height_out: " << height_out << std::endl;
 
 // Determine size of matrices for performing the mapping.
 // Mapping must stay within max size.

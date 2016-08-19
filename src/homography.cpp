@@ -12,18 +12,21 @@ int main(){
 	
 	float	rx = 0.0*PI;
 	float	ry = 0.0*PI;
-	//float	rz = 0.5*PI;
 	float	rz = 0.5*PI;
 	
-	rotations rot			= calcrotationmatrix(rx, ry, rz);
-	Eigen::Matrix3f Rt		= rot.Rz*rot.Ry*rot.Rx;
-	Eigen::MatrixXf pose	= Eigen::MatrixXf::Identity(4,4);
-	pose.block<3,3>(0,0)	= Rt;
-	std::cerr << "Pose: \n" << pose << std::endl;
+	Rxyz rot			= calcrotationmatrix(rx, ry, rz);
+	trans transformations;
+	transformations.dx	= 0;
+	transformations.dy	= 0;
+	transformations.dz	= 0;
+	transformations.rx	= rx;
+	transformations.ry	= ry;
+	transformations.rz	= rx;
+	Eigen::Matrix3f Rt	= rot.Rz*rot.Ry*rot.Rx;
 	int wmax, hmax;
 	wmax = 1920;
 	hmax = 1080;
-	cv::Mat im			= hom(image,pose,wmax,hmax);
+	cv::Mat im			= hom(image,transformations,wmax,hmax);
 
 //	Show results
 	cv::imshow("Hom",im);

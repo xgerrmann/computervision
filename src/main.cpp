@@ -71,26 +71,27 @@ int main(){
 
     auto estimator = HeadPoseEstimation(trained_model);
 
-	cv::Mat image,frame;
+	cv::Mat image;
 	image = cv::imread(default_image);
 	std::string window_image = "Image";
 	cv::namedWindow(window_image);
 	//cv::setWindowProperty(window_image, CV_WND_PROP_FULLSCREEN, CV_WINDOW_FULLSCREEN);
-	cv::imshow(window_image,image);
-	cv::waitKey(1);
+	//cv::imshow(window_image,image);
+	//cv::waitKey(1);
 	//std::string window_face = "Face";
 	//cv::namedWindow(window_face);
 	cv::VideoCapture video_in(0);
-	// adjust for your webcam!
 	int width_webcam, height_webcam;
 	// TODO: get width and height from webcam instead of hardcoding
 	width_webcam	= 640;
 	height_webcam	= 480;
+	video_in.set(CV_CAP_PROP_FPS, 15);
 	video_in.set(CV_CAP_PROP_FRAME_WIDTH, width_webcam);
 	video_in.set(CV_CAP_PROP_FRAME_HEIGHT, height_webcam);
 	estimator.focalLength		= 500;
 	estimator.opticalCenterX	= 320;
 	estimator.opticalCenterY	= 240;
+	cv::Mat frame(height_webcam,width_webcam,CV_8UC3);
 
 	if(!video_in.isOpened()){ // Early return if no frame is captured by the cam
 		std::cerr << "No frame capured by camera, try running again.";
@@ -99,11 +100,15 @@ int main(){
 	// Determine size of device main display
 	Display* disp = XOpenDisplay(NULL);
 	Screen*  scrn = DefaultScreenOfDisplay(disp);
-	int height_screen	= scrn->height- 30; // adjust for top menu in ubuntu
+	int height_screen	= scrn->height- 50; // adjust for top menu in ubuntu
 	int width_screen	= scrn->width - 64; // adjust for sidebar in ubuntu
 	std::cerr << "Screen size (wxh): "<<width_screen<<", "<<height_screen<<std::endl;
 	timer watch;
 	double subsample_detection_frame = 2.0;
+	cv::Mat im_out(height_screen,width_screen,CV_8UC3);
+	cv::Mat tmp_cv(4,4,CV_64FC1); // double data type, single channel
+	Eigen::Matrix4d tmp_eigen;
+	Eigen::Matrix4f pose;
 	for(EVER){
 		watch.start();
 		video_in >> frame;
@@ -111,34 +116,42 @@ int main(){
 		estimator.update(frame,subsample_detection_frame);
 		watch.lap("Update estimator");
 		//cv::imshow(window_face,frame);
-		float rx, ry, rz;
-		cv::Mat tmp_cv(4,4,CV_64FC1); // double data type, single channel
-		Eigen::Matrix4d tmp_eigen;
-		Eigen::Matrix4f pose;
+		// Reset im_out
+		im_out = cv::Scalar(0);
 		for(head_pose pose_head : estimator.poses()) {
 			watch.start();
 			tmp_cv = cv::Mat(pose_head.get_minor<4,4>(0,0));
 			cv::cv2eigen(tmp_cv,tmp_eigen);
 			pose = tmp_eigen.cast<float>();
-			//std::cerr << "Head pose (pose):\n" << pose << std::endl;
-			cv::Mat im = hom(image,pose,width_screen,height_screen);
+			std::cerr << "Head pose (pose):\n" << pose << std::endl;
+			// TODO: pass im_out by reference, so no copying happens
+			//Extract upper left 3x3 block from the pose, this is the rotation matrixRx;
+			Eigen::Matrix3f Rt				= pose.block<3,3>(0,0);
+			std::vector<float> rotations	= calcrotations(Rt);
+			trans transformations;
+			transformations.dx = 0;
+			transformations.dy = 0;
+			transformations.dz = 0;
+			transformations.rx = rotations.at(0);
+			transformations.ry = rotations.at(0);
+			transformations.rz = rotations.at(0);
+			im_out = hom(image,transformations,width_screen,height_screen);
 			watch.lap("Calculate new image");
-			#ifdef _DEBUG_
-				std::cerr << "Show webcam" << std::endl;
-				cv::Rect slice	= cv::Rect(width_screen-width_webcam,height_screen-height_webcam,width_webcam, height_webcam);
-				cv::Mat mask	= cv::Mat::zeros(cv::Size(width_screen,height_screen), CV_8U);
-				mask(slice)		= 1;
-				frame.copyTo(im(slice));
-				//cv::cvCopy(frame, im, mask);
-			#endif
-			cv::imshow(window_image,im);
-			watch.lap("imshow");
 		}
+		#ifdef _DEBUG_
+			cv::Rect slice	= cv::Rect(width_screen-width_webcam,height_screen-height_webcam,width_webcam, height_webcam);
+			frame.copyTo(im_out(slice));
+		#endif
+		cv::imshow(window_image,im_out);
+		watch.lap("Imshow");
+		
 		char key = (char)cv::waitKey(1);
 		if(key == 27){
 			std::cerr << "Program halted by user.";
 			return 0;
 		}
+		double t_total = watch.stop();
+		std::cerr << "Framerate: " << 1/t_total << std::endl;
 	}
 	// Release webcam
 	video_in.release();
