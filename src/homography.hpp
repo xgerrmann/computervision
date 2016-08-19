@@ -287,8 +287,8 @@ Eigen::Matrix3f calchomography(int width, int height, Eigen::Matrix4f pose){
 
 cv::Mat hom(cv::Mat image, Eigen::Matrix4f pose, int width_max, int height_max){
 // Faster backward homography, mapping by masking and matrix indices method # 0.007 seconds
-	timer watch;
-	watch.start();
+//	timer watch;
+//	watch.start();
 
 	int height	= image.size().height;
 	int width	= image.size().width;
@@ -406,6 +406,6 @@ cv::Mat hom(cv::Mat image, Eigen::Matrix4f pose, int width_max, int height_max){
 		}
 	}
 
-	watch.stop("Homography: Elapsed time %f");
+	//watch.stop("Homography:");
 	return image_out;
 }
