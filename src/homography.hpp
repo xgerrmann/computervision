@@ -86,6 +86,10 @@ Rxyz calcrotationmatrix(float rx, float ry, float rz){
 
 std::vector<float> calcrotations(Eigen::Matrix3f Rt){
 //	source: http://stackoverflow.com/questions/15022630/how-to-calculate-the-angle-from-roational-matrix
+//
+//	source: http://www.staff.city.ac.uk/~sbbh653/publications/euler.pdf
+//	it is interesting to note that there is always more than one sequence of rotations
+//	about the three principle axes that results in the same orientation of an object
 	float rx, ry, rz;
 	std::vector<float> rots;
 	double r11, r21, r31, r32, r33;

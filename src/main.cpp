@@ -104,61 +104,59 @@ int main(){
 	int width_screen	= scrn->width - 64; // adjust for sidebar in ubuntu
 	std::cerr << "Screen size (wxh): "<<width_screen<<", "<<height_screen<<std::endl;
 	timer watch;
-	double subsample_detection_frame = 2.0;
+	double subsample_detection_frame = 3.0;
 	cv::Mat im_out(height_screen,width_screen,CV_8UC3);
 	cv::Mat tmp_cv(4,4,CV_64FC1); // double data type, single channel
 	Eigen::Matrix4d tmp_eigen;
 	Eigen::Matrix4f pose;
+	transformation_manager trans_mngr;
 	for(EVER){
 		watch.start();
 		video_in >> frame;
-		//watch.lap("Get frame");
+		watch.lap("Get frame");
 		estimator.update(frame,subsample_detection_frame);
-		//watch.lap("Update estimator");
-		//cv::imshow(window_face,frame);
+		watch.lap("Update estimator");
 		// Reset im_out
 		im_out = cv::Scalar(0);
-		transformation_manager trans_mngr;
 		for(head_pose pose_head : estimator.poses()) {
-			watch.start();
-			tmp_cv = cv::Mat(pose_head.get_minor<4,4>(0,0));
-			cv::cv2eigen(tmp_cv,tmp_eigen);
-			pose = tmp_eigen.cast<float>();
-			//std::cerr << "Head pose (pose):\n" << pose << std::endl;
-			// TODO: pass im_out by reference, so no copying happens
-			//Extract upper left 3x3 block from the pose, this is the rotation matrixRx;
-			Eigen::Matrix3f Rt				= pose.block<3,3>(0,0);
-			std::vector<float> rotations	= calcrotations(Rt);
-			std::cerr << "Rotations:" ;
-			for(float rotation : rotations){
-				std::cerr << "\t" << rotation;
-			}
-			std::cerr << std::endl;
+			cv::Mat rotations = pose_head.rvec;
+
+			//std::cerr << "Rotations:"  << rotations << std::endl;
 			trans transformation;
 			transformation["dx"] = 0;
 			transformation["dy"] = 0;
 			transformation["dz"] = 0;
-			transformation["rx"] = rotations.at(0);
-			transformation["ry"] = rotations.at(1);
-			transformation["rz"] = rotations.at(2);
+			transformation["rx"] = (double)rotations.at<double>(0);
+			transformation["ry"] = (double)rotations.at<double>(1);
+			transformation["rz"] = (double)rotations.at<double>(2);
+			//std::cerr << "Trans:" << std::endl;
+			//for(auto transform : transformation){
+			//	std::cerr << "\t" << std::get<1>(transform) << std::endl;
+			//}
 			trans transformation_update  = trans_mngr.add(transformation);
+			watch.lap("Manage transformations");
+			//std::cerr << "Trans:";
+			//for(auto transform : transformation_update){
+			//	std::cerr << "\t" << std::get<1>(transform);
+			//}
+			//std::cerr << std::endl;
+			//watch.lap("Print transformation");
 			im_out = hom(image,transformation_update,width_screen,height_screen);
-			//watch.lap("Calculate new image");
+			watch.lap("Calculate new image");
 		}
 		#ifdef _DEBUG_
 			cv::Rect slice	= cv::Rect(width_screen-width_webcam,height_screen-height_webcam,width_webcam, height_webcam);
 			frame.copyTo(im_out(slice));
 		#endif
 		cv::imshow(window_image,im_out);
-		//watch.lap("Imshow");
-		
 		char key = (char)cv::waitKey(1);
 		if(key == 27){
 			std::cerr << "Program halted by user.";
 			return 0;
 		}
-		//double t_total = watch.stop();
-		//std::cerr << "Framerate: " << 1/t_total << std::endl;
+		watch.lap("Imshow");
+		double t_total = watch.stop();
+		std::cerr << "Framerate: " << 1/t_total << "[Hz]" << std::endl;
 	}
 	// Release webcam
 	video_in.release();
