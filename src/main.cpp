@@ -6,7 +6,7 @@
 //# Speeding up:	http://www.learnopencv.com/speeding-up-dlib-facial-landmark-detector/
 void draw_polyline(cv::Mat img,dlib::full_object_detection shape, int start, int stop, bool isClosed){
 //	From: http://www.learnopencv.com/speeding-up-dlib-facial-landmark-detector/
-	cv::vector<cv::Point> points;
+	std::vector<cv::Point> points;
 	for(int i=start; i<stop; i++){
 		points.push_back(cv::Point(shape.part(i).x(), shape.part(i).y()));
 	}

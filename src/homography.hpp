@@ -10,14 +10,15 @@
 #include "paths.hpp"
 #include <math.h>
 // ## Eigen
-#include <Eigen/Dense>
+//#include <Eigen/Dense>
+#include <eigen3/Eigen/Dense> // << changes
 #include <limits.h> // for max values of datatypes
 // ## Armadillo
 #include <armadillo>
 // ## Attention tracker
 #include "../include/attention-tracker/src/head_pose_estimation.hpp"
 // ## Xlib
-#include <X11/Xlib.h>
+#include <X11/Xlib.h> // To determine the display size
 
 
 #define EVER ;;
