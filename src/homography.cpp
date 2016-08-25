@@ -14,7 +14,7 @@ int main(){
 	float	ry = 0.0*PI;
 	float	rz = 0.5*PI;
 	
-	Rxyz rot			= calcrotationmatrix(rx, ry, rz);
+	Rxyz rot				= calcrotationmatrix(rx, ry, rz);
 	trans transformations;
 	transformations["dx"]	= 0;
 	transformations["dy"]	= 0;
@@ -26,7 +26,10 @@ int main(){
 	int wmax, hmax;
 	wmax = 1920;
 	hmax = 1080;
+	timer watch;
+	watch.start();
 	cv::Mat im			= hom(image,transformations,wmax,hmax);
+	watch.stop();
 
 //	Show results
 	cv::imshow("Hom",im);
@@ -34,6 +37,8 @@ int main(){
 
 // C++
 // Looping: Elapsed time 0.004 (rough average)
+// Looping: Elapsed time 0.03 (rough average) small 250x250 image
+// Looping: Elapsed time 0.06 (rough average) Large image
 
 // Python:
 //#	Hom0: Elapsed time 0.00331997871399

@@ -23,6 +23,7 @@
 
 #define EVER ;;
 
+#define _TIMEIT 1
 
 typedef struct {
 	Eigen::Matrix3f Rx;
@@ -320,8 +321,10 @@ Eigen::Matrix3f calchomography(int width, int height, trans transformations){
 
 cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max){
 // Faster backward homography, mapping by masking and matrix indices method # 0.007 seconds
-//	timer watch;
-//	watch.start();
+	#ifdef _TIMEIT
+	timer watch;
+	watch.start();
+	#endif
 
 	int height	= image.size().height;
 	int width	= image.size().width;
@@ -377,25 +380,33 @@ cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max)
 //	W.print("W:") ;
 	arma::Cube<int> O = arma::Cube<int>(hmax, wmax, 2);
 	O = arma::join_slices(arma::join_slices(X,Y),W);
+	#ifdef _TIMEIT
+	watch.lap("construct O");
+	#endif
 	//O.print("O:");// This is always correct.
 //	map_out	= np.einsum('kp,ijp->ijk',Hi,O)
-//	TODO: Hi naar arma type?
+//	Hi to arma type:
+	arma::Mat<float> Hia(reinterpret_cast<float*>(Hi.data()),3,3);
+	//Hia.print("Hia:");
 	arma::Cube<float> M = arma::zeros<arma::Cube<float>>(hmax, wmax, 3);
 	//M.print("M:");
 	for(int i = 0; i < hmax; i++){
 		for(int j = 0; j < wmax; j++){
 			for(int k = 0; k < 3; k++){
-				for(int p = 0; p < 3; p++){
-					//TODO: vector operation instead of loop for last loop.
-					M(i,j,k) += Hi(k,p)*float(O(i,j,p));
-				}
+				arma::Mat<int> tmpCube(O.tube(i,j));
+				arma::Col<float> tmpvec = arma::conv_to<arma::fcolvec>::from(tmpCube);
+				arma::Col<float> test = Hia(k,arma::span::all)*tmpvec;
+				arma::Col<float> res = Hia(k,arma::span::all)*tmpvec;
+				M(i,j,k) = res.at(0);
 			}
 		}
 	}
-	
 	// Element wise division by scale
 	M.slice(0)	= M.slice(0)/M.slice(2);
 	M.slice(1)	= M.slice(1)/M.slice(2);
+	#ifdef _TIMEIT
+	watch.lap("Calc Mapping");
+	#endif
 	//M.print("M:");
 	// Round is very important in this conversion, otherwise major errors
 	// TODO (solved, answer = yes): Check if this still works for negative values (if necessary)
@@ -438,7 +449,9 @@ cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max)
 		//  Values seem to be correct
 		}
 	}
-
+	#ifdef _TIMEIT
+	watch.lap("Perform Mapping");
+	#endif
 	//watch.stop("Homography:");
 	return image_out;
 }
