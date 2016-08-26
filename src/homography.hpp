@@ -19,6 +19,8 @@
 #include "../include/attention-tracker/src/head_pose_estimation.hpp"
 // ## Xlib
 #include <X11/Xlib.h> // To determine the display size
+// ## cuda-util
+#include "cuda-utils/cudafuncs.hpp"
 
 
 #define EVER ;;
@@ -47,6 +49,10 @@ Rxyz calcrotationmatrix(double rx, double ry, double rz);
 std::vector<float> calcrotations(Eigen::Matrix3f Rt);
 Eigen::Matrix3f calchomography(int width, int height, trans transformations);
 Eigen::Vector4i calccorners(Eigen::Matrix3f H, int height, int width);
+////// Cuda funcitons in cudafuncs.cu
+//__global__ void calcmap_cuda(xp_c, yp_c, wp_c, mxp_c, myp_c, mwp_c, h_c);
+//arma::Mat calcmapping(float Hi, int xmin_out, int ymin_out, int wmax, int hmax);
+
 
 const double PI		= 3.141592653589793;
 const double INF	= abs(1.0/0.0);
@@ -331,7 +337,7 @@ cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max)
 	int channels= image.channels();
 	
 	Eigen::Matrix3f H, Hi;
-	
+	//arma::Mat<float> H, Hi;	
 	H	= calchomography(width,height,transformations);
 	//H	<<	1,0,0,
 	//		0,1,0,
@@ -363,45 +369,11 @@ cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max)
 	int wmax = std::min(width_out, width_max);
 	int hmax = std::min(height_out, height_max);
 	
-	// calc mapping
-// meshgrid implementation from:	https://forum.kde.org/viewtopic.php?f=74&t=90876
-	int xmax,ymax;
-	xmax = wmax-xmin_out-1;
-	ymax = hmax-ymin_out-1;
-	arma::Mat<int> x = arma::linspace<arma::Row<int>>(xmin_out,xmax,wmax);
-	arma::Mat<int> X = arma::repmat(x,hmax,1);
-//	x.print("x:") ;
-//	X.print("X:") ;
-	arma::Mat<int> y = arma::linspace<arma::Col<int>>(ymin_out,ymax,hmax);
-	arma::Mat<int> Y = arma::repmat(y,1,wmax);
-//	y.print("y:") ;
-//	Y.print("Y:") ;
-	arma::Mat<int> W = arma::ones<arma::Mat<int>>(hmax,wmax);
-//	W.print("W:") ;
-	arma::Cube<int> O = arma::Cube<int>(hmax, wmax, 2);
-	O = arma::join_slices(arma::join_slices(X,Y),W);
-	#ifdef _TIMEIT
-	watch.lap("construct O");
-	#endif
-	//O.print("O:");// This is always correct.
-//	map_out	= np.einsum('kp,ijp->ijk',Hi,O)
-//	Hi to arma type:
-	arma::Mat<float> Hia(reinterpret_cast<float*>(Hi.data()),3,3);
-	//Hia.print("Hia:");
-	arma::Cube<float> M = arma::zeros<arma::Cube<float>>(hmax, wmax, 3);
-	//M.print("M:");
-	for(int i = 0; i < hmax; i++){
-		for(int j = 0; j < wmax; j++){
-			for(int k = 0; k < 3; k++){
-				arma::Mat<int> tmpCube(O.tube(i,j));
-				arma::Col<float> tmpvec = arma::conv_to<arma::fcolvec>::from(tmpCube);
-				arma::Col<float> test = Hia(k,arma::span::all)*tmpvec;
-				arma::Col<float> res = Hia(k,arma::span::all)*tmpvec;
-				M(i,j,k) = res.at(0);
-			}
-		}
-	}
-	// Element wise division by scale
+	// Mapping is calculated on GPU
+	//arma::Cube<float> M = calcmapping(Eigen::Matrix3f Hi, int xmin_out, int ymin_out, int wmax, int hmax);
+	arma::Cube<float> M = calcmapping(Hi, xmin_out, ymin_out, wmax, hmax);
+	//arma::Cube<float> M(hmax,wmax,3);
+	// Element wise division by scal e
 	M.slice(0)	= M.slice(0)/M.slice(2);
 	M.slice(1)	= M.slice(1)/M.slice(2);
 	#ifdef _TIMEIT
