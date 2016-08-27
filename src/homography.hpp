@@ -19,7 +19,7 @@
 #include "../include/attention-tracker/src/head_pose_estimation.hpp"
 // ## Xlib
 #include <X11/Xlib.h> // To determine the display size
-// ## cuda-util
+// ## cuda-utils
 #include "cuda-utils/cudafuncs.hpp"
 
 

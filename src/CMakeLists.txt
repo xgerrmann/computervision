@@ -13,7 +13,7 @@ set(BUILD_SHARED_LIBS OFF)
 set(CUDA_SEPARABLE_COMPILATION OFF)
 
 ### CUDA
-#find_package(CUDA REQUIRED)
+find_package(CUDA REQUIRED)
 #if(CUDA_FOUND)
 #	    list(APPEND CUDA_NVCC_FLAGS "-std=c++11;")
 #		set(CUDA_SEPARABLE_COMPILCATION ON)
@@ -22,12 +22,13 @@ set(CUDA_SEPARABLE_COMPILATION OFF)
 ## compile *.cu files
 #CUDA_COMPILE(CU_O cudafuncs.cu)
 
-add_subdirectory(cuda-utils)
+#add_subdirectory(cuda-utils)
 
 # Create binaries
 #-------------------
-add_executable(homography	homography.cpp)
-add_executable(main			main.cpp)
+#add_executable(homography	homography.cpp)
+cuda_add_executable(homography	homography.cpp	homography.hpp			cudafuncs.cu	cudafuncs.hpp)
+cuda_add_executable(main		main.cpp		main.hpp homography.hpp	cudafuncs.cu	cudafuncs.hpp)
 
 # OPENCV
 find_package(OpenCV REQUIRED)
@@ -62,7 +63,9 @@ message("OpenBLASlibrary: ${OpenBLAS_LIBRARY}")
 ## Linker
 ##-------------------
 target_link_libraries(main			dlib	${OpenCV_LIBS}	${ARMADILLO_LIBRARIES}	${ATTENTION_TRACKER_LIBRARY}	openblas ${CUDA_LIBRARIES})
+
+
 #target_link_libraries(homography	dlib	${OpenCV_LIBS}	${ARMADILLO_LIBRARIES}	${ATTENTION_TRACKER_LIBRARY}	openblas)
-#target_link_libraries(homography	dlib	${OpenCV_LIBS}	${ARMADILLO_LIBRARIES}	${ATTENTION_TRACKER_LIBRARY}	openblas	${CUDA_LIBRARIES})
-target_link_libraries(homography	dlib	${OpenCV_LIBS}	${ARMADILLO_LIBRARIES}	${ATTENTION_TRACKER_LIBRARY}	openblas	cuda-utils ${CUDA_LIBRARIES})
+target_link_libraries(homography	dlib	${OpenCV_LIBS}	${ARMADILLO_LIBRARIES}	${ATTENTION_TRACKER_LIBRARY}	openblas	${CUDA_LIBRARIES})
+#target_link_libraries(homography	dlib	${OpenCV_LIBS}	${ARMADILLO_LIBRARIES}	${ATTENTION_TRACKER_LIBRARY}	openblas	cuda-utils ${CUDA_LIBRARIES})
 
