@@ -1,3 +1,7 @@
+// homography.hpp
+#ifndef homography_h
+#define homography_h
+
 #include <iostream>     // std::cout
 //#include <algorithm>    // std::max
 
@@ -427,3 +431,4 @@ cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max)
 	//watch.stop("Homography:");
 	return image_out;
 }
+#endif
