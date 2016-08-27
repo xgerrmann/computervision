@@ -375,18 +375,20 @@ cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max)
 	
 	// Mapping is calculated on GPU
 	//arma::Cube<float> M = calcmapping(Eigen::Matrix3f Hi, int xmin_out, int ymin_out, int wmax, int hmax);
-	arma::Cube<float> M = calcmapping(Hi, xmin_out, ymin_out, wmax, hmax);
-	//arma::Cube<float> M(hmax,wmax,3);
-	// Element wise division by scal e
-	M.slice(0)	= M.slice(0)/M.slice(2);
-	M.slice(1)	= M.slice(1)/M.slice(2);
+	std::vector<Eigen::MatrixXf> M = calcmapping(Hi, xmin_out, ymin_out, wmax, hmax);
+	std::cerr << "Mapping calculated." << std::endl;
+	std::cerr << "Mx:" << M.at(0) << std::endl;
+	// Element wise division by scal e TODO
+	M.at(0) = M.at(0).cwiseQuotient(M.at(2)); // TODO: direct delen door de schaal op GPU
+	M.at(1) = M.at(1).cwiseQuotient(M.at(2));
 	#ifdef _TIMEIT
 	watch.lap("Calc Mapping");
 	#endif
 	//M.print("M:");
 	// Round is very important in this conversion, otherwise major errors
 	// TODO (solved, answer = yes): Check if this still works for negative values (if necessary)
-	arma::Cube<int> Mi = arma::conv_to<arma::Cube<int>>::from(round(M)); // mapping must be of integer type because it is used directly for indexing
+	//std::vector<Eigen::MatrixXf> Mi = arma::conv_to<arma::Cube<int>>::from(round(M)); // mapping must be of integer type because it is used directly for indexing
+	// TODO: to integer via rounding or perform interpolation later.
 	//Mi.print("Mi:");
 	//M.slice.print("M:");
 //	# construct empty image
@@ -402,8 +404,8 @@ cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max)
 	//		std::cerr<<"height_out:"<<height_out<<std::endl;
 	//		std::cerr<<arma::size(Mi);
 			// Change origin from center of image to upper right corner.
-			xtmp = Mi(h,w,0)+trans_x;
-			ytmp = Mi(h,w,1)+trans_y;
+			xtmp = M.at(0)(h,w)+trans_x;
+			ytmp = M.at(1)(h,w)+trans_y;
 			if(xtmp<0 || xtmp >= width || ytmp<0 || ytmp>=height){
 				//std::cerr<<"NOT x:"<<xtmp<<"->"<<w<<std::endl;
 				//std::cerr<<"NOT y:"<<ytmp<<"->"<<h<<std::endl;
