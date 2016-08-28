@@ -375,12 +375,14 @@ cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max)
 	
 	// Mapping is calculated on GPU
 	//arma::Cube<float> M = calcmapping(Eigen::Matrix3f Hi, int xmin_out, int ymin_out, int wmax, int hmax);
-	std::vector<Eigen::MatrixXf> M = calcmapping(Hi, xmin_out, ymin_out, wmax, hmax);
+	Eigen::MatrixXf Mx(hmax, wmax);// = Eigen::Matrix<float,hmax,wmax>::Zero();
+	Eigen::MatrixXf My(hmax, wmax);// = Eigen::Matrix<float,hmax,wmax>::Zero();
+	calcmapping(&Mx, &My, Hi, xmin_out, ymin_out, wmax, hmax);
 	std::cerr << "Mapping calculated." << std::endl;
-	std::cerr << "Mx:" << M.at(0) << std::endl;
-	// Element wise division by scal e TODO
-	M.at(0) = M.at(0).cwiseQuotient(M.at(2)); // TODO: direct delen door de schaal op GPU
-	M.at(1) = M.at(1).cwiseQuotient(M.at(2));
+	std::cerr << "Mx:" << Mx << std::endl;
+	// Element wise division by scale TODO
+	Mx = Mx.cwiseQuotient(My); // TODO: direct delen door de schaal op GPU
+	My = My.cwiseQuotient(My);
 	#ifdef _TIMEIT
 	watch.lap("Calc Mapping");
 	#endif
@@ -404,8 +406,8 @@ cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max)
 	//		std::cerr<<"height_out:"<<height_out<<std::endl;
 	//		std::cerr<<arma::size(Mi);
 			// Change origin from center of image to upper right corner.
-			xtmp = M.at(0)(h,w)+trans_x;
-			ytmp = M.at(1)(h,w)+trans_y;
+			xtmp = Mx(h,w)+trans_x;
+			ytmp = My(h,w)+trans_y;
 			if(xtmp<0 || xtmp >= width || ytmp<0 || ytmp>=height){
 				//std::cerr<<"NOT x:"<<xtmp<<"->"<<w<<std::endl;
 				//std::cerr<<"NOT y:"<<ytmp<<"->"<<h<<std::endl;

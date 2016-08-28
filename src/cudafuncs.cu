@@ -23,7 +23,7 @@ __global__ void calcmap_cuda(int *xp_c, int *yp_c, int *wp_c, float *mxp_c, floa
 }
 
 // Partial wrapper for the __global__ calls
-extern "C" std::vector<Eigen::MatrixXf> calcmapping(Eigen::Matrix3f Hi, int xmin_out, int ymin_out, int wmax, int hmax){
+extern "C" void calcmapping(Eigen::MatrixXf *Mx, Eigen::MatrixXf *My,  Eigen::Matrix3f Hi, int xmin_out, int ymin_out, int wmax, int hmax){
 	std::cerr << "Enter calcmapping." << std::endl;
 	int xmax,ymax;
 	xmax = wmax-xmin_out-1;
@@ -75,15 +75,13 @@ extern "C" std::vector<Eigen::MatrixXf> calcmapping(Eigen::Matrix3f Hi, int xmin
 	wp = W.memptr(); // pointer to w matrix input data
 	h  = Hi.data();	 // Hi is an eigen matrix
 	
-	Eigen::MatrixXf Mx(hmax, wmax);// = Eigen::Matrix<float,hmax,wmax>::Zero();
-	Eigen::MatrixXf My(hmax, wmax);// = Eigen::Matrix<float,hmax,wmax>::Zero();
-	Eigen::MatrixXf Mw(hmax, wmax);// = Eigen::Matrix<float,hmax,wmax>::Zero();
-//	Eigen::Matrix<float, hmax, wmax> Mx= Eigen::Matrix<float, hmax, wmax>::Zero();// = Eigen::Matrix<float,hmax,wmax>::Zero();
-	// Allocate space on host for results
-	//mxp = (float *)malloc(size_i); // pointer to x matrix output data
-	mxp = Mx.data(); // pointer to x matrix output data
-	myp = My.data(); // pointer to x matrix output data
-	mwp = Mw.data(); // pointer to x matrix output data
+	// Number of rows and columns in Mx and My must be identical
+	assert(Mx.rows() == My.rows() && Mx.cols() == My.cols());
+	Eigen::MatrixXf Mw(Mx->rows(), Mx->cols());// = Eigen::Matrix<float,hmax,wmax>::Zero();
+	// Get pointers to data of mapping matrices
+	mxp = Mx->data();	// Mx is a pointer, thus child accessing with ->
+	myp = My->data();	// My is a pointer, thus child accessing with ->
+	mwp = Mw.data();	// Mw is not a pointer
 
 	// Allocate space on device for device copies
 	cudaMalloc((void **)&xp_c,size_i);
@@ -111,31 +109,21 @@ extern "C" std::vector<Eigen::MatrixXf> calcmapping(Eigen::Matrix3f Hi, int xmin
 	cudaMemcpy(myp, myp_c, size_f, cudaMemcpyDeviceToHost);
 	cudaMemcpy(mwp, mwp_c, size_f, cudaMemcpyDeviceToHost);
 
-	std::cerr << mxp[0] << std::endl;
-	std::cerr << mxp[1] << std::endl;
-	std::cerr << mxp[N-2] << std::endl;
-	std::cerr << mxp[N-1] << std::endl;
+	//std::cerr << mxp[0] << std::endl;
+	//std::cerr << mxp[1] << std::endl;
+	//std::cerr << mxp[N-2] << std::endl;
+	//std::cerr << mxp[N-1] << std::endl;
 
-	// Copy to arma matrix
-	//arma::Mat<float> Mx(mxp, hmax, wmax, true, true); // Copies memory to matrix
-	//arma::Mat<float> My(myp, hmax, wmax, true, true); // Copies memory to matrix
-	//arma::Mat<float> Mw(mwp, hmax, wmax, true, true); // Copies memory to matrix
-	//arma::Mat<float> Mx(mxp, hmax, wmax); // Copies memory to matrix
-	//arma::fcolvec Mx(mxp, N, false, false); // Copies memory to matrix
-	//Eigen::Map<Eigen::MatrixXf> Mx(mxp, hmax, wmax);
-	//arma::Mat<float> My(myp, hmax, wmax); // Copies memory to matrix
-	//arma::Mat<float> Mw(mwp, hmax, wmax); // Copies memory to matrix
+	//std::cerr << Mx(0) << std::endl;
+	//std::cerr << Mx(1) << std::endl;
+	//std::cerr << Mx(N-2) << std::endl;
+	//std::cerr << Mx(N-1) << std::endl;
+	//std::cerr << Mx(N) << std::endl;
 
-	std::cerr << Mx(0) << std::endl;
-	std::cerr << Mx(1) << std::endl;
-	std::cerr << Mx(N-2) << std::endl;
-	std::cerr << Mx(N-1) << std::endl;
-	std::cerr << Mx(N) << std::endl;
-
-	std::cerr << "size Mx: " << sizeof(Mx) << std::endl;
-	std::cerr << "size Mx[0]: " << sizeof(Mx(0)) << std::endl;
-	std::cerr << "size My: " << sizeof(My) << std::endl;
-	std::cerr << "size Mw: " << sizeof(Mw) << std::endl;
+	//std::cerr << "size Mx: " << sizeof(Mx) << std::endl;
+	//std::cerr << "size Mx[0]: " << sizeof(Mx(0)) << std::endl;
+	//std::cerr << "size My: " << sizeof(My) << std::endl;
+	//std::cerr << "size Mw: " << sizeof(Mw) << std::endl;
 	
 	//std::cerr << "size Mx: " << arma::size(Mx) << std::endl;
 	//std::cerr << "size My: " << arma::size(My) << std::endl;
@@ -144,18 +132,12 @@ extern "C" std::vector<Eigen::MatrixXf> calcmapping(Eigen::Matrix3f Hi, int xmin
 	std::cerr << "Mx:\n" << Mx << std::endl;
 	std::cerr << "My:\n" << My << std::endl;
 	std::cerr << "Mw:\n" << Mw << std::endl;
-	// TODO M = stack eigen ...
 	std::cerr << "Finished printing." << std::endl;	
-	//arma::Cube<float> M(join_slices(join_slices(Mx,My),Mw));
-	std::vector<Eigen::MatrixXf> M;
-	M.push_back(Mx);
-	M.push_back(My);
-	M.push_back(Mw);
 
 	// cleanup device memory
 	cudaFree(mxp_c);	cudaFree(myp_c);	cudaFree(mwp_c);
 	cudaFree(xp_c);		cudaFree(yp_c);		cudaFree(wp_c);
 
-	return M;
+	// No return, void function.
 }
 
