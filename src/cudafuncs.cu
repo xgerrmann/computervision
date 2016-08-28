@@ -11,11 +11,11 @@ __global__ void calcmap_cuda(int *xp_c, int *yp_c, int *wp_c, float *mxp_c, floa
 	if((c>=width)||(r>=height)) return;
 	int cuda_index = r*width+c;
 	// First calculate the scale, for the X and Y must be devicd by the scale.
-	float w				= (h_c[2]*float(xp_c[cuda_index])+h_c[5]*float(yp_c[cuda_index])+h_c[8]*float(wp_c[cuda_index]));
+	float w				= (h_c[2]*xp_c[cuda_index]+h_c[5]*yp_c[cuda_index]+h_c[8]*wp_c[cuda_index]);
 	// x/w
-	mxp_c[cuda_index]	= (h_c[0]*float(xp_c[cuda_index])+h_c[3]*float(yp_c[cuda_index])+h_c[6]*float(wp_c[cuda_index]))/w;
+	mxp_c[cuda_index]	= (h_c[0]*xp_c[cuda_index]+h_c[3]*yp_c[cuda_index]+h_c[6]*wp_c[cuda_index])/w;
 	// y/w
-	myp_c[cuda_index]	= (h_c[1]*float(xp_c[cuda_index])+h_c[4]*float(yp_c[cuda_index])+h_c[7]*float(wp_c[cuda_index]))/w;
+	myp_c[cuda_index]	= (h_c[1]*xp_c[cuda_index]+h_c[4]*yp_c[cuda_index]+h_c[7]*wp_c[cuda_index])/w;
 }
 
 // Partial wrapper for the __global__ calls
@@ -121,8 +121,8 @@ extern "C" void calcmapping(Eigen::MatrixXf *Mx, Eigen::MatrixXf *My,  Eigen::Ma
 	//calcmap_cuda<<<n_blocks,n_threads>>>(xp_c, yp_c, wp_c, mxp_c, myp_c, h_c);
 	// Launch 2D grid
 	// Source: http://www.informit.com/articles/article.aspx?p=2455391
-	int TX = 1;
-	int TY = 1;
+	int TX = 32;
+	int TY = 32;
 	dim3 blockSize(TX, TY);
 	//int bx = (wmax+ blockSize.x-1)/blockSize.x;
 	//int by = (hmax+ blockSize.y-1)/blockSize.y;
@@ -130,6 +130,7 @@ extern "C" void calcmapping(Eigen::MatrixXf *Mx, Eigen::MatrixXf *My,  Eigen::Ma
 	int by = (wmax+ TY - 1)/TY;
 	dim3 gridSize = dim3 (bx, by);
 	calcmap_cuda<<<gridSize, blockSize>>>(xp_c, yp_c, wp_c, mxp_c, myp_c, h_c, wmax, hmax);
+	cudaDeviceSynchronize();
 	cudaEventRecord(stop,0);
 	cudaEventSynchronize(stop);
 	cudaEventElapsedTime(&milliseconds, start, stop);
