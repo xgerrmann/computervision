@@ -11,8 +11,8 @@ int main(){
 	cv::waitKey(100);
 	
 	float	rx = 0.0*PI;
-	float	ry = 0.0*PI;
-	float	rz = 0.5*PI;
+	float	ry = 0.24*PI;
+	float	rz = 0.0*PI;
 //	float	rz = 0.0*PI;
 	
 	Rxyz rot				= calcrotationmatrix(rx, ry, rz);
@@ -20,9 +20,12 @@ int main(){
 	transformations["tx"]	= 0;
 	transformations["ty"]	= 0;
 	transformations["tz"]	= 0;
-	transformations["rx"]	= rx;
-	transformations["ry"]	= ry;
-	transformations["rz"]	= rz;
+	//transformations["rx"]	= rx;
+	//transformations["ry"]	= ry;
+	//transformations["rz"]	= rz;
+	transformations["rx"]	= -0.020254;
+	transformations["ry"]	= -0.012746;
+	transformations["rz"]	= -0.0873265;
 	Eigen::Matrix3f Rt	= rot.Rz*rot.Ry*rot.Rx;
 	int wmax, hmax;
 	wmax = 1920;

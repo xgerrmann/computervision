@@ -30,11 +30,11 @@ extern "C" void calcmapping(Eigen::MatrixXf *Mx, Eigen::MatrixXf *My,  Eigen::Ma
 	// Prepare inputs for the device code
 	// STATIC because every loop this is the same
 	// Input are meshgrid MATLAB-like arrays of the X and Y coordinates of the pixels and the scale (=1)
-	static arma::Mat<int> x = arma::linspace<arma::Row<int> >(xmin_out,xmax,wmax);
-	static arma::Mat<int> X = arma::repmat(x,hmax,1);
-	static arma::Mat<int> y = arma::linspace<arma::Col<int> >(ymin_out,ymax,hmax);
-	static arma::Mat<int> Y = arma::repmat(y,1,wmax);
-	static arma::Mat<int> W = arma::ones<arma::Mat<int> >(hmax,wmax);
+	arma::Mat<int> x = arma::linspace<arma::Row<int> >(xmin_out,xmax,wmax);
+	arma::Mat<int> X = arma::repmat(x,hmax,1);
+	arma::Mat<int> y = arma::linspace<arma::Col<int> >(ymin_out,ymax,hmax);
+	arma::Mat<int> Y = arma::repmat(y,1,wmax);
+	arma::Mat<int> W = arma::ones<arma::Mat<int> >(hmax,wmax);
 	
 	#ifdef _DEBUG
 	//X.print("X:");

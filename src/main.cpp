@@ -123,9 +123,9 @@ int main(){
 
 			//std::cerr << "Rotations:"  << rotations << std::endl;
 			trans transformation;
-			transformation["dx"] = 0;
-			transformation["dy"] = 0;
-			transformation["dz"] = 0;
+			transformation["tx"] = 0;
+			transformation["ty"] = 0;
+			transformation["tz"] = 0;
 			transformation["rx"] = (double)rotations.at<double>(0);
 			transformation["ry"] = (double)rotations.at<double>(1);
 			transformation["rz"] = (double)rotations.at<double>(2);
