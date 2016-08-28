@@ -44,6 +44,11 @@ set(ATTENTION_TRACKER_LIBRARY /home/xgerrmann/Documents/src/computervision/inclu
 find_library(${ATTENTION_TRACKER_LIBRARY} head_pose_estimation)
 message("Head Pose library: ${ATTENTION_TRACKER_LIBRARY}")
 
+## GPUtimer
+set(GPUTIMER_LIBRARY /home/xgerrmann/Documents/src/computervision/lib/gputimer/lib/libgputimer.so)
+find_library(${GPUTIMER_LIBRARY} gputimer)
+message("GPUtimer library: ${GPUTIMER_LIBRARY}")
+
 ## OpenBLAS
 set(OpenBLAS_LIBRARY /usr/lib/libopenblas.so)
 find_library(${OpenBLAS_LIBRARY} openblas)
@@ -52,7 +57,7 @@ message("OpenBLASlibrary: ${OpenBLAS_LIBRARY}")
 ## Linker
 ##-------------------
 # main
-target_link_libraries(main			dlib	${OpenCV_LIBS}	${ARMADILLO_LIBRARIES}	${ATTENTION_TRACKER_LIBRARY}	openblas	${CUDA_LIBRARIES})
+target_link_libraries(main			dlib	${OpenCV_LIBS}	${ARMADILLO_LIBRARIES}	${ATTENTION_TRACKER_LIBRARY}	openblas	${CUDA_LIBRARIES} gputimer)
 # homography
-target_link_libraries(homography	dlib	${OpenCV_LIBS}	${ARMADILLO_LIBRARIES}	${ATTENTION_TRACKER_LIBRARY}	openblas	${CUDA_LIBRARIES})
+target_link_libraries(homography	dlib	${OpenCV_LIBS}	${ARMADILLO_LIBRARIES}	${ATTENTION_TRACKER_LIBRARY}	openblas	${CUDA_LIBRARIES} gputimer)
 

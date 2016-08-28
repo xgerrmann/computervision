@@ -382,18 +382,9 @@ cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max)
 	watch.lap("Mapping Preliminaries");
 	#endif
 	calcmapping(&Mx, &My, &Hi, xmin_out, ymin_out, wmax, hmax);
-	//std::cerr << "Mapping calculated." << std::endl;
-	//std::cerr << "Mx:\n" << Mx << std::endl;
-	//std::cerr << "My:\n" << My << std::endl;
 	#ifdef _TIMEIT
 	watch.lap("Calc Mapping");
 	#endif
-	// Round is very important in this conversion, otherwise major errors
-	// TODO (solved, answer = yes): Check if this still works for negative values (if necessary)
-	//std::vector<Eigen::MatrixXf> Mi = arma::conv_to<arma::Cube<int>>::from(round(M)); // mapping must be of integer type because it is used directly for indexing
-	// TODO: to integer via rounding or perform interpolation later.
-	//Mi.print("Mi:");
-	//M.slice.print("M:");
 //	# construct empty image
 
 	cv::Mat image_out	= cv::Mat::zeros(height_max, width_max,CV_8UC3); // 3 channel 8-bit character
