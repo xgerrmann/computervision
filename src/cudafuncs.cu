@@ -2,19 +2,33 @@
 
 #include "cudafuncs.hpp"
 
-__global__ void calcmap_cuda(int *xp_c, int *yp_c, int *wp_c, float *mxp_c, float *myp_c, float *h_c){
+__global__ void calcmap_cuda(int *xp_c, int *yp_c, int *wp_c, float *mxp_c, float *myp_c, float *h_c, int width, int height){
 	// TODO: max number of blocks
-
+	//int cuda_index = blockDim.x*blockIdx.x + threadIdx.x;
+	int c = blockIdx.x*blockDim.x + threadIdx.x;
+	int r = blockIdx.y*blockDim.y + threadIdx.y;
+	// Check if within image bounds
+	if((c>=width)||(r>=height)) return;
+	int cuda_index = r*width+c;
 	// First calculate the scale, for the X and Y must be devicd by the scale.
-	float w				= (h_c[2]*float(xp_c[blockIdx.x])+h_c[5]*float(yp_c[blockIdx.x])+h_c[8]*float(wp_c[blockIdx.x]));
+	float w				= (h_c[2]*float(xp_c[cuda_index])+h_c[5]*float(yp_c[cuda_index])+h_c[8]*float(wp_c[cuda_index]));
 	// x/w
-	mxp_c[blockIdx.x]	= (h_c[0]*float(xp_c[blockIdx.x])+h_c[3]*float(yp_c[blockIdx.x])+h_c[6]*float(wp_c[blockIdx.x]))/w;
+	mxp_c[cuda_index]	= (h_c[0]*float(xp_c[cuda_index])+h_c[3]*float(yp_c[cuda_index])+h_c[6]*float(wp_c[cuda_index]))/w;
 	// y/w
-	myp_c[blockIdx.x]	= (h_c[1]*float(xp_c[blockIdx.x])+h_c[4]*float(yp_c[blockIdx.x])+h_c[7]*float(wp_c[blockIdx.x]))/w;
+	myp_c[cuda_index]	= (h_c[1]*float(xp_c[cuda_index])+h_c[4]*float(yp_c[cuda_index])+h_c[7]*float(wp_c[cuda_index]))/w;
 }
 
 // Partial wrapper for the __global__ calls
 extern "C" void calcmapping(Eigen::MatrixXf *Mx, Eigen::MatrixXf *My,  Eigen::Matrix3f *Hi, int xmin_out, int ymin_out, int wmax, int hmax){
+	// Get the properties of the GPU device, this will only be executed once.
+	static cudaDeviceProp cuda_properties;
+	static cudaError_t cuda_error= cudaGetDeviceProperties(&cuda_properties,0); // cuda properties of device 0
+	static int N_BLOCKS_MAX		= cuda_properties.maxThreadsPerBlock;	// x dimension
+	static int N_THREADS_MAX	= cuda_properties.maxGridSize[0];		// x dimension
+	static int N_PIXELS_MAX = N_BLOCKS_MAX * N_THREADS_MAX;
+	std::cerr << "N_BLOCKS_MAX: " << N_BLOCKS_MAX << std::endl;
+	std::cerr << "N_THREADS_MAX:" << N_THREADS_MAX << std::endl;
+	
 	cudaEvent_t start, stop;
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
@@ -44,9 +58,18 @@ extern "C" void calcmapping(Eigen::MatrixXf *Mx, Eigen::MatrixXf *My,  Eigen::Ma
 	
 	// Determine data sizes
 	int N		= hmax*wmax;
+	std::cerr << hmax << "," << wmax << std::endl;
+	assert(N<N_PIXELS_MAX);// number of pixels must be smaller then the total number of threads (in the x dimension)
 	int size_i	= N*sizeof(int);
 	int size_f	= N*sizeof(float);
 	int size_h	= 9*sizeof(float); // H (in fact a 3x3 matrix) contains 9 float scalars.
+
+	// determine number of blocks and threads per block
+	int n_blocks	= ceil(float(N)/float(N_THREADS_MAX));
+	//int n_threads	= ceil(float(N)/float(n_blocks));
+	int n_threads	= N_THREADS_MAX;
+	std::cerr << "n_blocks:  "<< n_blocks << std::endl;
+	std::cerr << "n_threads: "<< n_threads << std::endl;
 
 	// Create pointers to host and device data
 	int		*xp, *yp, *wp, *xp_c, *yp_c, *wp_c;
@@ -95,7 +118,18 @@ extern "C" void calcmapping(Eigen::MatrixXf *Mx, Eigen::MatrixXf *My,  Eigen::Ma
 	// Execute combine on cpu
 	//std::cerr << "Execute device code." << std::endl;
 	cudaEventRecord(start,0);
-	calcmap_cuda<<<N,1>>>(xp_c, yp_c, wp_c, mxp_c, myp_c, h_c);
+	//calcmap_cuda<<<n_blocks,n_threads>>>(xp_c, yp_c, wp_c, mxp_c, myp_c, h_c);
+	// Launch 2D grid
+	// Source: http://www.informit.com/articles/article.aspx?p=2455391
+	int TX = 1;
+	int TY = 1;
+	dim3 blockSize(TX, TY);
+	//int bx = (wmax+ blockSize.x-1)/blockSize.x;
+	//int by = (hmax+ blockSize.y-1)/blockSize.y;
+	int bx = (wmax+ TX - 1)/TX;
+	int by = (wmax+ TY - 1)/TY;
+	dim3 gridSize = dim3 (bx, by);
+	calcmap_cuda<<<gridSize, blockSize>>>(xp_c, yp_c, wp_c, mxp_c, myp_c, h_c, wmax, hmax);
 	cudaEventRecord(stop,0);
 	cudaEventSynchronize(stop);
 	cudaEventElapsedTime(&milliseconds, start, stop);
