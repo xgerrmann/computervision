@@ -14,6 +14,9 @@ set(BUILD_SHARED_LIBS OFF)
 
 ### CUDA
 find_package(CUDA REQUIRED)
+#list(APPEND CUDA_NVCC_FLAGS "-arch=sm_20;-std=c++11;-O2;-DVERBOSE")
+list(APPEND CUDA_NVCC_FLAGS "-arch=sm_20;-std=c++11;")
+SET(CUDA_PROPAGATE_HOST_FLAGS OFF)
 
 #add_subdirectory(cuda-utils)
 

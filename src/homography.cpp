@@ -12,24 +12,24 @@ int main(){
 	
 	float	rx = 0.0*PI;
 	float	ry = 0.0*PI;
-//	float	rz = 0.5*PI;
-	float	rz = 0.0*PI;
+	float	rz = 0.5*PI;
+//	float	rz = 0.0*PI;
 	
 	Rxyz rot				= calcrotationmatrix(rx, ry, rz);
 	trans transformations;
-	transformations["dx"]	= 0;
-	transformations["dy"]	= 0;
-	transformations["dz"]	= 0;
+	transformations["tx"]	= 0;
+	transformations["ty"]	= 0;
+	transformations["tz"]	= 0;
 	transformations["rx"]	= rx;
 	transformations["ry"]	= ry;
-	transformations["rz"]	= rx;
+	transformations["rz"]	= rz;
 	Eigen::Matrix3f Rt	= rot.Rz*rot.Ry*rot.Rx;
 	int wmax, hmax;
 	wmax = 1920;
 	hmax = 1080;
 	timer watch;
 	watch.start();
-	cv::Mat im			= hom(image,transformations,wmax,hmax);
+	cv::Mat im	= hom(image,transformations,wmax,hmax);
 	watch.stop();
 
 //	Show results

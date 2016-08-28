@@ -30,7 +30,10 @@
 #define EVER ;;
 
 #define _TIMEIT	1
+
+#ifndef _DEBUG
 #define _DEBUG	1
+#endif
 
 typedef struct {
 	Eigen::Matrix3f Rx;
@@ -192,6 +195,12 @@ Eigen::Matrix3f calchomography(int width, int height, trans transformations){
 	Rxyz rot			= calcrotationmatrix(transformations["rx"], transformations["ry"], transformations["rz"]);
 	Eigen::Matrix3f Rt	= rot.Rz*rot.Ry*rot.Rx;
 	#ifdef _DEBUG
+	std::cerr << "tx: " << transformations["tx"] << std::endl;
+	std::cerr << "ty: " << transformations["ty"] << std::endl;
+	std::cerr << "tz: " << transformations["tz"] << std::endl;
+	std::cerr << "rx: " << transformations["rx"] << std::endl;
+	std::cerr << "ry: " << transformations["ry"] << std::endl;
+	std::cerr << "rz: " << transformations["rz"] << std::endl;
 	std::cerr << "Rt:\n"	<< Rt	<< std::endl;
 	#endif
 	Eigen::Matrix3f Rti	= Rt.inverse();
@@ -351,13 +360,14 @@ cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max)
 	height_out	= rectangle[3];
 	xmax_out	= xmin_out + width_out-1; // zero based, thus -1
 	ymax_out	= ymin_out + height_out-1;// zero based, thus -1
+	#ifdef debug
 	std::cerr << "xmin: " << xmin_out << std::endl;
 	std::cerr << "xmax: " << xmax_out << std::endl;
 	std::cerr << "ymin: " << ymin_out << std::endl;
 	std::cerr << "ymax: " << ymax_out << std::endl;
 	std::cerr << "width_out:  " << width_out << std::endl;
 	std::cerr << "height_out: " << height_out << std::endl;
-
+	#endif
 // Determine size of matrices for performing the mapping.
 // Mapping must stay within max size.
 // Max size of mapping matrices is minimum of outgoing image dimensions and the max dimensions
@@ -368,14 +378,16 @@ cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max)
 	//arma::Cube<float> M = calcmapping(Eigen::Matrix3f Hi, int xmin_out, int ymin_out, int wmax, int hmax);
 	Eigen::MatrixXf Mx(hmax, wmax);// = Eigen::Matrix<float,hmax,wmax>::Zero();
 	Eigen::MatrixXf My(hmax, wmax);// = Eigen::Matrix<float,hmax,wmax>::Zero();
-	calcmapping(&Mx, &My, Hi, xmin_out, ymin_out, wmax, hmax);
-	std::cerr << "Mapping calculated." << std::endl;
-	std::cerr << "Mx:\n" << Mx << std::endl;
-	std::cerr << "My:\n" << Mx << std::endl;
+	#ifdef _TIMEIT
+	watch.lap("Mapping Preliminaries");
+	#endif
+	calcmapping(&Mx, &My, &Hi, xmin_out, ymin_out, wmax, hmax);
+	//std::cerr << "Mapping calculated." << std::endl;
+	//std::cerr << "Mx:\n" << Mx << std::endl;
+	//std::cerr << "My:\n" << My << std::endl;
 	#ifdef _TIMEIT
 	watch.lap("Calc Mapping");
 	#endif
-	//M.print("M:");
 	// Round is very important in this conversion, otherwise major errors
 	// TODO (solved, answer = yes): Check if this still works for negative values (if necessary)
 	//std::vector<Eigen::MatrixXf> Mi = arma::conv_to<arma::Cube<int>>::from(round(M)); // mapping must be of integer type because it is used directly for indexing
