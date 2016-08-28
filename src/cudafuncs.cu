@@ -26,35 +26,41 @@ __global__ void calcmap_cuda(int *xp_c, int *yp_c, int *wp_c, float *mxp_c, floa
 extern "C" void calcmapping(Eigen::MatrixXf *Mx, Eigen::MatrixXf *My,  Eigen::Matrix3f Hi, int xmin_out, int ymin_out, int wmax, int hmax){
 	std::cerr << "Enter calcmapping." << std::endl;
 	int xmax,ymax;
-	xmax = wmax-xmin_out-1;
-	ymax = hmax-ymin_out-1;
+	xmax = xmin_out + wmax - 1;
+	ymax = ymin_out + hmax - 1;
+	std::cerr << xmin_out << std::endl;
+	std::cerr << ymin_out << std::endl;
+	std::cerr << wmax << std::endl;
+	std::cerr << hmax << std::endl;
+	std::cerr << xmax << std::endl;
+	std::cerr << ymax << std::endl;
 
 	// Prepare inputs
 	arma::Mat<int> x = arma::linspace<arma::Row<int> >(xmin_out,xmax,wmax);
 	arma::Mat<int> X = arma::repmat(x,hmax,1);
-	X.print("X:");	
+	//X.print("X:");	
 	arma::Mat<int> y = arma::linspace<arma::Col<int> >(ymin_out,ymax,hmax);
 	arma::Mat<int> Y = arma::repmat(y,1,wmax);
-	Y.print("Y:");	
+	//Y.print("Y:");	
 	
 	arma::Mat<int> W = arma::ones<arma::Mat<int> >(hmax,wmax);
-	W.print("W:");	
+	//W.print("W:");	
 
 	int N		= hmax*wmax;
-	std::cerr << "hmax: " << hmax << ", wmax: "<< wmax << std::endl;
-	std::cerr << "N: " << N << std::endl;
-	std::cerr << "size X: " << arma::size(X) << std::endl;
-	std::cerr << "size Y: " << arma::size(Y) << std::endl;
-	std::cerr << "size W: " << arma::size(W) << std::endl;
-	std::cerr << "size X: " << sizeof(X) << std::endl;
-	std::cerr << "size Y: " << sizeof(Y) << std::endl;
-	std::cerr << "size W: " << sizeof(W) << std::endl;
+	//std::cerr << "hmax: " << hmax << ", wmax: "<< wmax << std::endl;
+	//std::cerr << "N: " << N << std::endl;
+	//std::cerr << "size X: " << arma::size(X) << std::endl;
+	//std::cerr << "size Y: " << arma::size(Y) << std::endl;
+	//std::cerr << "size W: " << arma::size(W) << std::endl;
+	//std::cerr << "size X: " << sizeof(X) << std::endl;
+	//std::cerr << "size Y: " << sizeof(Y) << std::endl;
+	//std::cerr << "size W: " << sizeof(W) << std::endl;
 	int size_i	= N*sizeof(int);
 	int size_f	= N*sizeof(float);
-	std::cerr << "sizeof(int): " << sizeof(int) << std::endl;
-	std::cerr << "sizeof(float): " << sizeof(float) << std::endl;
-	std::cerr << "size_i: " << size_i << std::endl;
-	std::cerr << "size_f: " << size_f << std::endl;
+	//std::cerr << "sizeof(int): " << sizeof(int) << std::endl;
+	//std::cerr << "sizeof(float): " << sizeof(float) << std::endl;
+	//std::cerr << "size_i: " << size_i << std::endl;
+	//std::cerr << "size_f: " << size_f << std::endl;
 	
 	int		*xp, *yp, *wp, *xp_c, *yp_c, *wp_c;
 	float	*mxp, *myp, *h, *mxp_c, *myp_c, *h_c;

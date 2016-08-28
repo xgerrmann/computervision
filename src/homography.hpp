@@ -29,22 +29,14 @@
 
 #define EVER ;;
 
-#define _TIMEIT 1
+#define _TIMEIT	1
+#define _DEBUG	1
 
 typedef struct {
 	Eigen::Matrix3f Rx;
 	Eigen::Matrix3f Ry;
 	Eigen::Matrix3f Rz;
 } Rxyz;
-
-//typedef struct {
-//	float dx;
-//	float dy;
-//	float dz;
-//	float rx;
-//	float ry;
-//	float rz;
-//} trans;
 
 typedef std::map<std::string,float> trans;
 
@@ -53,10 +45,6 @@ Rxyz calcrotationmatrix(double rx, double ry, double rz);
 std::vector<float> calcrotations(Eigen::Matrix3f Rt);
 Eigen::Matrix3f calchomography(int width, int height, trans transformations);
 Eigen::Vector4i calccorners(Eigen::Matrix3f H, int height, int width);
-////// Cuda funcitons in cudafuncs.cu
-//__global__ void calcmap_cuda(xp_c, yp_c, wp_c, mxp_c, myp_c, mwp_c, h_c);
-//arma::Mat calcmapping(float Hi, int xmin_out, int ymin_out, int wmax, int hmax);
-
 
 const double PI		= 3.141592653589793;
 const double INF	= abs(1.0/0.0);
@@ -203,8 +191,9 @@ Eigen::Matrix3f calchomography(int width, int height, trans transformations){
 	//Rt = Rz*Ry*Rx
 	Rxyz rot			= calcrotationmatrix(transformations["rx"], transformations["ry"], transformations["rz"]);
 	Eigen::Matrix3f Rt	= rot.Rz*rot.Ry*rot.Rx;
-	//std::cerr << "Rt:\n"	<< Rt	<< std::endl;
-	
+	#ifdef _DEBUG
+	std::cerr << "Rt:\n"	<< Rt	<< std::endl;
+	#endif
 	Eigen::Matrix3f Rti	= Rt.inverse();
 //	std::cerr << "Rti:\n"	<< Rti	<< std::endl;
 //	# define 3 points on the virtual image plane
@@ -346,7 +335,9 @@ cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max)
 	//H	<<	1,0,0,
 	//		0,1,0,
 	//		0,0,1;
-//	std::cerr << "H:\n" << H << std::endl;
+	#ifdef _DEBUG
+	std::cerr << "H:\n" << H << std::endl;
+	#endif
 //	std::cerr << width << std::endl;
 //	std::cerr << height << std::endl;
 	Eigen::Vector4i rectangle = box_out(H, width, height);
@@ -360,12 +351,12 @@ cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max)
 	height_out	= rectangle[3];
 	xmax_out	= xmin_out + width_out-1; // zero based, thus -1
 	ymax_out	= ymin_out + height_out-1;// zero based, thus -1
-//	std::cerr << "xmin: " << xmin_out << std::endl;
-//	std::cerr << "xmax: " << xmax_out << std::endl;
-//	std::cerr << "ymin: " << ymin_out << std::endl;
-//	std::cerr << "ymax: " << ymax_out << std::endl;
-//	std::cerr << "width_out:  " << width_out << std::endl;
-//	std::cerr << "height_out: " << height_out << std::endl;
+	std::cerr << "xmin: " << xmin_out << std::endl;
+	std::cerr << "xmax: " << xmax_out << std::endl;
+	std::cerr << "ymin: " << ymin_out << std::endl;
+	std::cerr << "ymax: " << ymax_out << std::endl;
+	std::cerr << "width_out:  " << width_out << std::endl;
+	std::cerr << "height_out: " << height_out << std::endl;
 
 // Determine size of matrices for performing the mapping.
 // Mapping must stay within max size.
@@ -379,10 +370,8 @@ cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max)
 	Eigen::MatrixXf My(hmax, wmax);// = Eigen::Matrix<float,hmax,wmax>::Zero();
 	calcmapping(&Mx, &My, Hi, xmin_out, ymin_out, wmax, hmax);
 	std::cerr << "Mapping calculated." << std::endl;
-	std::cerr << "Mx:" << Mx << std::endl;
-	// Element wise division by scale TODO
-	Mx = Mx.cwiseQuotient(My); // TODO: direct delen door de schaal op GPU
-	My = My.cwiseQuotient(My);
+	std::cerr << "Mx:\n" << Mx << std::endl;
+	std::cerr << "My:\n" << Mx << std::endl;
 	#ifdef _TIMEIT
 	watch.lap("Calc Mapping");
 	#endif

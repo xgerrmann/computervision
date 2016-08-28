@@ -12,7 +12,8 @@ int main(){
 	
 	float	rx = 0.0*PI;
 	float	ry = 0.0*PI;
-	float	rz = 0.5*PI;
+//	float	rz = 0.5*PI;
+	float	rz = 0.0*PI;
 	
 	Rxyz rot				= calcrotationmatrix(rx, ry, rz);
 	trans transformations;
