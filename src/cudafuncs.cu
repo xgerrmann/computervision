@@ -2,7 +2,7 @@
 
 #include "cudafuncs.hpp"
 
-__global__ void calcmap_cuda(int *xp_c, int *yp_c, int *wp_c, float *mxp_c, float *myp_c, float *mwp_c, float *h_c){
+__global__ void calcmap_cuda(int *xp_c, int *yp_c, int *wp_c, float *mxp_c, float *myp_c, float *h_c){
 //	//TODO: vector operation instead of loop for last loop.
 //	//M(i,j,k) += Hi(k,p)*float(O(i,j,p));
 //	double tmp = 0;
@@ -17,9 +17,9 @@ __global__ void calcmap_cuda(int *xp_c, int *yp_c, int *wp_c, float *mxp_c, floa
 //		//M(i,j,k) = res.at(0);
 //		M[blockIdx.x+k*N] = res.at(0);
 //	}
-	mxp_c[blockIdx.x] = float(xp_c[blockIdx.x]);
-	myp_c[blockIdx.x] = float(yp_c[blockIdx.x]);
-	mwp_c[blockIdx.x] = float(wp_c[blockIdx.x]);
+	float w = float(wp_c[blockIdx.x]);
+	mxp_c[blockIdx.x] = float(xp_c[blockIdx.x])/w;
+	myp_c[blockIdx.x] = float(yp_c[blockIdx.x])/w;
 }
 
 // Partial wrapper for the __global__ calls
@@ -57,31 +57,19 @@ extern "C" void calcmapping(Eigen::MatrixXf *Mx, Eigen::MatrixXf *My,  Eigen::Ma
 	std::cerr << "size_f: " << size_f << std::endl;
 	
 	int		*xp, *yp, *wp, *xp_c, *yp_c, *wp_c;
-	float	*mxp, *myp, *mwp, *h, *mxp_c, *myp_c, *mwp_c, *h_c;
+	float	*mxp, *myp, *h, *mxp_c, *myp_c, *h_c;
 	
 	// Allocate space (and set pointers) for host copies
 	xp = X.memptr(); // pointer to x matrix input data
-	std::cerr << xp[0] << std::endl;
-	std::cerr << xp[1] << std::endl;
-	std::cerr << xp[N-2] << std::endl;
-	std::cerr << xp[N-1] << std::endl;
-	std::cerr << xp[N] << std::endl; // out of bounds, should be random = correct
 	yp = Y.memptr(); // pointer to y matrix input data
-	std::cerr << yp[0] << std::endl;
-	std::cerr << yp[1] << std::endl;
-	std::cerr << yp[N-2] << std::endl;
-	std::cerr << yp[N-1] << std::endl;
-	std::cerr << yp[N] << std::endl; // out of bounds, should be random = correct
 	wp = W.memptr(); // pointer to w matrix input data
 	h  = Hi.data();	 // Hi is an eigen matrix
 	
 	// Number of rows and columns in Mx and My must be identical
 	assert(Mx.rows() == My.rows() && Mx.cols() == My.cols());
-	Eigen::MatrixXf Mw(Mx->rows(), Mx->cols());// = Eigen::Matrix<float,hmax,wmax>::Zero();
 	// Get pointers to data of mapping matrices
 	mxp = Mx->data();	// Mx is a pointer, thus child accessing with ->
 	myp = My->data();	// My is a pointer, thus child accessing with ->
-	mwp = Mw.data();	// Mw is not a pointer
 
 	// Allocate space on device for device copies
 	cudaMalloc((void **)&xp_c,size_i);
@@ -89,7 +77,6 @@ extern "C" void calcmapping(Eigen::MatrixXf *Mx, Eigen::MatrixXf *My,  Eigen::Ma
 	cudaMalloc((void **)&wp_c,size_i);
 	cudaMalloc((void **)&mxp_c,size_i);
 	cudaMalloc((void **)&myp_c,size_i);
-	cudaMalloc((void **)&mwp_c,size_i);
 	cudaMalloc((void **)&h_c,9*sizeof(float));
 
 	// Copy inputs to device
@@ -100,42 +87,16 @@ extern "C" void calcmapping(Eigen::MatrixXf *Mx, Eigen::MatrixXf *My,  Eigen::Ma
 
 	// Execute combine on cpu
 	std::cerr << "Execute device code." << std::endl;
-	calcmap_cuda<<<N,1>>>(xp_c, yp_c, wp_c, mxp_c, myp_c, mwp_c, h_c);
+	calcmap_cuda<<<N,1>>>(xp_c, yp_c, wp_c, mxp_c, myp_c, h_c);
 	std::cerr << "Finished device code." << std::endl;
 
 	// copy results to host
 	std::cerr << "Copy memory from device to host." << std::endl;
 	cudaMemcpy(mxp, mxp_c, size_f, cudaMemcpyDeviceToHost);
 	cudaMemcpy(myp, myp_c, size_f, cudaMemcpyDeviceToHost);
-	cudaMemcpy(mwp, mwp_c, size_f, cudaMemcpyDeviceToHost);
-
-	//std::cerr << mxp[0] << std::endl;
-	//std::cerr << mxp[1] << std::endl;
-	//std::cerr << mxp[N-2] << std::endl;
-	//std::cerr << mxp[N-1] << std::endl;
-
-	//std::cerr << Mx(0) << std::endl;
-	//std::cerr << Mx(1) << std::endl;
-	//std::cerr << Mx(N-2) << std::endl;
-	//std::cerr << Mx(N-1) << std::endl;
-	//std::cerr << Mx(N) << std::endl;
-
-	//std::cerr << "size Mx: " << sizeof(Mx) << std::endl;
-	//std::cerr << "size Mx[0]: " << sizeof(Mx(0)) << std::endl;
-	//std::cerr << "size My: " << sizeof(My) << std::endl;
-	//std::cerr << "size Mw: " << sizeof(Mw) << std::endl;
-	
-	//std::cerr << "size Mx: " << arma::size(Mx) << std::endl;
-	//std::cerr << "size My: " << arma::size(My) << std::endl;
-	//std::cerr << "size Mw: " << arma::size(Mw) << std::endl;
-	
-	std::cerr << "Mx:\n" << Mx << std::endl;
-	std::cerr << "My:\n" << My << std::endl;
-	std::cerr << "Mw:\n" << Mw << std::endl;
-	std::cerr << "Finished printing." << std::endl;	
 
 	// cleanup device memory
-	cudaFree(mxp_c);	cudaFree(myp_c);	cudaFree(mwp_c);
+	cudaFree(mxp_c);	cudaFree(myp_c);
 	cudaFree(xp_c);		cudaFree(yp_c);		cudaFree(wp_c);
 
 	// No return, void function.
