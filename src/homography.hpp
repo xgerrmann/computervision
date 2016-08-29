@@ -48,7 +48,7 @@ typedef struct {
 
 typedef std::map<std::string,float> trans;
 
-cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max);
+void hom(cv::cuda::GpuMat *image_out, cv::cuda::GpuMat *image_in, trans transformations, int width_max, int height_max);
 Rxyz calcrotationmatrix(double rx, double ry, double rz);
 std::vector<float> calcrotations(Eigen::Matrix3f Rt);
 Eigen::Matrix3f calchomography(int width, int height, trans transformations);
@@ -332,16 +332,16 @@ Eigen::Matrix3f calchomography(int width, int height, trans transformations){
 	return H;
 }
 
-cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max){
+void hom(cv::cuda::GpuMat *image_out, cv::cuda::GpuMat *image_in, trans transformations, int width_max, int height_max){
 // Faster backward homography, mapping by masking and matrix indices method # 0.007 seconds
 	//#if(_HOM_TIMEIT)
 	timer watch;
 	watch.start();
 	//#endif
 
-	int height	= image.size().height;
-	int width	= image.size().width;
-	int channels= image.channels();
+	int height	= image_in->size().height;
+	int width	= image_in->size().width;
+	int channels= image_in->channels();
 	
 	Eigen::Matrix3f H, Hi;
 	//arma::Mat<float> H, Hi;	
@@ -391,45 +391,45 @@ cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max)
 	watch.lap("Calc Mapping");
 	#endif
 //	# construct empty image
-
-	cv::Mat image_out	= cv::Mat::zeros(height_max, width_max,CV_8UC3); // 3 channel 8-bit character
-	
-	int xtmp,ytmp,trans_x, trans_y;
-	trans_x = int(round(width/2));
-	trans_y = int(round(height/2));
-	for(int h = 0; h<hmax; h++){
-		for(int w = 0; w<wmax; w++){
-	//		std::cerr<<"h:"<<h<<std::endl;
-	//		std::cerr<<"height_out:"<<height_out<<std::endl;
-	//		std::cerr<<arma::size(Mi);
-			// Change origin from center of image to upper right corner.
-			xtmp = Mx(h,w)+trans_x;
-			ytmp = My(h,w)+trans_y;
-			if(xtmp<0 || xtmp >= width || ytmp<0 || ytmp>=height){
-				//std::cerr<<"NOT x:"<<xtmp<<"->"<<w<<std::endl;
-				//std::cerr<<"NOT y:"<<ytmp<<"->"<<h<<std::endl;
-				continue;
-			}
-		//	std::cerr<<"x:"<<xtmp<<"->"<<w<<std::endl;
-		//	std::cerr<<"y:"<<ytmp<<"->"<<h<<std::endl;
-			//std::cerr<<"y:"<<h<<",x:"<<w<<",R:"<<int(image_arma(h,w,0))<<std::endl;
-			//std::cerr<< "R:"<<int(image_arma(ytmp,xtmp,0)) << "==" << int(image_out_arma(h,w,0))<< std::endl;
-		//	std::cerr<< int(image_arma(ytmp,xtmp,1)) << "==" << int(image_out_arma(h,w,1))<< std::endl;
-		//	std::cerr<< int(image_arma(ytmp,xtmp,2)) << "==" << int(image_out_arma(h,w,2))<< std::endl;
-			((uchar*)image_out.data)[(w+h*width_max)*3]		= ((uchar)image.data[(ytmp*width+xtmp)*3]) ;
-			((uchar*)image_out.data)[(w+h*width_max)*3+1]	= ((uchar)image.data[(ytmp*width+xtmp)*3+1]) ;
-			((uchar*)image_out.data)[(w+h*width_max)*3+2]	= ((uchar)image.data[(ytmp*width+xtmp)*3+2]) ;
-		//	std::cerr << "Test";
-		//	std::cerr<< int(image_arma(ytmp,xtmp,0)) << "==" << int(image_out_arma(h,w,0))<< std::endl;
-		//	std::cerr<< int(image_arma(ytmp,xtmp,1)) << "==" << int(image_out_arma(h,w,1))<< std::endl;
-		//	std::cerr<< int(image_arma(ytmp,xtmp,2)) << "==" << int(image_out_arma(h,w,2))<< std::endl;
-		//  Values seem to be correct
-		}
-	}
+	domapping(image_out, image_in, &Mx, &My); // image in and image out are pointers
+//	//cv::Mat image_out	= cv::Mat::zeros(height_max, width_max,CV_8UC3); // 3 channel 8-bit character
+//		
+//	int xtmp,ytmp,trans_x, trans_y;
+//	trans_x = int(round(width/2));
+//	trans_y = int(round(height/2));
+//	for(int h = 0; h<hmax; h++){
+//		for(int w = 0; w<wmax; w++){
+//	//		std::cerr<<"h:"<<h<<std::endl;
+//	//		std::cerr<<"height_out:"<<height_out<<std::endl;
+//	//		std::cerr<<arma::size(Mi);
+//			// Change origin from center of image to upper right corner.
+//			xtmp = Mx(h,w)+trans_x;
+//			ytmp = My(h,w)+trans_y;
+//			if(xtmp<0 || xtmp >= width || ytmp<0 || ytmp>=height){
+//				//std::cerr<<"NOT x:"<<xtmp<<"->"<<w<<std::endl;
+//				//std::cerr<<"NOT y:"<<ytmp<<"->"<<h<<std::endl;
+//				continue;
+//			}
+//		//	std::cerr<<"x:"<<xtmp<<"->"<<w<<std::endl;
+//		//	std::cerr<<"y:"<<ytmp<<"->"<<h<<std::endl;
+//			//std::cerr<<"y:"<<h<<",x:"<<w<<",R:"<<int(image_arma(h,w,0))<<std::endl;
+//			//std::cerr<< "R:"<<int(image_arma(ytmp,xtmp,0)) << "==" << int(image_out_arma(h,w,0))<< std::endl;
+//		//	std::cerr<< int(image_arma(ytmp,xtmp,1)) << "==" << int(image_out_arma(h,w,1))<< std::endl;
+//		//	std::cerr<< int(image_arma(ytmp,xtmp,2)) << "==" << int(image_out_arma(h,w,2))<< std::endl;
+//			((uchar*)image_out.data)[(w+h*width_max)*3]		= ((uchar)image.data[(ytmp*width+xtmp)*3]) ;
+//			((uchar*)image_out.data)[(w+h*width_max)*3+1]	= ((uchar)image.data[(ytmp*width+xtmp)*3+1]) ;
+//			((uchar*)image_out.data)[(w+h*width_max)*3+2]	= ((uchar)image.data[(ytmp*width+xtmp)*3+2]) ;
+//		//	std::cerr << "Test";
+//		//	std::cerr<< int(image_arma(ytmp,xtmp,0)) << "==" << int(image_out_arma(h,w,0))<< std::endl;
+//		//	std::cerr<< int(image_arma(ytmp,xtmp,1)) << "==" << int(image_out_arma(h,w,1))<< std::endl;
+//		//	std::cerr<< int(image_arma(ytmp,xtmp,2)) << "==" << int(image_out_arma(h,w,2))<< std::endl;
+//		//  Values seem to be correct
+//		}
+//	}
 	#if(_HOM_TIMEIT)
 	watch.lap("Perform Mapping");
 	#endif
 	watch.stop();
-	return image_out;
+	return;
 }
 #endif

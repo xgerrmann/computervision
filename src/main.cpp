@@ -73,6 +73,7 @@ int main(){
 
 	cv::Mat image;
 	image = cv::imread(default_image);
+	cv::cuda::GpuMat image_in(image);
 	std::string window_image = "Image";
 	//cv::namedWindow(window_image,cv::WINDOW_OPENGL);
 	cv::namedWindow(window_image,cv::WINDOW_OPENGL);
@@ -102,7 +103,8 @@ int main(){
 	std::cerr << "Screen size (wxh): "<<width_screen<<", "<<height_screen<<std::endl;
 	gputimer watch;
 	double subsample_detection_frame = 3.0;
-	cv::Mat im_out(height_screen,width_screen,CV_8UC3);
+	//cv::Mat im_out(height_screen,width_screen,CV_8UC3);
+	cv::cuda::GpuMat image_out(height_screen,width_screen,CV_8UC3);
 	cv::Mat tmp_cv(4,4,CV_64FC1); // double data type, single channel
 	Eigen::Matrix4d tmp_eigen;
 	Eigen::Matrix4f pose;
@@ -120,7 +122,7 @@ int main(){
 		watch.lap("Update estimator");
 		#endif
 		// Reset im_out
-		im_out = cv::Scalar(0);
+		image_out.setTo(cv::Scalar(0));
 		for(head_pose pose_head : estimator.poses()) {
 			cv::Mat rotations = pose_head.rvec;
 
@@ -148,16 +150,16 @@ int main(){
 			//watch.lap("Print transformation");
 			//im_out = hom(image,transformation_update,width_screen,height_screen);
 			// TODO: im_out must be gpuarray
-			im_out = hom(image,transformation_update,width_screen,height_screen);
+			hom(&image_out, &image_in,transformation_update,width_screen,height_screen);
 			#if(_MAIN_TIMEIT)
 			watch.lap("Calculate new image");
 			#endif
 		}
 		#if(_MAIN_DEBUG)
 			cv::Rect slice	= cv::Rect(width_screen-width_webcam,height_screen-height_webcam,width_webcam, height_webcam);
-			frame.copyTo(im_out(slice));
+			frame.copyTo(image_out(slice));
 		#endif
-		cv::imshow(window_image,im_out);
+		cv::imshow(window_image,image_out);
 		char key = (char)cv::waitKey(1);
 		if(key == 27){
 			std::cerr << "Program halted by user.\n";

@@ -5,6 +5,7 @@
 int main(){
 	cv::Mat image;
 	image = cv::imread(default_image);
+	cv::cuda::GpuMat image_in(image);
 	std::string windowname	= "Original image";
 	cv::namedWindow(windowname);
 	cv::imshow(windowname,image);
@@ -27,16 +28,19 @@ int main(){
 	transformations["ry"]	= -0.012746;
 	transformations["rz"]	= -0.0873265;
 	Eigen::Matrix3f Rt	= rot.Rz*rot.Ry*rot.Rx;
-	int wmax, hmax;
-	wmax = 1920;
-	hmax = 1080;
+	int width_screen, height_screen;
+	width_screen	= 1920;
+	height_screen	= 1080;
 	gputimer watch;
 	watch.start();
-	cv::Mat im	= hom(image,transformations,wmax,hmax);
+	cv::cuda::GpuMat image_out(height_screen,width_screen,CV_8UC3);
+	//hom(&image_out, &image_in,transformations,width_screen,height_screen);
 	watch.stop();
-
+	std::cerr << "Finished, only need to show." << std::endl;
 //	Show results
-	cv::imshow("Hom",im);
+	cv::namedWindow("Hom",cv::WINDOW_OPENGL);
+	//cv::imshow("Hom",image_out);
+	cv::imshow("Hom",image_in);
 	cv::waitKey(0);
 
 // C++

@@ -2,20 +2,29 @@
 
 #include "cudafuncs.hpp"
 
-__global__ void calcmap_cuda(int *xp_c, int *yp_c, int *wp_c, float *mxp_c, float *myp_c, float *h_c, int width, int height){
+__global__ void calcmap_cuda(int *xp_c, int *yp_c, int *wp_c, float *mxp_c, float *myp_c, float *h_c, int *width, int *height){
 	// TODO: max number of blocks
 	//int cuda_index = blockDim.x*blockIdx.x + threadIdx.x;
 	int c = blockIdx.x*blockDim.x + threadIdx.x;
 	int r = blockIdx.y*blockDim.y + threadIdx.y;
 	// Check if within image bounds
-	if((c>=width)||(r>=height)) return;
-	int cuda_index = r*width+c;
+	if((c>=(*width))||(r>=(*height))) return;
+	int cuda_index = r*(*width)+c;
 	// First calculate the scale, for the X and Y must be devicd by the scale.
 	float w				= (h_c[2]*xp_c[cuda_index]+h_c[5]*yp_c[cuda_index]+h_c[8]*wp_c[cuda_index]);
 	// x/w
 	mxp_c[cuda_index]	= (h_c[0]*xp_c[cuda_index]+h_c[3]*yp_c[cuda_index]+h_c[6]*wp_c[cuda_index])/w;
 	// y/w
 	myp_c[cuda_index]	= (h_c[1]*xp_c[cuda_index]+h_c[4]*yp_c[cuda_index]+h_c[7]*wp_c[cuda_index])/w;
+}
+
+__global__ void domap_cuda(uchar *image_out, uchar *image_in, float *xp_c, float *yp_c, int *width, int *height){
+	int c = blockIdx.x*blockDim.x + threadIdx.x;
+	int r = blockIdx.y*blockDim.y + threadIdx.y;
+	// Check if within image bounds
+	if((c>=(*width))||(r>=(*height))) return;
+	int cuda_index = r*(*width)+c;
+	image_out[cuda_index] = image_in[cuda_index];
 }
 
 // Partial wrapper for the __global__ calls
@@ -65,9 +74,9 @@ extern "C" void calcmapping(Eigen::MatrixXf *Mx, Eigen::MatrixXf *My,  Eigen::Ma
 	int size_h	= 9*sizeof(float); // H (in fact a 3x3 matrix) contains 9 float scalars.
 
 	// determine number of blocks and threads per block
-	int n_blocks	= ceil(float(N)/float(N_THREADS_MAX));
+	//int n_blocks	= ceil(float(N)/float(N_THREADS_MAX));
 	//int n_threads	= ceil(float(N)/float(n_blocks));
-	int n_threads	= N_THREADS_MAX;
+	//int n_threads	= N_THREADS_MAX;
 	//std::cerr << "n_blocks:  "<< n_blocks << std::endl;
 	//std::cerr << "n_threads: "<< n_threads << std::endl;
 
@@ -118,9 +127,9 @@ extern "C" void calcmapping(Eigen::MatrixXf *Mx, Eigen::MatrixXf *My,  Eigen::Ma
 	//int bx = (wmax+ blockSize.x-1)/blockSize.x;
 	//int by = (hmax+ blockSize.y-1)/blockSize.y;
 	int bx = (wmax+ TX - 1)/TX;
-	int by = (wmax+ TY - 1)/TY;
+	int by = (wmax+ TY - 1)/TY; // Correct? or hmax??
 	dim3 gridSize = dim3 (bx, by);
-	calcmap_cuda<<<gridSize, blockSize>>>(xp_c, yp_c, wp_c, mxp_c, myp_c, h_c, wmax, hmax);
+	calcmap_cuda<<<gridSize, blockSize>>>(xp_c, yp_c, wp_c, mxp_c, myp_c, h_c, &wmax, &hmax);
 	#if(_CUDAFUNCS_TIMEIT)
 	watch.lap("Execute device code: ");
 	#endif
@@ -135,6 +144,54 @@ extern "C" void calcmapping(Eigen::MatrixXf *Mx, Eigen::MatrixXf *My,  Eigen::Ma
 	cudaFree(mxp_c);	cudaFree(myp_c);
 	cudaFree(xp_c);		cudaFree(yp_c);		cudaFree(wp_c);
 
-	// No return, void function.
+	// Return nothing, void function.
+	return;
 }
 
+extern "C" void domapping(cv::cuda::GpuMat *image_out, cv::cuda::GpuMat *image_in, Eigen::MatrixXf *Mx, Eigen::MatrixXf *My){
+	#if(_CUDAFUNCS_TIMEIT)
+	gputimer watch;
+	watch.start();
+	#endif
+	int width	= Mx->cols();
+	int height	= Mx->rows();
+	int N		= width*height;
+
+	//std::cerr << hmax << "," << wmax << std::endl;
+	int size_i	= N*sizeof(int);
+	// TODO, keep Mx and My on CUDA device?
+	// Create pointers
+	float *mxp, *myp, *mxp_c, *myp_c;
+	uchar *im_out_c, *im_in_c;
+	// Get pointers to data of mapping matrices
+	mxp		= Mx->data();	// Mx is a pointer, thus child accessing with ->
+	myp		= My->data();	// My is a pointer, thus child accessing with ->
+	im_in_c	= image_in->ptr<uchar>();	// input image already resides on the GPU, Get device pointer from GPU mat
+	im_out_c= image_out->ptr<uchar>();	// output image already resides on the GPU, Get device pointer from GPU mat
+
+	// Allocate space on device for device copies
+	cudaMalloc((void **)&mxp_c,size_i);
+	cudaMalloc((void **)&myp_c,size_i);
+	
+	// Copy inputs to device
+	cudaMemcpy(mxp_c,	mxp,	size_i,	cudaMemcpyHostToDevice);
+	cudaMemcpy(myp_c,	myp,	size_i,	cudaMemcpyHostToDevice);
+
+	// Launch 2D grid
+	// Source: http://www.informit.com/articles/article.aspx?p=2455391
+	int TX = 32;
+	int TY = 32;
+	dim3 blockSize(TX, TY);
+	//int bx = (wmax+ blockSize.x-1)/blockSize.x;
+	//int by = (hmax+ blockSize.y-1)/blockSize.y;
+	int bx = (width+ TX - 1)/TX;
+	int by = (width+ TY - 1)/TY;
+	dim3 gridSize = dim3 (bx, by);
+	domap_cuda<<<gridSize, blockSize>>>(im_out_c, im_in_c, mxp_c, myp_c, &width, &height);
+
+	#if(_CUDAFUNCS_TIMEIT)
+	watch.stop();
+	#endif
+	// Return nothing, void function.
+	return;
+}
