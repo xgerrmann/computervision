@@ -33,7 +33,8 @@
 #define _MAIN_DEBUG 1
 #endif
 
-#define _MAIN_TIMEIT 1
+#define _MAIN_TIMEIT 0
+//#define _MAIN_TIMEIT 1
 
 class transformation_manager{
 	trans transformation_init;

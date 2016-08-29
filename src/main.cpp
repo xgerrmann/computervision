@@ -74,12 +74,9 @@ int main(){
 	cv::Mat image;
 	image = cv::imread(default_image);
 	std::string window_image = "Image";
-	cv::namedWindow(window_image);
-	//cv::setWindowProperty(window_image, CV_WND_PROP_FULLSCREEN, CV_WINDOW_FULLSCREEN);
-	//cv::imshow(window_image,image);
-	//cv::waitKey(1);
-	//std::string window_face = "Face";
-	//cv::namedWindow(window_face);
+	//cv::namedWindow(window_image,cv::WINDOW_OPENGL);
+	cv::namedWindow(window_image,cv::WINDOW_OPENGL);
+	
 	cv::VideoCapture video_in(0);
 	int width_webcam, height_webcam;
 	// TODO: get width and height from webcam instead of hardcoding
@@ -111,9 +108,9 @@ int main(){
 	Eigen::Matrix4f pose;
 	transformation_manager trans_mngr;
 	for(EVER){
-		#if _MAIN_DEBUG || _MAIN_TIMEIT
+		//#if _MAIN_DEBUG || _MAIN_TIMEIT
 		watch.start();
-		#endif
+		//#endif
 		video_in >> frame;
 		#if(_MAIN_TIMEIT)
 		watch.lap("Get frame");
@@ -167,12 +164,12 @@ int main(){
 			break;
 		}
 		#if(_MAIN_TIMEIT)
-		watch.lap("main - Imshow");
+		watch.lap("Imshow");
 		#endif
-		#if(_MAIN_DEBUG)
+		//#if(_MAIN_DEBUG)
 		double t_total = watch.stop();
 		std::cerr << "Framerate: " << 1/t_total << "[Hz]" << std::endl;
-		#endif
+		//#endif
 
 	}
 	// Close window

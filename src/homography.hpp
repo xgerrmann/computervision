@@ -33,7 +33,8 @@
 
 #define EVER ;;
 
-#define _HOM_TIMEIT	0
+//#define _HOM_TIMEIT	0
+#define _HOM_TIMEIT	1
 
 #ifdef _DEBUG_
 #define _HOM_DEBUG	1
@@ -333,10 +334,10 @@ Eigen::Matrix3f calchomography(int width, int height, trans transformations){
 
 cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max){
 // Faster backward homography, mapping by masking and matrix indices method # 0.007 seconds
-	#if(_HOM_TIMEIT)
+	//#if(_HOM_TIMEIT)
 	timer watch;
 	watch.start();
-	#endif
+	//#endif
 
 	int height	= image.size().height;
 	int width	= image.size().width;
@@ -428,7 +429,7 @@ cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max)
 	#if(_HOM_TIMEIT)
 	watch.lap("Perform Mapping");
 	#endif
-	//watch.stop("Homography:");
+	watch.stop();
 	return image_out;
 }
 #endif

@@ -26,8 +26,10 @@ extern "C" void calcmapping(Eigen::MatrixXf *Mx, Eigen::MatrixXf *My,  Eigen::Ma
 	static int N_BLOCKS_MAX		= cuda_properties.maxThreadsPerBlock;	// x dimension
 	static int N_THREADS_MAX	= cuda_properties.maxGridSize[0];		// x dimension
 	static int N_PIXELS_MAX = N_BLOCKS_MAX * N_THREADS_MAX;
-	//std::cerr << "N_BLOCKS_MAX: " << N_BLOCKS_MAX << std::endl;
-	//std::cerr << "N_THREADS_MAX:" << N_THREADS_MAX << std::endl;
+	#if(_CUDAFUNCS_DEBUG)
+	std::cerr << "N_BLOCKS_MAX: " << N_BLOCKS_MAX << std::endl;
+	std::cerr << "N_THREADS_MAX:" << N_THREADS_MAX << std::endl;
+	#endif
 	#if(_CUDAFUNCS_TIMEIT)
 	gputimer watch;
 	watch.start();
