@@ -2,6 +2,10 @@
 
 #include "homography.hpp"
 
+// ##(CPU) timer
+//#include "../lib/timer/timer.hpp"
+
+// ## gputimer
 #include "../lib/timer/timer.hpp"
 
 // ## dlib was
@@ -25,7 +29,11 @@
 
 #define EVER ;;
 
-#define _DEBUG_
+#ifdef _DEBUG_
+#define _MAIN_DEBUG 1
+#endif
+
+#define _MAIN_TIMEIT 1
 
 class transformation_manager{
 	trans transformation_init;

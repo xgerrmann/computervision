@@ -61,3 +61,12 @@ target_link_libraries(main			dlib	${OpenCV_LIBS}	${ARMADILLO_LIBRARIES}	${ATTENT
 # homography
 target_link_libraries(homography	dlib	${OpenCV_LIBS}	${ARMADILLO_LIBRARIES}	${ATTENTION_TRACKER_LIBRARY}	openblas	${CUDA_LIBRARIES} gputimer)
 
+option(DEBUG "DEBUG" OFF)
+if(${DEBUG})
+	message("DEBUG is ON")
+	# definitions
+	add_definitions(-D_DEBUG_)
+endif()
+
+## definitions
+#add_definitions(-DTIMEIT)

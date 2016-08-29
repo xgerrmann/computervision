@@ -17,8 +17,8 @@
 // ## Function Definitions
 extern "C" void calcmapping(Eigen::MatrixXf *Mx, Eigen::MatrixXf *My,  Eigen::Matrix3f *Hi, int xmin_out, int ymin_out, int wmax, int hmax);
 
-#ifndef _DEBUG
-#define _DEBUG
+#ifdef _DEBUG_
+#define _CUDAFUNCS_DEBUG 1
 #endif
 
 #define _CUDAFUNCS_TIMEIT 0

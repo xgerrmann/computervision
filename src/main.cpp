@@ -103,7 +103,7 @@ int main(){
 	int height_screen	= scrn->height- 50; // adjust for top menu in ubuntu
 	int width_screen	= scrn->width - 64; // adjust for sidebar in ubuntu
 	std::cerr << "Screen size (wxh): "<<width_screen<<", "<<height_screen<<std::endl;
-	timer watch;
+	gputimer watch;
 	double subsample_detection_frame = 3.0;
 	cv::Mat im_out(height_screen,width_screen,CV_8UC3);
 	cv::Mat tmp_cv(4,4,CV_64FC1); // double data type, single channel
@@ -111,11 +111,17 @@ int main(){
 	Eigen::Matrix4f pose;
 	transformation_manager trans_mngr;
 	for(EVER){
+		#if _MAIN_DEBUG || _MAIN_TIMEIT
 		watch.start();
+		#endif
 		video_in >> frame;
+		#if(_MAIN_TIMEIT)
 		watch.lap("Get frame");
+		#endif
 		estimator.update(frame,subsample_detection_frame);
+		#if(_MAIN_TIMEIT)
 		watch.lap("Update estimator");
+		#endif
 		// Reset im_out
 		im_out = cv::Scalar(0);
 		for(head_pose pose_head : estimator.poses()) {
@@ -134,39 +140,44 @@ int main(){
 			//	std::cerr << "\t" << std::get<1>(transform) << std::endl;
 			//}
 			trans transformation_update  = trans_mngr.add(transformation);
+			#if(_MAIN_TIMEIT)
 			watch.lap("Manage transformations");
+			#endif
 			//std::cerr << "Trans:";
 			//for(auto transform : transformation_update){
 			//	std::cerr << "\t" << std::get<1>(transform);
 			//}
 			//std::cerr << std::endl;
 			//watch.lap("Print transformation");
+			//im_out = hom(image,transformation_update,width_screen,height_screen);
+			// TODO: im_out must be gpuarray
 			im_out = hom(image,transformation_update,width_screen,height_screen);
+			#if(_MAIN_TIMEIT)
 			watch.lap("Calculate new image");
+			#endif
 		}
-		#ifdef _DEBUG_
+		#if(_MAIN_DEBUG)
 			cv::Rect slice	= cv::Rect(width_screen-width_webcam,height_screen-height_webcam,width_webcam, height_webcam);
 			frame.copyTo(im_out(slice));
 		#endif
 		cv::imshow(window_image,im_out);
 		char key = (char)cv::waitKey(1);
 		if(key == 27){
-			std::cerr << "Program halted by user.";
-			return 0;
+			std::cerr << "Program halted by user.\n";
+			break;
 		}
-		watch.lap("Imshow");
+		#if(_MAIN_TIMEIT)
+		watch.lap("main - Imshow");
+		#endif
+		#if(_MAIN_DEBUG)
 		double t_total = watch.stop();
 		std::cerr << "Framerate: " << 1/t_total << "[Hz]" << std::endl;
+		#endif
+
 	}
+	// Close window
+	cv::destroyWindow(window_image);
 	// Release webcam
 	video_in.release();
 	return 0;
 }
-//		adjustwindow(window_image, image, headpose)
-
-// Attention tracker sample
-//#ifdef HEAD_POSE_ESTIMATION_DEBUG
-//        imshow("headpose", estimator._debug);
-//        if (waitKey(10) >= 0) break;
-//#endif
-

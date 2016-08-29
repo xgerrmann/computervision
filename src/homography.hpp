@@ -5,7 +5,11 @@
 #include <iostream>     // std::cout
 //#include <algorithm>    // std::max
 
+// (CPU) timer
 #include "../lib/timer/timer.hpp"
+
+// ## GPUtimer
+#include "../lib/gputimer/gputimer.hpp"
 
 //#include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -29,10 +33,10 @@
 
 #define EVER ;;
 
-#define _TIMEIT	1
+#define _HOM_TIMEIT	0
 
-#ifndef _DEBUG
-#define _DEBUG	1
+#ifdef _DEBUG_
+#define _HOM_DEBUG	1
 #endif
 
 typedef struct {
@@ -194,7 +198,7 @@ Eigen::Matrix3f calchomography(int width, int height, trans transformations){
 	//Rt = Rz*Ry*Rx
 	Rxyz rot			= calcrotationmatrix(transformations["rx"], transformations["ry"], transformations["rz"]);
 	Eigen::Matrix3f Rt	= rot.Rz*rot.Ry*rot.Rx;
-	#ifdef _DEBUG
+	#if(_HOM_DEBUG)
 	std::cerr << "tx: " << transformations["tx"] << std::endl;
 	std::cerr << "ty: " << transformations["ty"] << std::endl;
 	std::cerr << "tz: " << transformations["tz"] << std::endl;
@@ -329,7 +333,7 @@ Eigen::Matrix3f calchomography(int width, int height, trans transformations){
 
 cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max){
 // Faster backward homography, mapping by masking and matrix indices method # 0.007 seconds
-	#ifdef _TIMEIT
+	#if(_HOM_TIMEIT)
 	timer watch;
 	watch.start();
 	#endif
@@ -344,7 +348,7 @@ cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max)
 	//H	<<	1,0,0,
 	//		0,1,0,
 	//		0,0,1;
-	#ifdef _DEBUG
+	#if(_HOM_DEBUG)
 	std::cerr << "H:\n" << H << std::endl;
 	#endif
 //	std::cerr << width << std::endl;
@@ -378,11 +382,11 @@ cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max)
 	//arma::Cube<float> M = calcmapping(Eigen::Matrix3f Hi, int xmin_out, int ymin_out, int wmax, int hmax);
 	Eigen::MatrixXf Mx(hmax, wmax);// = Eigen::Matrix<float,hmax,wmax>::Zero();
 	Eigen::MatrixXf My(hmax, wmax);// = Eigen::Matrix<float,hmax,wmax>::Zero();
-	#ifdef _TIMEIT
+	#if(_HOM_TIMEIT)
 	watch.lap("Mapping Preliminaries");
 	#endif
 	calcmapping(&Mx, &My, &Hi, xmin_out, ymin_out, wmax, hmax);
-	#ifdef _TIMEIT
+	#if(_HOM_TIMEIT)
 	watch.lap("Calc Mapping");
 	#endif
 //	# construct empty image
@@ -421,7 +425,7 @@ cv::Mat hom(cv::Mat image, trans transformations, int width_max, int height_max)
 		//  Values seem to be correct
 		}
 	}
-	#ifdef _TIMEIT
+	#if(_HOM_TIMEIT)
 	watch.lap("Perform Mapping");
 	#endif
 	//watch.stop("Homography:");

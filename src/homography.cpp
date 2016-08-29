@@ -30,7 +30,7 @@ int main(){
 	int wmax, hmax;
 	wmax = 1920;
 	hmax = 1080;
-	timer watch;
+	gputimer watch;
 	watch.start();
 	cv::Mat im	= hom(image,transformations,wmax,hmax);
 	watch.stop();
