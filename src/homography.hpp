@@ -396,7 +396,7 @@ void hom(cv::Mat image_out, const cv::Mat image_in, trans transformations, int w
 	//cv::imshow("image_in",*image_in);
 ////##########################
 //	//	# construct empty image
-	domapping(image_out, image_in, &Mx, &My); // image in and image out are pointers
+//	domapping(image_out, image_in, &Mx, &My); // image in and image out are pointers
 ////	//cv::Mat image_out	= cv::Mat::zeros(height_max, width_max,CV_8UC3); // 3 channel 8-bit character
 ////		
 ////	int xtmp,ytmp,trans_x, trans_y;

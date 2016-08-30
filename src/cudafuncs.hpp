@@ -24,8 +24,8 @@
 #include <opencv2/core/devmem2d.hpp>
 
 // ## Function Definitions
-extern "C" void calcmapping(Eigen::MatrixXf *Mx, Eigen::MatrixXf *My,  Eigen::Matrix3f *Hi, int xmin_out, int ymin_out, int wmax, int hmax);
-extern "C" void domapping(cv::Mat& image_output, const cv::Mat& image_input, Eigen::MatrixXf *Mx, Eigen::MatrixXf *My);
+void calcmapping(Eigen::MatrixXf *Mx, Eigen::MatrixXf *My,  Eigen::Matrix3f *Hi, int xmin_out, int ymin_out, int wmax, int hmax);
+void domapping(cv::Mat& image_output, const cv::Mat& image_input, Eigen::MatrixXf *Mx, Eigen::MatrixXf *My);
 
 #ifdef _DEBUG_
 #define _CUDAFUNCS_DEBUG 1

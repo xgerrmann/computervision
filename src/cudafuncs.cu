@@ -29,7 +29,7 @@ __global__ void domap_cuda(uchar *image_out, uchar *image_in, float *xp_c, float
 }
 
 // Partial wrapper for the __global__ calls
-extern "C" void calcmapping(Eigen::MatrixXf *Mx, Eigen::MatrixXf *My,  Eigen::Matrix3f *Hi, int xmin_out, int ymin_out, int wmax, int hmax){
+void calcmapping(Eigen::MatrixXf *Mx, Eigen::MatrixXf *My,  Eigen::Matrix3f *Hi, int xmin_out, int ymin_out, int wmax, int hmax){
 	#if(_CUDAFUNCS_DEBUG)
 	std::cerr << "### calcmapping <start> ###" << std::endl;
 	#endif
@@ -156,26 +156,26 @@ extern "C" void calcmapping(Eigen::MatrixXf *Mx, Eigen::MatrixXf *My,  Eigen::Ma
 	return;
 }
 
-extern "C" void domapping(cv::Mat& image_output, const cv::Mat& image_input, Eigen::MatrixXf *Mx, Eigen::MatrixXf *My){
-	#if(_CUDAFUNCS_DEBUG)
-	std::cerr << "### domapping <start> ###" << std::endl;
-	#endif
-	// d_ stands for device	(gpu)
-	// h_ stands for host	(cpu)
-	// Copy image_input to device
-	uchar *d_input;
-	const int input_bytes = image_input.step*image_input.rows;
-	cudaMalloc<unsigned char>(&d_input, input_bytes);
-	cudaMemcpy(d_input, image_input.ptr(), input_bytes, cudaMemcpyHostToDevice);
-
-	// Retrieve image_input from device
-	cv::Mat input_out(image_input.rows, image_input.cols, CV_8UC3);
-	cudaMemcpy(input_out.ptr(), d_input, input_bytes, cudaMemcpyDeviceToHost);
-
-	std::cerr << "Show Image." << std::endl;
-	cv::imshow("h_input",input_out);
-	cv::waitKey(0);
-	std::cerr << "Image shown." << std::endl;
+void domapping(cv::Mat& image_output, const cv::Mat& image_input, Eigen::MatrixXf *Mx, Eigen::MatrixXf *My){
+//###	#if(_CUDAFUNCS_DEBUG)
+//###	std::cerr << "### domapping <start> ###" << std::endl;
+//###	#endif
+//###	// d_ stands for device	(gpu)
+//###	// h_ stands for host	(cpu)
+//###	// Copy image_input to device
+//###	uchar *d_input;
+//###	const int input_bytes = image_input.step*image_input.rows;
+//###	cudaMalloc<unsigned char>(&d_input, input_bytes);
+//###	cudaMemcpy(d_input, image_input.ptr(), input_bytes, cudaMemcpyHostToDevice);
+//###
+//###	// Retrieve image_input from device
+//###	cv::Mat input_out(image_input.rows, image_input.cols, CV_8UC3);
+//###	cudaMemcpy(input_out.ptr(), d_input, input_bytes, cudaMemcpyDeviceToHost);
+//###
+//###	std::cerr << "Show Image." << std::endl;
+//###	cv::imshow("h_input",input_out);
+//###	cv::waitKey(0);
+//###	std::cerr << "Image shown." << std::endl;
 //	#if(_CUDAFUNCS_TIMEIT)
 //	gputimer watch;
 //	watch.start();
