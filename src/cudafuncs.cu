@@ -22,13 +22,17 @@ __global__ void domap_cuda(uchar *image_out, uchar *image_in, float *xp_c, float
 	int c = blockIdx.x*blockDim.x + threadIdx.x;
 	int r = blockIdx.y*blockDim.y + threadIdx.y;
 	// Check if within image bounds
-	if((c>=(*width))||(r>=(*height))) return;
+	//if((c>=(*width))||(r>=(*height))) return;
 	int cuda_index = r*(*width)+c;
-	image_out[cuda_index] = image_in[cuda_index];
+	//image_out[cuda_index] = image_in[cuda_index];
+	image_out[cuda_index] = 90;
 }
 
 // Partial wrapper for the __global__ calls
 extern "C" void calcmapping(Eigen::MatrixXf *Mx, Eigen::MatrixXf *My,  Eigen::Matrix3f *Hi, int xmin_out, int ymin_out, int wmax, int hmax){
+	#if(_CUDAFUNCS_DEBUG)
+	std::cerr << "### calcmapping <start> ###" << std::endl;
+	#endif
 	// Get the properties of the GPU device, this will only be executed once.
 	static cudaDeviceProp cuda_properties;
 	static cudaError_t cuda_error= cudaGetDeviceProperties(&cuda_properties,0); // cuda properties of device 0
@@ -59,7 +63,7 @@ extern "C" void calcmapping(Eigen::MatrixXf *Mx, Eigen::MatrixXf *My,  Eigen::Ma
 	arma::Mat<int> Y = arma::repmat(y,1,wmax);
 	arma::Mat<int> W = arma::ones<arma::Mat<int> >(hmax,wmax);
 	
-	#if(_CUDAFUNCS_TIMEIT)
+	#if(_CUDAFUNCS_DEBUG)
 	//X.print("X:");
 	//Y.print("Y:");
 	//W.print("W:");
@@ -91,6 +95,7 @@ extern "C" void calcmapping(Eigen::MatrixXf *Mx, Eigen::MatrixXf *My,  Eigen::Ma
 	hp = Hi->data(); // Hi is a pointer to an eigen matrix
 	
 	// Number of rows and columns in Mx and My must be identical
+	// TODO: Actually this does not have to be the case!!
 	assert(Mx->rows() == My->rows() && Mx->cols() == My->cols());
 	// Get pointers to data of mapping matrices
 	mxp = Mx->data();	// Mx is a pointer, thus child accessing with ->
@@ -144,54 +149,163 @@ extern "C" void calcmapping(Eigen::MatrixXf *Mx, Eigen::MatrixXf *My,  Eigen::Ma
 	cudaFree(mxp_c);	cudaFree(myp_c);
 	cudaFree(xp_c);		cudaFree(yp_c);		cudaFree(wp_c);
 
+	#if(_CUDAFUNCS_DEBUG)
+	std::cerr << "### calcmapping <end> ###" << std::endl;
+	#endif
 	// Return nothing, void function.
 	return;
 }
 
-extern "C" void domapping(cv::cuda::GpuMat *image_out, cv::cuda::GpuMat *image_in, Eigen::MatrixXf *Mx, Eigen::MatrixXf *My){
-	#if(_CUDAFUNCS_TIMEIT)
-	gputimer watch;
-	watch.start();
+extern "C" void domapping(cv::Mat& image_output, const cv::Mat& image_input, Eigen::MatrixXf *Mx, Eigen::MatrixXf *My){
+	#if(_CUDAFUNCS_DEBUG)
+	std::cerr << "### domapping <start> ###" << std::endl;
 	#endif
-	int width	= Mx->cols();
-	int height	= Mx->rows();
-	int N		= width*height;
+	// d_ stands for device	(gpu)
+	// h_ stands for host	(cpu)
+	// Copy image_input to device
+	uchar *d_input;
+	const int input_bytes = image_input.step*image_input.rows;
+	cudaMalloc<unsigned char>(&d_input, input_bytes);
+	cudaMemcpy(d_input, image_input.ptr(), input_bytes, cudaMemcpyHostToDevice);
 
-	//std::cerr << hmax << "," << wmax << std::endl;
-	int size_i	= N*sizeof(int);
+	// Retrieve image_input from device
+	cv::Mat input_out(image_input.rows, image_input.cols, CV_8UC3);
+	cudaMemcpy(input_out.ptr(), d_input, input_bytes, cudaMemcpyDeviceToHost);
+
+	std::cerr << "Show Image." << std::endl;
+	cv::imshow("h_input",input_out);
+	cv::waitKey(0);
+	std::cerr << "Image shown." << std::endl;
+//	#if(_CUDAFUNCS_TIMEIT)
+//	gputimer watch;
+//	watch.start();
+//	#endif
+//	//cv::imshow("im_in",*image_in);
+//	//cv::imshow("im_out",*image_out);
+//	//cv::waitKey(0);
+//	// TODO: upload input and output matrix to GPU
+//	// TODO: inputmage dimensions and Mx and My not correpsonding when rotations and translations are zero.	 
+//	int width_mx	= Mx->cols();
+//	int height_mx	= Mx->rows();
+//	int width_my	= My->cols();
+//	int height_my	= My->rows();
+//	int width_in	= image_in->cols;
+//	int height_in	= image_in->rows;
+//	int width_out	= image_out->cols;
+//	int height_out	= image_out->rows;
+//	int N_m			= width_mx*height_mx;
+//	int N_in		= width_in*height_in;
+//	int N_out		= width_out*height_out;
+//	int channels	= image_in->channels();
+//	// Determine size of memory for each input and output
+//	int size_m	= N_m*sizeof(float);			// size of Mx and My (one channel)
+//	int size_in	= N_in*sizeof(uchar)*channels;	// size of image_in	 (three channels)
+//	int size_out= N_out*sizeof(uchar)*channels;	// size of image_out (three channels)
+//	#if(_CUDAFUNCS_DEBUG)
+//	std::cerr << "Width_mx:      " << width_mx		<< std::endl;
+//	std::cerr << "Height_mx:     " << height_mx		<< std::endl;
+//	std::cerr << "Width_my:      " << width_my		<< std::endl;
+//	std::cerr << "Height_my:     " << height_my		<< std::endl;
+//	std::cerr << "Width_in:      " << width_in		<< std::endl;
+//	std::cerr << "Height_in:     " << height_in		<< std::endl;
+//	std::cerr << "Width_out:     " << width_out		<< std::endl;
+//	std::cerr << "Height_out:    " << height_out	<< std::endl;
+//	std::cerr << "Channels:      " << channels		<< std::endl;
+//	std::cerr << "size_m:        " << size_m		<< std::endl;
+//	std::cerr << "size_in:       " << size_in		<< std::endl;
+//	std::cerr << "size_out:      " << size_out		<< std::endl;
+//	std::cerr << "sizeof(uchar): " << sizeof(uchar)	<< std::endl;
+//	std::cerr << "sizeof(cv::CV_8U): " << sizeof(CV_8U)	<< std::endl;
+//	std::cerr << "sizeof(float): " << sizeof(float)	<< std::endl;
+//	std::cerr << "type image_in: " << image_in->type() << std::endl;
+//	std::cerr << "type image_out:" << image_out->type() << std::endl;
+//	#endif
+
 	// TODO, keep Mx and My on CUDA device?
 	// Create pointers
-	float *mxp, *myp, *mxp_c, *myp_c;
-	uchar *im_out_c, *im_in_c;
+	//float *mxp, *myp, *mxp_c, *myp_c;
+	//uchar *im_out_c, *im_in_c, *im_in, *im_out;
 	// Get pointers to data of mapping matrices
-	mxp		= Mx->data();	// Mx is a pointer, thus child accessing with ->
-	myp		= My->data();	// My is a pointer, thus child accessing with ->
-	im_in_c	= image_in->ptr<uchar>();	// input image already resides on the GPU, Get device pointer from GPU mat
-	im_out_c= image_out->ptr<uchar>();	// output image already resides on the GPU, Get device pointer from GPU mat
-
-	// Allocate space on device for device copies
-	cudaMalloc((void **)&mxp_c,size_i);
-	cudaMalloc((void **)&myp_c,size_i);
+	//mxp		= Mx->data();		// Mx is a pointer, thus child accessing with ->
+	//myp		= My->data();		// My is a pointer, thus child accessing with ->
+	////im_in	= image_in->data;	// Get pointer from cv::Mat
+	//im_out	= image_out->data;	// Get pointer fomr cv::Mat
+	////im_in	= image_in->ptr(0);	// Get pointer from cv::Mat
+	////im_out	= image_out->ptr(0);	// Get pointer fomr cv::Mat
+	//std::cerr << "sizeof(im_in): "	<< sizeof(im_in[0])	<< std::endl;
+	//std::cerr << "sizeof(im_out): "	<< sizeof(im_out[0])	<< std::endl;
 	
+	// Allocate space on device for device copies
+	//cudaMalloc((void **)&mxp_c,		size_m);
+	//cudaMalloc((void **)&myp_c,		size_m);
+	//cudaMalloc((void **)&im_in_c,	size_in);
+	//cudaMalloc((void **)&im_out_c,	size_out);
 	// Copy inputs to device
-	cudaMemcpy(mxp_c,	mxp,	size_i,	cudaMemcpyHostToDevice);
-	cudaMemcpy(myp_c,	myp,	size_i,	cudaMemcpyHostToDevice);
+	//cudaMemcpy(mxp_c,	mxp,	size_m,		cudaMemcpyHostToDevice);
+	//cudaMemcpy(myp_c,	myp,	size_m,		cudaMemcpyHostToDevice);
+	//cudaMemcpy(im_in_c,	im_in,	size_in,	cudaMemcpyHostToDevice);
+//#	std::cerr << "Make GpuMat." << std::endl;
+//#	cv::cuda::GpuMat image_in_c;
+//#	std::cerr << "Upload Image." << std::endl;
+//#	image_in_c.upload(*image_in);
+	//uchar *image_in_c;
+	//cudaMalloc((void **)&im_in_c,	size_in);
 
-	// Launch 2D grid
-	// Source: http://www.informit.com/articles/article.aspx?p=2455391
-	int TX = 32;
-	int TY = 32;
-	dim3 blockSize(TX, TY);
-	//int bx = (wmax+ blockSize.x-1)/blockSize.x;
-	//int by = (hmax+ blockSize.y-1)/blockSize.y;
-	int bx = (width+ TX - 1)/TX;
-	int by = (width+ TY - 1)/TY;
-	dim3 gridSize = dim3 (bx, by);
-	domap_cuda<<<gridSize, blockSize>>>(im_out_c, im_in_c, mxp_c, myp_c, &width, &height);
+	//std::cerr << "Data host -> device." << std::endl;
+	//cudaMemcpy2D(image_in_c.data, image_in_c.step, image_in->data, image_in->step, image_in->cols*image_in->elemSize(), image_in->rows,	cudaMemcpyHostToDevice);
 
-	#if(_CUDAFUNCS_TIMEIT)
-	watch.stop();
-	#endif
+//	// Launch 2D grid
+//	// Source: http://www.informit.com/articles/article.aspx?p=2455391
+//	int TX = 32;
+//	int TY = 32;
+//	dim3 blockSize(TX, TY);
+//	//int bx = (wmax+ blockSize.x-1)/blockSize.x;
+//	//int by = (hmax+ blockSize.y-1)/blockSize.y;
+//	int bx = (width_out+ TX - 1)/TX*channels;
+////	int by = (width_out+ TY - 1)/TY*channels;
+//	int by = (height_out+ TY - 1)/TY*channels;
+//	std::cerr << "bx: " << bx << ", by: " << by << std::endl;
+//	dim3 gridSize = dim3 (bx, by);
+//	//domap_cuda<<<gridSize, blockSize>>>(im_out_c, im_in_c, mxp_c, myp_c, &width_out, &height_out);
+//	#if(_CUDAFUNCS_TIMEIT)
+//	watch.lap("Execute mapping on device: ");
+//	#endif
+//
+//	// TODO compare pointers to data
+//	//std::cerr << "Pointer to host data:   " << im_in << std::endl;
+//	//std::cerr << "Pointer to device data: " << im_in_c << std::endl;
+//
+//	std::cerr << "type image_in: " << image_in->type() << std::endl;
+//	std::cerr << "Image in (zeros): "<<std::endl;
+//	image_in->setTo(0);
+//	for(int i = N_in*10; i < N_in; i++){
+//		std::cerr << int(im_in[i]) << std::endl;
+//	}
+//	std::cerr << "type image_in: " << image_in->type() << std::endl;
+//	// Get results back from host
+//	//cudaMemcpy(im_out,	im_out_c,	size_out,	cudaMemcpyDeviceToHost);
+//	//cudaMemcpy(im_in,	im_in_c,	size_in,	cudaMemcpyDeviceToHost);
+//	std::cerr << "Step: " << step << std::endl;
+//	//cudaMemcpy2D(im_in, 0, im_in_c, step, sizeof(uchar)*width_in, sizeof(uchar)*height_in,	cudaMemcpyDeviceToHost);
+//#	std::cerr << "data device -> host." << std::endl;
+//#	cudaMemcpy2D(image_in->data, image_in->step, image_in_c.data, image_in_c.step, image_in_c.cols*image_in_c.elemSize(), image_in_c.rows,	cudaMemcpyDeviceToHost);
+//#
+//#
+//#	// TODO: this does not work.
+//#	std::cerr << "Show images." << std::endl;
+//#	cv::imshow("im_in",*image_in);	// correct
+//#//	cv::imshow("im_out",*image_out);// incorrect
+//#	cv::waitKey(0);
+//#	// cleanup device memory
+//#	//cudaFree(mxp_c);	cudaFree(myp_c);	cudaFree(im_in_c); cudaFree(im_out_c);
+//#	//cudaFree(im_in_c);
+//#
+//#	#if(_CUDAFUNCS_TIMEIT)
+//#	watch.stop();
+//#	#endif
+//#	#if(_CUDAFUNCS_DEBUG)
+//#	std::cerr << "### domapping <end> ###" << std::endl;
+//#	#endif
 	// Return nothing, void function.
 	return;
 }

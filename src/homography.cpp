@@ -3,16 +3,17 @@
 // script based on: http://math.stackexchange.com/questions/494238/how-to-compute-homography-matrix-h-from-corresponding-points-2d-2d-planar-homog/1886060#1886060
 
 int main(){
-	cv::Mat image;
-	image = cv::imread(default_image);
-	cv::cuda::GpuMat image_in(image);
+	const cv::Mat image_in = cv::imread(default_image);
+//	cv::cuda::GpuMat image_in_c;
+//	image_in_c.upload(image_in);
 	std::string windowname	= "Original image";
 	cv::namedWindow(windowname);
-	cv::imshow(windowname,image);
+	cv::imshow(windowname,image_in);
 	cv::waitKey(100);
 	
 	float	rx = 0.0*PI;
-	float	ry = 0.24*PI;
+	//float	ry = 0.24*PI;
+	float	ry = 0.00*PI;
 	float	rz = 0.0*PI;
 //	float	rz = 0.0*PI;
 	
@@ -33,14 +34,20 @@ int main(){
 	height_screen	= 1080;
 	gputimer watch;
 	watch.start();
-	cv::cuda::GpuMat image_out(height_screen,width_screen,CV_8UC3);
-	//hom(&image_out, &image_in,transformations,width_screen,height_screen);
+	cv::Mat image_out(height_screen,width_screen,CV_8UC3);
+	// TODO: print types of image in and out
+	std::cerr << "type image in: "	<< image_in.type()	<< std::endl;
+	std::cerr << "type image out: "	<< image_out.type()	<< std::endl;
+	std::cerr << image_out.rows << ", " << image_out.cols << std::endl;
+	hom(image_out, image_in, transformations, width_screen, height_screen);
+	//hom(image_out.ptr(), image_in.ptr(), transformations, width_screen, height_screen);
 	watch.stop();
 	std::cerr << "Finished, only need to show." << std::endl;
 //	Show results
 	cv::namedWindow("Hom",cv::WINDOW_OPENGL);
-	//cv::imshow("Hom",image_out);
-	cv::imshow("Hom",image_in);
+	cv::imshow("Hom",image_out);
+	//cv::imshow("Hom",image_in);
+	//cv::imshow("Hom",image);
 	cv::waitKey(0);
 
 // C++

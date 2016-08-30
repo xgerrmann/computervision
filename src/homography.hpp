@@ -48,7 +48,7 @@ typedef struct {
 
 typedef std::map<std::string,float> trans;
 
-void hom(cv::cuda::GpuMat *image_out, cv::cuda::GpuMat *image_in, trans transformations, int width_max, int height_max);
+void hom(cv::Mat image_out, const cv::Mat image_in, trans transformations, int width_max, int height_max);
 Rxyz calcrotationmatrix(double rx, double ry, double rz);
 std::vector<float> calcrotations(Eigen::Matrix3f Rt);
 Eigen::Matrix3f calchomography(int width, int height, trans transformations);
@@ -332,16 +332,18 @@ Eigen::Matrix3f calchomography(int width, int height, trans transformations){
 	return H;
 }
 
-void hom(cv::cuda::GpuMat *image_out, cv::cuda::GpuMat *image_in, trans transformations, int width_max, int height_max){
+void hom(cv::Mat image_out, const cv::Mat image_in, trans transformations, int width_max, int height_max){
 // Faster backward homography, mapping by masking and matrix indices method # 0.007 seconds
+	//cv::cuda::GpuMat image_in_c;
+	//image_in_c.upload(*image_in);
 	//#if(_HOM_TIMEIT)
 	timer watch;
 	watch.start();
 	//#endif
 
-	int height	= image_in->size().height;
-	int width	= image_in->size().width;
-	int channels= image_in->channels();
+	int height	= image_in.size().height;
+	int width	= image_in.size().width;
+	int channels= image_in.channels();
 	
 	Eigen::Matrix3f H, Hi;
 	//arma::Mat<float> H, Hi;	
@@ -365,20 +367,21 @@ void hom(cv::cuda::GpuMat *image_out, cv::cuda::GpuMat *image_in, trans transfor
 	height_out	= rectangle[3];
 	xmax_out	= xmin_out + width_out-1; // zero based, thus -1
 	ymax_out	= ymin_out + height_out-1;// zero based, thus -1
-	#ifdef debug
+// Determine size of matrices for performing the mapping.
+// Mapping must stay within max size.
+// Max size of mapping matrices is minimum of outgoing image dimensions and the max dimensions
+	int wmax = std::min(width_out, width_max);
+	int hmax = std::min(height_out, height_max);
+	#if(_HOM_DEBUG)
 	std::cerr << "xmin: " << xmin_out << std::endl;
 	std::cerr << "xmax: " << xmax_out << std::endl;
 	std::cerr << "ymin: " << ymin_out << std::endl;
 	std::cerr << "ymax: " << ymax_out << std::endl;
 	std::cerr << "width_out:  " << width_out << std::endl;
 	std::cerr << "height_out: " << height_out << std::endl;
+	std::cerr << "wmax: " << wmax << std::endl;
+	std::cerr << "hmax: " << hmax << std::endl;
 	#endif
-// Determine size of matrices for performing the mapping.
-// Mapping must stay within max size.
-// Max size of mapping matrices is minimum of outgoing image dimensions and the max dimensions
-	int wmax = std::min(width_out, width_max);
-	int hmax = std::min(height_out, height_max);
-	
 	// Mapping is calculated on GPU
 	//arma::Cube<float> M = calcmapping(Eigen::Matrix3f Hi, int xmin_out, int ymin_out, int wmax, int hmax);
 	Eigen::MatrixXf Mx(hmax, wmax);// = Eigen::Matrix<float,hmax,wmax>::Zero();
@@ -390,43 +393,46 @@ void hom(cv::cuda::GpuMat *image_out, cv::cuda::GpuMat *image_in, trans transfor
 	#if(_HOM_TIMEIT)
 	watch.lap("Calc Mapping");
 	#endif
-//	# construct empty image
+	//cv::imshow("image_in",*image_in);
+////##########################
+//	//	# construct empty image
 	domapping(image_out, image_in, &Mx, &My); // image in and image out are pointers
-//	//cv::Mat image_out	= cv::Mat::zeros(height_max, width_max,CV_8UC3); // 3 channel 8-bit character
-//		
-//	int xtmp,ytmp,trans_x, trans_y;
-//	trans_x = int(round(width/2));
-//	trans_y = int(round(height/2));
-//	for(int h = 0; h<hmax; h++){
-//		for(int w = 0; w<wmax; w++){
-//	//		std::cerr<<"h:"<<h<<std::endl;
-//	//		std::cerr<<"height_out:"<<height_out<<std::endl;
-//	//		std::cerr<<arma::size(Mi);
-//			// Change origin from center of image to upper right corner.
-//			xtmp = Mx(h,w)+trans_x;
-//			ytmp = My(h,w)+trans_y;
-//			if(xtmp<0 || xtmp >= width || ytmp<0 || ytmp>=height){
-//				//std::cerr<<"NOT x:"<<xtmp<<"->"<<w<<std::endl;
-//				//std::cerr<<"NOT y:"<<ytmp<<"->"<<h<<std::endl;
-//				continue;
-//			}
-//		//	std::cerr<<"x:"<<xtmp<<"->"<<w<<std::endl;
-//		//	std::cerr<<"y:"<<ytmp<<"->"<<h<<std::endl;
-//			//std::cerr<<"y:"<<h<<",x:"<<w<<",R:"<<int(image_arma(h,w,0))<<std::endl;
-//			//std::cerr<< "R:"<<int(image_arma(ytmp,xtmp,0)) << "==" << int(image_out_arma(h,w,0))<< std::endl;
-//		//	std::cerr<< int(image_arma(ytmp,xtmp,1)) << "==" << int(image_out_arma(h,w,1))<< std::endl;
-//		//	std::cerr<< int(image_arma(ytmp,xtmp,2)) << "==" << int(image_out_arma(h,w,2))<< std::endl;
-//			((uchar*)image_out.data)[(w+h*width_max)*3]		= ((uchar)image.data[(ytmp*width+xtmp)*3]) ;
-//			((uchar*)image_out.data)[(w+h*width_max)*3+1]	= ((uchar)image.data[(ytmp*width+xtmp)*3+1]) ;
-//			((uchar*)image_out.data)[(w+h*width_max)*3+2]	= ((uchar)image.data[(ytmp*width+xtmp)*3+2]) ;
-//		//	std::cerr << "Test";
-//		//	std::cerr<< int(image_arma(ytmp,xtmp,0)) << "==" << int(image_out_arma(h,w,0))<< std::endl;
-//		//	std::cerr<< int(image_arma(ytmp,xtmp,1)) << "==" << int(image_out_arma(h,w,1))<< std::endl;
-//		//	std::cerr<< int(image_arma(ytmp,xtmp,2)) << "==" << int(image_out_arma(h,w,2))<< std::endl;
-//		//  Values seem to be correct
-//		}
-//	}
-	#if(_HOM_TIMEIT)
+////	//cv::Mat image_out	= cv::Mat::zeros(height_max, width_max,CV_8UC3); // 3 channel 8-bit character
+////		
+////	int xtmp,ytmp,trans_x, trans_y;
+////	trans_x = int(round(width/2));
+////	trans_y = int(round(height/2));
+////	for(int h = 0; h<hmax; h++){
+////		for(int w = 0; w<wmax; w++){
+////	//		std::cerr<<"h:"<<h<<std::endl;
+////	//		std::cerr<<"height_out:"<<height_out<<std::endl;
+////	//		std::cerr<<arma::size(Mi);
+////			// Change origin from center of image to upper right corner.
+////			xtmp = Mx(h,w)+trans_x;
+////			ytmp = My(h,w)+trans_y;
+////			if(xtmp<0 || xtmp >= width || ytmp<0 || ytmp>=height){
+////				//std::cerr<<"NOT x:"<<xtmp<<"->"<<w<<std::endl;
+////				//std::cerr<<"NOT y:"<<ytmp<<"->"<<h<<std::endl;
+////				continue;
+////			}
+////		//	std::cerr<<"x:"<<xtmp<<"->"<<w<<std::endl;
+////		//	std::cerr<<"y:"<<ytmp<<"->"<<h<<std::endl;
+////			//std::cerr<<"y:"<<h<<",x:"<<w<<",R:"<<int(image_arma(h,w,0))<<std::endl;
+////			//std::cerr<< "R:"<<int(image_arma(ytmp,xtmp,0)) << "==" << int(image_out_arma(h,w,0))<< std::endl;
+////		//	std::cerr<< int(image_arma(ytmp,xtmp,1)) << "==" << int(image_out_arma(h,w,1))<< std::endl;
+////		//	std::cerr<< int(image_arma(ytmp,xtmp,2)) << "==" << int(image_out_arma(h,w,2))<< std::endl;
+////			((uchar*)image_out.data)[(w+h*width_max)*3]		= ((uchar)image.data[(ytmp*width+xtmp)*3]) ;
+////			((uchar*)image_out.data)[(w+h*width_max)*3+1]	= ((uchar)image.data[(ytmp*width+xtmp)*3+1]) ;
+////			((uchar*)image_out.data)[(w+h*width_max)*3+2]	= ((uchar)image.data[(ytmp*width+xtmp)*3+2]) ;
+////		//	std::cerr << "Test";
+////		//	std::cerr<< int(image_arma(ytmp,xtmp,0)) << "==" << int(image_out_arma(h,w,0))<< std::endl;
+////		//	std::cerr<< int(image_arma(ytmp,xtmp,1)) << "==" << int(image_out_arma(h,w,1))<< std::endl;
+////		//	std::cerr<< int(image_arma(ytmp,xtmp,2)) << "==" << int(image_out_arma(h,w,2))<< std::endl;
+////		//  Values seem to be correct
+////		}
+////	}
+////###################
+#if(_HOM_TIMEIT)
 	watch.lap("Perform Mapping");
 	#endif
 	watch.stop();
