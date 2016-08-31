@@ -48,7 +48,7 @@ typedef struct {
 
 typedef std::map<std::string,float> trans;
 
-void hom(const cv::Mat& image_in, cv::Mat& image_out, trans& transformations, int& width_max, int& height_max);
+void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformations, int& width_max, int& height_max);
 Rxyz calcrotationmatrix(double rx, double ry, double rz);
 std::vector<float> calcrotations(Eigen::Matrix3f Rt);
 Eigen::Matrix3f calchomography(int width, int height, trans transformations);
@@ -332,16 +332,16 @@ Eigen::Matrix3f calchomography(int width, int height, trans transformations){
 	return H;
 }
 
-void hom(const cv::Mat& image_in, cv::Mat& image_out, trans& transformations, int& width_max, int& height_max){
+void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformations, int& width_max, int& height_max){
 // Faster backward homography, mapping by masking and matrix indices method # 0.007 seconds
 	//#if(_HOM_TIMEIT)
 //	timer watch;
 //	watch.start();
 	//#endif
 
-	int height	= image_in.size().height;
-	int width	= image_in.size().width;
-	int channels= image_in.channels();
+	int height	= image_input.size().height;
+	int width	= image_input.size().width;
+	int channels= image_input.channels();
 	
 	Eigen::Matrix3f H, Hi;
 	//arma::Mat<float> H, Hi;	
@@ -387,14 +387,15 @@ void hom(const cv::Mat& image_in, cv::Mat& image_out, trans& transformations, in
 	#if(_HOM_TIMEIT)
 	//watch.lap("Mapping Preliminaries");
 	#endif
-	//calcmapping(&Mx, &My, &Hi, xmin_out, ymin_out, wmax, hmax);
+	//calcmapping(Mx, My, Hi, xmin_out, ymin_out, wmax, hmax);
 	#if(_HOM_TIMEIT)
 	//watch.lap("Calc Mapping");
 	#endif
 	//cv::imshow("image_in",*image_in);
 ////##########################
 //	//	# construct empty image
-	domapping(image_in, image_out, &Mx, &My); // image in and image out are pointers
+	copy(image_input, image_output);
+	//domapping(image_in, image_out, &Mx, &My); // image in and image out are pointers
 ////	//cv::Mat image_out	= cv::Mat::zeros(height_max, width_max,CV_8UC3); // 3 channel 8-bit character
 ////		
 ////	int xtmp,ytmp,trans_x, trans_y;

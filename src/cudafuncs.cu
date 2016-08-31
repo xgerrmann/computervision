@@ -61,131 +61,130 @@ __global__ void copy_cuda(unsigned char* input,
 }
 
 // Partial wrapper for the __global__ calls
-void calcmapping(Eigen::MatrixXf *Mx, Eigen::MatrixXf *My,  Eigen::Matrix3f *Hi, int xmin_out, int ymin_out, int wmax, int hmax){
-	//###if(_CUDAFUNCS_DEBUG)
-	//##std::cerr << "### calcmapping <start> ###" << std::endl;
-	//###endif
-	//##// Get the properties of the GPU device, this will only be executed once.
-	//##static cudaDeviceProp cuda_properties;
-	//##static cudaError_t cuda_error= cudaGetDeviceProperties(&cuda_properties,0); // cuda properties of device 0
-	//##static int N_BLOCKS_MAX		= cuda_properties.maxThreadsPerBlock;	// x dimension
-	//##static int N_THREADS_MAX	= cuda_properties.maxGridSize[0];		// x dimension
-	//##static int N_PIXELS_MAX = N_BLOCKS_MAX * N_THREADS_MAX;
-	//###if(_CUDAFUNCS_DEBUG)
-	//##std::cerr << "N_BLOCKS_MAX: " << N_BLOCKS_MAX << std::endl;
-	//##std::cerr << "N_THREADS_MAX:" << N_THREADS_MAX << std::endl;
-	//###endif
-	//###if(_CUDAFUNCS_TIMEIT)
-	//##gputimer watch;
-	//##watch.start();
-	//###endif
+void calcmapping(Eigen::MatrixXf& Mx, Eigen::MatrixXf& My,  Eigen::Matrix3f& Hi, int xmin_out, int ymin_out, int wmax, int hmax){
+	#if(_CUDAFUNCS_DEBUG)
+	std::cerr << "### calcmapping <start> ###" << std::endl;
+	#endif
+	// Get the properties of the GPU device, this will only be executed once.
+	static cudaDeviceProp cuda_properties;
+	static cudaError_t cuda_error= cudaGetDeviceProperties(&cuda_properties,0); // cuda properties of device 0
+	static int N_BLOCKS_MAX		= cuda_properties.maxThreadsPerBlock;	// x dimension
+	static int N_THREADS_MAX	= cuda_properties.maxGridSize[0];		// x dimension
+	static int N_PIXELS_MAX		= N_BLOCKS_MAX * N_THREADS_MAX;
+	#if(_CUDAFUNCS_DEBUG)
+	std::cerr << "N_BLOCKS_MAX: " << N_BLOCKS_MAX << std::endl;
+	std::cerr << "N_THREADS_MAX:" << N_THREADS_MAX << std::endl;
+	#endif
+	#if(_CUDAFUNCS_TIMEIT)
+	gputimer watch;
+	watch.start();
+	#endif
 
-	//##//std::cerr << "Enter calcmapping." << std::endl;
-	//##// Calculate max x and y of image
-	//##int xmax,ymax;
-	//##xmax = xmin_out + wmax - 1;
-	//##ymax = ymin_out + hmax - 1;
+	//std::cerr << "Enter calcmapping." << std::endl;
+	// Calculate max x and y of image
+	int xmax,ymax;
+	xmax = xmin_out + wmax - 1;
+	ymax = ymin_out + hmax - 1;
 
-	//##// Prepare inputs for the device code
-	//##// STATIC because every loop this is the same
-	//##// Input are meshgrid MATLAB-like arrays of the X and Y coordinates of the pixels and the scale (=1)
-	//##arma::Mat<int> x = arma::linspace<arma::Row<int> >(xmin_out,xmax,wmax);
-	//##arma::Mat<int> X = arma::repmat(x,hmax,1);
-	//##arma::Mat<int> y = arma::linspace<arma::Col<int> >(ymin_out,ymax,hmax);
-	//##arma::Mat<int> Y = arma::repmat(y,1,wmax);
-	//##arma::Mat<int> W = arma::ones<arma::Mat<int> >(hmax,wmax);
-	//##
-	//###if(_CUDAFUNCS_DEBUG)
-	//##//X.print("X:");
-	//##//Y.print("Y:");
-	//##//W.print("W:");
-	//###endif
-	//##
-	//##// Determine data sizes
-	//##int N		= hmax*wmax;
-	//##//std::cerr << hmax << "," << wmax << std::endl;
-	//##assert(N<N_PIXELS_MAX);// number of pixels must be smaller then the total number of threads (in the x dimension)
-	//##int size_i	= N*sizeof(int);
-	//##int size_f	= N*sizeof(float);
-	//##int size_h	= 9*sizeof(float); // H (in fact a 3x3 matrix) contains 9 float scalars.
+	// Prepare inputs for the device code
+	// STATIC because every loop this is the same
+	// Input are meshgrid MATLAB-like arrays of the X and Y coordinates of the pixels and the scale (=1)
+	arma::Mat<int> x = arma::linspace<arma::Row<int> >(xmin_out,xmax,wmax);
+	arma::Mat<int> X = arma::repmat(x,hmax,1);
+	arma::Mat<int> y = arma::linspace<arma::Col<int> >(ymin_out,ymax,hmax);
+	arma::Mat<int> Y = arma::repmat(y,1,wmax);
+	arma::Mat<int> W = arma::ones<arma::Mat<int> >(hmax,wmax);
+	
+	#if(_CUDAFUNCS_DEBUG)
+	//X.print("X:");
+	//Y.print("Y:");
+	//W.print("W:");
+	#endif
+	
+	// Determine data sizes
+	int N		= hmax*wmax;
+	//std::cerr << hmax << "," << wmax << std::endl;
+	assert(N<N_PIXELS_MAX);// number of pixels must be smaller then the total number of threads (in the x dimension)
+	int size_i	= N*sizeof(int);
+	int size_f	= N*sizeof(float);
+	int size_h	= 9*sizeof(float); // H (in fact a 3x3 matrix) contains 9 float scalars.
 
-	//##// determine number of blocks and threads per block
-	//##//int n_blocks	= ceil(float(N)/float(N_THREADS_MAX));
-	//##//int n_threads	= ceil(float(N)/float(n_blocks));
-	//##//int n_threads	= N_THREADS_MAX;
-	//##//std::cerr << "n_blocks:  "<< n_blocks << std::endl;
-	//##//std::cerr << "n_threads: "<< n_threads << std::endl;
+	// determine number of blocks and threads per block
+	//int n_blocks	= ceil(float(N)/float(N_THREADS_MAX));
+	//int n_threads	= ceil(float(N)/float(n_blocks));
+	//int n_threads	= N_THREADS_MAX;
+	//std::cerr << "n_blocks:  "<< n_blocks << std::endl;
+	//std::cerr << "n_threads: "<< n_threads << std::endl;
 
-	//##// Create pointers to host and device data
-	//##int		*xp, *yp, *wp, *xp_c, *yp_c, *wp_c;
-	//##float	*mxp, *myp, *hp, *mxp_c, *myp_c, *h_c;
-	//##
-	//##// Link the pointers to the corresponding data
-	//##xp = X.memptr(); // pointer to x matrix input data
-	//##yp = Y.memptr(); // pointer to y matrix input data
-	//##wp = W.memptr(); // pointer to w matrix input data
-	//##hp = Hi->data(); // Hi is a pointer to an eigen matrix
-	//##
-	//##// Number of rows and columns in Mx and My must be identical
-	//##// TODO: Actually this does not have to be the case!!
-	//##assert(Mx->rows() == My->rows() && Mx->cols() == My->cols());
-	//##// Get pointers to data of mapping matrices
-	//##mxp = Mx->data();	// Mx is a pointer, thus child accessing with ->
-	//##myp = My->data();	// My is a pointer, thus child accessing with ->
-	//###if(_CUDAFUNCS_TIMEIT)
-	//##watch.lap("Cuda prelims: ");
-	//###endif
-	//##// Allocate space on device for device copies
-	//##cudaMalloc((void **)&xp_c,size_i);
-	//##cudaMalloc((void **)&yp_c,size_i);
-	//##cudaMalloc((void **)&wp_c,size_i);
-	//##cudaMalloc((void **)&mxp_c,size_i);
-	//##cudaMalloc((void **)&myp_c,size_i);
-	//##cudaMalloc((void **)&h_c,size_h);
-	//###if(_CUDAFUNCS_TIMEIT)
-	//##watch.lap("Allocate space on device: ");
-	//###endif
-	//##// Copy inputs to device
-	//##cudaMemcpy(xp_c,	xp,	size_i,	cudaMemcpyHostToDevice);
-	//##cudaMemcpy(yp_c,	yp,	size_i,	cudaMemcpyHostToDevice);
-	//##cudaMemcpy(wp_c,	wp,	size_i,	cudaMemcpyHostToDevice);
-	//##cudaMemcpy(h_c,		hp,	size_h,	cudaMemcpyHostToDevice);
-	//###if(_CUDAFUNCS_TIMEIT)
-	//##watch.lap("Copy mem host -> device: ");
-	//###endif
-	//##// Execute combine on cpu
-	//##//std::cerr << "Execute device code." << std::endl;
-	//##//calcmap_cuda<<<n_blocks,n_threads>>>(xp_c, yp_c, wp_c, mxp_c, myp_c, h_c);
-	//##// Launch 2D grid
-	//##// Source: http://www.informit.com/articles/article.aspx?p=2455391
-	//##int TX = 32;
-	//##int TY = 32;
-	//##dim3 blockSize(TX, TY);
-	//##//int bx = (wmax+ blockSize.x-1)/blockSize.x;
-	//##//int by = (hmax+ blockSize.y-1)/blockSize.y;
-	//##int bx = (wmax+ TX - 1)/TX;
-	//##int by = (wmax+ TY - 1)/TY; // Correct? or hmax??
-	//##dim3 gridSize = dim3 (bx, by);
-	//##calcmap_cuda<<<gridSize, blockSize>>>(xp_c, yp_c, wp_c, mxp_c, myp_c, h_c, &wmax, &hmax);
-	//###if(_CUDAFUNCS_TIMEIT)
-	//##watch.lap("Execute device code: ");
-	//###endif
-	//##// copy results to host
-	//##//std::cerr << "Copy memory from device to host." << std::endl;
-	//##cudaMemcpy(mxp, mxp_c, size_f, cudaMemcpyDeviceToHost);
-	//##cudaMemcpy(myp, myp_c, size_f, cudaMemcpyDeviceToHost);
-	//###if(_CUDAFUNCS_TIMEIT)
-	//##watch.lap("Copy mem device -> host: ");
-	//###endif
-	//##// cleanup device memory
-	//##cudaFree(mxp_c);	cudaFree(myp_c),	cudaFree(h_c);
-	//##cudaFree(xp_c);		cudaFree(yp_c);		cudaFree(wp_c);
+	// Create pointers to host and device data
+	int		*xp, *yp, *wp, *xp_c, *yp_c, *wp_c;
+	float	*mxp, *myp, *hp, *mxp_c, *myp_c, *h_c;
+	
+	// Link the pointers to the corresponding data
+	xp = X.memptr(); // pointer to x matrix input data
+	yp = Y.memptr(); // pointer to y matrix input data
+	wp = W.memptr(); // pointer to w matrix input data
+	hp = Hi.data(); // Hi is a pointer to an eigen matrix
+	
+	// Number of rows and columns in Mx and My must be identical
+	// TODO: Actually this does not have to be the case!!
+	assert(Mx.rows() == My.rows() && Mx.cols() == My.cols());
+	// Get pointers to data of mapping matrices
+	mxp = Mx.data();	// Mx is a pointer, thus child accessing with ->
+	myp = My.data();	// My is a pointer, thus child accessing with ->
+	#if(_CUDAFUNCS_TIMEIT)
+	watch.lap("Cuda prelims: ");
+	#endif
+	// Allocate space on device for device copies
+	cudaMalloc((void **)&xp_c,size_i);
+	cudaMalloc((void **)&yp_c,size_i);
+	cudaMalloc((void **)&wp_c,size_i);
+	cudaMalloc((void **)&mxp_c,size_i);
+	cudaMalloc((void **)&myp_c,size_i);
+	cudaMalloc((void **)&h_c,size_h);
+	#if(_CUDAFUNCS_TIMEIT)
+	watch.lap("Allocate space on device: ");
+	#endif
+	// Copy inputs to device
+	cudaMemcpy(xp_c,	xp,	size_i,	cudaMemcpyHostToDevice);
+	cudaMemcpy(yp_c,	yp,	size_i,	cudaMemcpyHostToDevice);
+	cudaMemcpy(wp_c,	wp,	size_i,	cudaMemcpyHostToDevice);
+	cudaMemcpy(h_c,		hp,	size_h,	cudaMemcpyHostToDevice);
+	#if(_CUDAFUNCS_TIMEIT)
+	watch.lap("Copy mem host -> device: ");
+	#endif
+	// Execute combine on cpu
+	//std::cerr << "Execute device code." << std::endl;
+	//calcmap_cuda<<<n_blocks,n_threads>>>(xp_c, yp_c, wp_c, mxp_c, myp_c, h_c);
+	// Launch 2D grid
+	// Source: http://www.informit.com/articles/article.aspx?p=2455391
+	int TX = 32;
+	int TY = 32;
+	dim3 blockSize(TX, TY);
+	//int bx = (wmax+ blockSize.x-1)/blockSize.x;
+	//int by = (hmax+ blockSize.y-1)/blockSize.y;
+	int bx = (wmax+ TX - 1)/TX;
+	int by = (wmax+ TY - 1)/TY; // Correct? or hmax??
+	dim3 gridSize = dim3 (bx, by);
+	calcmap_cuda<<<gridSize, blockSize>>>(xp_c, yp_c, wp_c, mxp_c, myp_c, h_c, &wmax, &hmax);
+	#if(_CUDAFUNCS_TIMEIT)
+	watch.lap("Execute device code: ");
+	#endif
+	// copy results to host
+	//std::cerr << "Copy memory from device to host." << std::endl;
+	cudaMemcpy(mxp, mxp_c, size_f, cudaMemcpyDeviceToHost);
+	cudaMemcpy(myp, myp_c, size_f, cudaMemcpyDeviceToHost);
+	#if(_CUDAFUNCS_TIMEIT)
+	watch.lap("Copy mem device -> host: ");
+	#endif
+	// cleanup device memory
+	cudaFree(mxp_c);	cudaFree(myp_c),	cudaFree(h_c);
+	cudaFree(xp_c);		cudaFree(yp_c);		cudaFree(wp_c);
 
-	//###if(_CUDAFUNCS_DEBUG)
-	//##std::cerr << "### calcmapping <end> ###" << std::endl;
-	//###endif
-	//##// Return nothing, void function.
-	//##return;
+	#if(_CUDAFUNCS_DEBUG)
+	std::cerr << "### calcmapping <end> ###" << std::endl;
+	#endif
+	// Return nothing, void function.
 }
 
 
