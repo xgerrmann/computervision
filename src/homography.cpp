@@ -31,10 +31,9 @@ int main(){
 	//gputimer watch;
 	//watch.start();
 	cv::Mat image_out(height_screen,width_screen,CV_8UC3);
-	//hom(image_out, image_in, transformations, width_screen, height_screen);
-	//hom(image_out.ptr(), image_in.ptr(), transformations, width_screen, height_screen);
 	cv::Mat image_out_test(image_in.rows,image_in.cols,CV_8UC3);
-	copy(image_in, image_out_test);
+	hom(image_in, image_out_test, transformations, width_screen, height_screen);
+	//copy(image_in, image_out_test);
 	
 	cv::imshow("input", image_in);
 	cv::imshow("output",image_out_test);

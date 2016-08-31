@@ -48,7 +48,7 @@ typedef struct {
 
 typedef std::map<std::string,float> trans;
 
-void hom(cv::Mat image_out, const cv::Mat image_in, trans transformations, int width_max, int height_max);
+void hom(const cv::Mat& image_in, cv::Mat& image_out, trans& transformations, int& width_max, int& height_max);
 Rxyz calcrotationmatrix(double rx, double ry, double rz);
 std::vector<float> calcrotations(Eigen::Matrix3f Rt);
 Eigen::Matrix3f calchomography(int width, int height, trans transformations);
@@ -332,10 +332,8 @@ Eigen::Matrix3f calchomography(int width, int height, trans transformations){
 	return H;
 }
 
-void hom(cv::Mat image_out, const cv::Mat image_in, trans transformations, int width_max, int height_max){
+void hom(const cv::Mat& image_in, cv::Mat& image_out, trans& transformations, int& width_max, int& height_max){
 // Faster backward homography, mapping by masking and matrix indices method # 0.007 seconds
-	//cv::cuda::GpuMat image_in_c;
-	//image_in_c.upload(*image_in);
 	//#if(_HOM_TIMEIT)
 //	timer watch;
 //	watch.start();
@@ -396,6 +394,7 @@ void hom(cv::Mat image_out, const cv::Mat image_in, trans transformations, int w
 	//cv::imshow("image_in",*image_in);
 ////##########################
 //	//	# construct empty image
+	copy(image_in, image_out);
 	//domapping(image_out, image_in, &Mx, &My); // image in and image out are pointers
 ////	//cv::Mat image_out	= cv::Mat::zeros(height_max, width_max,CV_8UC3); // 3 channel 8-bit character
 ////		
