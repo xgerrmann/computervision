@@ -195,7 +195,7 @@ void calcmapping(Eigen::MatrixXf& Mx, Eigen::MatrixXf& My,  Eigen::Matrix3f& Hi,
 	SAFE_CALL(cudaFree(xp_c) ,"CUDA Free Failed");
 	SAFE_CALL(cudaFree(yp_c) ,"CUDA Free Failed");
 	SAFE_CALL(cudaFree(wp_c) ,"CUDA Free Failed");
-	cudaDeviceReset();
+	//cudaDeviceReset();
 
 	#if(_CUDAFUNCS_DEBUG)
 	std::cerr << "### calcmapping <end> ###" << std::endl;
@@ -206,6 +206,8 @@ void calcmapping(Eigen::MatrixXf& Mx, Eigen::MatrixXf& My,  Eigen::Matrix3f& Hi,
 
 // ######################################################################################
 void copy(const cv::Mat& image_in, cv::Mat& image_out){
+// This function uploads the input image onto the device (GPU) and downloads it to the
+// output image. // TODO: do 2d upload and download for less data transfer.
 	int device = 0;
 	SAFE_CALL(cudaSetDevice(device),"CUDA Set Device Failed");
 	SAFE_CALL(cudaFree(0),"CUDA Free Failed");
@@ -238,6 +240,7 @@ void copy(const cv::Mat& image_in, cv::Mat& image_out){
 
 	// Copy image_in to device
 	SAFE_CALL(cudaMemcpy(d_input, image_in.ptr(), inputBytes, cudaMemcpyHostToDevice), "CUDA Memcpy Host To Device Failed");
+	SAFE_CALL(cudaMemcpy(d_output, image_out.ptr(), outputBytes, cudaMemcpyHostToDevice), "CUDA Memcpy Host To Device Failed");
 
 	// Specify block size
 	const dim3 block(16,16);
