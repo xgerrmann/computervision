@@ -39,7 +39,7 @@ int main(){
 	
 	cv::imshow("input", image_in);
 	cv::imshow("output",image_out);
-	cv::waitKey();
+	cv::waitKey(0);
 	//watch.stop();
 	//std::cerr << "Finished, only need to show." << std::endl;
 //	Show results

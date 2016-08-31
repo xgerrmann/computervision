@@ -2,6 +2,8 @@
 
 #include "cudafuncs.hpp"
 
+// _SAFE_DUA_CALL ################################################################################
+// _SAFE_DUA_CALL ################################################################################
 static inline void _safe_cuda_call(cudaError err, const char* msg, const char* file_name, const int line_number)
 {
 	if(err!=cudaSuccess)
@@ -12,6 +14,8 @@ static inline void _safe_cuda_call(cudaError err, const char* msg, const char* f
 	}
 }
 
+// CALCMAP_CUDA ##################################################################################
+// CALCMAP_CUDA ##################################################################################
 __global__ void calcmap_cuda(int *xp_c, int *yp_c, int *wp_c, float *mxp_c, float *myp_c, float *h_c, int width, int height){
 	//int cuda_index = blockDim.x*blockIdx.x + threadIdx.x;
 	int c = blockIdx.x*blockDim.x + threadIdx.x;
@@ -27,16 +31,32 @@ __global__ void calcmap_cuda(int *xp_c, int *yp_c, int *wp_c, float *mxp_c, floa
 	myp_c[cuda_index]	= (h_c[1]*xp_c[cuda_index]+h_c[4]*yp_c[cuda_index]+h_c[7]*wp_c[cuda_index])/w;
 }
 
-__global__ void domap_cuda(unsigned char *image_out, unsigned char *image_in, float *xp_c, float *yp_c, int *width, int *height){
-	int c = blockIdx.x*blockDim.x + threadIdx.x;
-	int r = blockIdx.y*blockDim.y + threadIdx.y;
-	// Check if within image bounds
-	//if((c>=(*width))||(r>=(*height))) return;
-	int cuda_index = r*(*width)+c;
-	//image_out[cuda_index] = image_in[cuda_index];
-	image_out[cuda_index] = 90;
+// DOMAP_CUDA ####################################################################################
+// DOMAP_CUDA ####################################################################################
+__global__ void domap_cuda(unsigned char *d_input,
+							unsigned char *d_output,
+							float *d_mx,
+							float *d_my,
+							int width,
+							int height,
+							int step_input,
+							int step_output)
+{
+	int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
+	int yIndex = blockIdx.y * blockDim.y + threadIdx.y;
+	const int index_in		= yIndex*step_input	+ (3*xIndex);
+	// Perform mapping (now xout=xin, yout=yin)
+	xIndex *= 1;
+	yIndex *= 1;
+	const int index_out		= yIndex*step_output + (3*xIndex);
+
+	d_output[index_out]		= (unsigned char) 90;
+	d_output[index_out+1]	= (unsigned char) 90;
+	d_output[index_out+2]	= (unsigned char) 90;
 }
 
+// COPY_CUDA #####################################################################################
+// COPY_CUDA #####################################################################################
 __global__ void copy_cuda(unsigned char *input,
 							unsigned char *output,
 							int width,
@@ -61,7 +81,8 @@ __global__ void copy_cuda(unsigned char *input,
 	// no return
 }
 
-// Partial wrapper for the __global__ calls
+// CALCMAPPING  ##################################################################################
+// CALCMAPPING  ##################################################################################
 void calcmapping(Eigen::MatrixXf& Mx, Eigen::MatrixXf& My,  Eigen::Matrix3f& Hi, int xmin_out, int ymin_out, int wmax, int hmax){
 	#if(_CUDAFUNCS_DEBUG)
 	std::cerr << "### calcmapping <start> ###" << std::endl;
@@ -204,18 +225,13 @@ void calcmapping(Eigen::MatrixXf& Mx, Eigen::MatrixXf& My,  Eigen::Matrix3f& Hi,
 }
 
 
-// ######################################################################################
+// COPY ##########################################################################################
+// COPY ##########################################################################################
 void copy(const cv::Mat& image_in, cv::Mat& image_out){
 // This function uploads the input image onto the device (GPU) and downloads it to the
 // output image. // TODO: do 2d upload and download for less data transfer.
-	//int device = 0;
-	//SAFE_CALL(cudaSetDevice(device),"CUDA Set Device Failed");
-	//SAFE_CALL(cudaFree(0),"CUDA Free Failed");
-	//SAFE_CALL(cudaDeviceSynchronize(),"CUDA Device Sync Failed");
-	//SAFE_CALL(cudaThreadSynchronize(),"CUDA Thread Sync Failed");
-
 	#if(_CUDAFUNCS_DEBUG)
-	std::cerr << "### domapping <start> ###" << std::endl;
+	std::cerr << "### copy <start> ###" << std::endl;
 	#endif
 	cv::imshow("image_input",	image_in);
 	cv::imshow("image_out",		image_out);
@@ -264,15 +280,18 @@ void copy(const cv::Mat& image_in, cv::Mat& image_out){
 	SAFE_CALL(cudaFree(d_input) ,"CUDA Free Failed");
 	SAFE_CALL(cudaFree(d_output),"CUDA Free Failed");
 	//cudaDeviceReset();
+	#if(_CUDAFUNCS_DEBUG)
+	std::cerr << "### copy <end> ###" << std::endl;
+	#endif
 }
 
-// ######################################################################################
+// DOMAPPING ##################EE#################################################################
+// DOMAPPING ##################EE#################################################################
 void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixXf& Mx, Eigen::MatrixXf& My){
 // domapping
 // Function that performs the actual mapping
 // d_ stands for device	(gpu)
 // h_ stands for host	(cpu)
-
 	#if(_CUDAFUNCS_DEBUG)
 	std::cerr << "### domapping <start> ###" << std::endl;
 	#endif
@@ -309,8 +328,10 @@ void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixX
 	const dim3 grid((width + block.x-1)/block.x, (height + block.y-1)/block.y);
 	
 	// Launch kernel
-	copy_cuda<<<grid,block>>>(d_input,
+	domap_cuda<<<grid,block>>>(d_input,
 								d_output,
+								d_mx,
+								d_my,
 								width,
 								height,
 								image_input.step,
@@ -335,5 +356,4 @@ void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixX
 	std::cerr << "### domapping <end> ###" << std::endl;
 	#endif
 	// Return nothing, void function.
-	return;
 }

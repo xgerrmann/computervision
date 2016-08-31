@@ -387,15 +387,15 @@ void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformatio
 	#if(_HOM_TIMEIT)
 	//watch.lap("Mapping Preliminaries");
 	#endif
-	//calcmapping(Mx, My, Hi, xmin_out, ymin_out, wmax, hmax);
+	calcmapping(Mx, My, Hi, xmin_out, ymin_out, wmax, hmax);
 	#if(_HOM_TIMEIT)
 	//watch.lap("Calc Mapping");
 	#endif
 	//cv::imshow("image_in",*image_in);
 ////##########################
 //	//	# construct empty image
-	copy(image_input, image_output);
-	//domapping(image_in, image_out, &Mx, &My); // image in and image out are pointers
+	//copy(image_input, image_output);
+	domapping(image_input, image_output, Mx, My); // image in and image out are pointers
 ////	//cv::Mat image_out	= cv::Mat::zeros(height_max, width_max,CV_8UC3); // 3 channel 8-bit character
 ////		
 ////	int xtmp,ytmp,trans_x, trans_y;
