@@ -3,52 +3,54 @@
 // script based on: http://math.stackexchange.com/questions/494238/how-to-compute-homography-matrix-h-from-corresponding-points-2d-2d-planar-homog/1886060#1886060
 
 int main(){
-	const cv::Mat image_in = cv::imread(default_image);
-//	cv::cuda::GpuMat image_in_c;
-//	image_in_c.upload(image_in);
-	std::string windowname	= "Original image";
-	cv::namedWindow(windowname);
-	cv::imshow(windowname,image_in);
-	cv::waitKey(100);
-	
-	float	rx = 0.0*PI;
-	//float	ry = 0.24*PI;
-	float	ry = 0.00*PI;
-	float	rz = 0.0*PI;
-//	float	rz = 0.0*PI;
-	
-	Rxyz rot				= calcrotationmatrix(rx, ry, rz);
-	trans transformations;
-	transformations["tx"]	= 0;
-	transformations["ty"]	= 0;
-	transformations["tz"]	= 0;
-	//transformations["rx"]	= rx;
-	//transformations["ry"]	= ry;
-	//transformations["rz"]	= rz;
-	transformations["rx"]	= -0.020254;
-	transformations["ry"]	= -0.012746;
-	transformations["rz"]	= -0.0873265;
-	Eigen::Matrix3f Rt	= rot.Rz*rot.Ry*rot.Rx;
-	int width_screen, height_screen;
-	width_screen	= 1920;
-	height_screen	= 1080;
-	gputimer watch;
-	watch.start();
-	cv::Mat image_out(height_screen,width_screen,CV_8UC3);
-	// TODO: print types of image in and out
-	std::cerr << "type image in: "	<< image_in.type()	<< std::endl;
-	std::cerr << "type image out: "	<< image_out.type()	<< std::endl;
-	std::cerr << image_out.rows << ", " << image_out.cols << std::endl;
-	hom(image_out, image_in, transformations, width_screen, height_screen);
+	cv::Mat image_in = cv::imread("image.jpg", CV_LOAD_IMAGE_COLOR);
+	//std::string windowname	= "Original image";
+	cv::Mat image_out(image_in.rows,image_in.cols,CV_8UC3);
+	//cv::namedWindow(windowname);
+	//##
+	//##float	rx = 0.0*PI;
+	//##//float	ry = 0.24*PI;
+	//##float	ry = 0.00*PI;
+	//##float	rz = 0.0*PI;
+//	//##float	rz = 0.0*PI;
+	//##
+	//##Rxyz rot				= calcrotationmatrix(rx, ry, rz);
+	//##trans transformations;
+	//##transformations["tx"]	= 0;
+	//##transformations["ty"]	= 0;
+	//##transformations["tz"]	= 0;
+	//##//transformations["rx"]	= rx;
+	//##//transformations["ry"]	= ry;
+	//##//transformations["rz"]	= rz;
+	//##transformations["rx"]	= -0.020254;
+	//##transformations["ry"]	= -0.012746;
+	//##transformations["rz"]	= -0.0873265;
+	//##Eigen::Matrix3f Rt	= rot.Rz*rot.Ry*rot.Rx;
+	//##int width_screen, height_screen;
+	//##width_screen	= 1920;
+	//##height_screen	= 1080;
+	//##//gputimer watch;
+	//##//watch.start();
+	//##cv::Mat image_out(height_screen,width_screen,CV_8UC3);
+	//##// TODO: print types of image in and out
+	//##std::cerr << "type image in: "	<< image_in.type()	<< std::endl;
+	//##std::cerr << "type image out: "	<< image_out.type()	<< std::endl;
+	//##std::cerr << image_out.rows << ", " << image_out.cols << std::endl;
+	//hom(image_out, image_in, transformations, width_screen, height_screen);
 	//hom(image_out.ptr(), image_in.ptr(), transformations, width_screen, height_screen);
-	watch.stop();
-	std::cerr << "Finished, only need to show." << std::endl;
+	copy(image_in, image_out);
+	
+	cv::imshow("input", image_in);
+	cv::imshow("output",image_out);
+	cv::waitKey();
+	//watch.stop();
+	//std::cerr << "Finished, only need to show." << std::endl;
 //	Show results
-	cv::namedWindow("Hom",cv::WINDOW_OPENGL);
-	cv::imshow("Hom",image_out);
-	//cv::imshow("Hom",image_in);
-	//cv::imshow("Hom",image);
-	cv::waitKey(0);
+	//cv::namedWindow("Hom",cv::WINDOW_OPENGL);
+	//cv::imshow("Hom",image_out);
+	////cv::imshow("Hom",image_in);
+	////cv::imshow("Hom",image);
+	//cv::waitKey(0);
 
 // C++
 // Looping: Elapsed time 0.004 (rough average)

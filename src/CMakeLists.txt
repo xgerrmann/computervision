@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.4)
+cmake_minimum_required(VERSION 2.8)
 # About this project
 #-------------------
 project(src)
@@ -8,20 +8,22 @@ message("${PROJECT_NAME}")
 # Add headers and source files here
 #-------------------
 set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(BUILD_SHARED_LIBS OFF)
+#set(CMAKE_CXX_STANDARD_REQUIRED ON)
+#set(BUILD_SHARED_LIBS OFF)
 
 ### CUDA
 find_package(CUDA REQUIRED)
 #list(APPEND CUDA_NVCC_FLAGS "-arch=sm_20;-std=c++11;-O2;-DVERBOSE")
-list(APPEND CUDA_NVCC_FLAGS "-arch=sm_20;-std=c++11;")
-SET(CUDA_PROPAGATE_HOST_FLAGS OFF)
+#list(APPEND CUDA_NVCC_FLAGS "-arch=sm_20;-std=c++11;")
+#SET(CUDA_PROPAGATE_HOST_FLAGS OFF)
 
 #add_subdirectory(cuda-utils)
 
 # Create binaries
 #-------------------
-cuda_add_executable(homography	homography.cpp	homography.hpp			cudafuncs.cu	cudafuncs.hpp)
+#cuda_add_executable(homography	homography.cpp	homography.hpp			cudafuncs.cu	cudafuncs.hpp)
+cuda_add_executable(homography	homography.cpp	cudafuncs.cu)
+#cuda_add_executable(test test.cpp	cudafuncs.cu)
 #cuda_add_executable(main		main.cpp		main.hpp homography.hpp	cudafuncs.cu	cudafuncs.hpp)
 
 # OPENCV
@@ -58,7 +60,11 @@ message("OpenBLASlibrary: ${OpenBLAS_LIBRARY}")
 # main
 #target_link_libraries(main			dlib	${OpenCV_LIBS}	${ARMADILLO_LIBRARIES}	${ATTENTION_TRACKER_LIBRARY}	openblas	${CUDA_LIBRARIES} gputimer)
 # homography
-target_link_libraries(homography	dlib	${OpenCV_LIBS}	${ARMADILLO_LIBRARIES}	${ATTENTION_TRACKER_LIBRARY}	openblas	${CUDA_LIBRARIES} gputimer)
+#target_link_libraries(homography	dlib	${OpenCV_LIBS}	${ARMADILLO_LIBRARIES}	${ATTENTION_TRACKER_LIBRARY}	openblas	${CUDA_LIBRARIES} gputimer)
+#target_link_libraries(homography	dlib	${OpenCV_LIBS}	${ATTENTION_TRACKER_LIBRARY}	${CUDA_LIBRARIES})
+#target_link_libraries(homography	${OpenCV_LIBS}	${ATTENTION_TRACKER_LIBRARY}	${CUDA_LIBRARIES})
+target_link_libraries(homography	dlib ${OpenCV_LIBS}	${CUDA_LIBRARIES})
+#target_link_libraries(test	${OpenCV_LIBS}	${CUDA_LIBRARIES}) // works
 
 option(DEBUG "DEBUG" OFF)
 if(${DEBUG})

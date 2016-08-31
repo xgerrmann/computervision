@@ -6,15 +6,15 @@
 //#include <algorithm>    // std::max
 
 // (CPU) timer
-#include "../lib/timer/timer.hpp"
+//#include "../lib/timer/timer.hpp"
 
 // ## GPUtimer
-#include "../lib/gputimer/gputimer.hpp"
+//#include "../lib/gputimer/gputimer.hpp"
 
 //#include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/core/core.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
+//#include <opencv2/imgproc/imgproc.hpp>
 #include "paths.hpp"
 #include <math.h>
 // ## Eigen
@@ -22,7 +22,7 @@
 #include <eigen3/Eigen/Dense> // << changes
 #include <limits.h> // for max values of datatypes
 // ## Armadillo
-#include <armadillo>
+//#include <armadillo>
 // ## Attention tracker
 #include "../include/attention-tracker/src/head_pose_estimation.hpp"
 // ## Xlib
@@ -337,8 +337,8 @@ void hom(cv::Mat image_out, const cv::Mat image_in, trans transformations, int w
 	//cv::cuda::GpuMat image_in_c;
 	//image_in_c.upload(*image_in);
 	//#if(_HOM_TIMEIT)
-	timer watch;
-	watch.start();
+//	timer watch;
+//	watch.start();
 	//#endif
 
 	int height	= image_in.size().height;
@@ -387,16 +387,16 @@ void hom(cv::Mat image_out, const cv::Mat image_in, trans transformations, int w
 	Eigen::MatrixXf Mx(hmax, wmax);// = Eigen::Matrix<float,hmax,wmax>::Zero();
 	Eigen::MatrixXf My(hmax, wmax);// = Eigen::Matrix<float,hmax,wmax>::Zero();
 	#if(_HOM_TIMEIT)
-	watch.lap("Mapping Preliminaries");
+	//watch.lap("Mapping Preliminaries");
 	#endif
-	calcmapping(&Mx, &My, &Hi, xmin_out, ymin_out, wmax, hmax);
+	//calcmapping(&Mx, &My, &Hi, xmin_out, ymin_out, wmax, hmax);
 	#if(_HOM_TIMEIT)
-	watch.lap("Calc Mapping");
+	//watch.lap("Calc Mapping");
 	#endif
 	//cv::imshow("image_in",*image_in);
 ////##########################
 //	//	# construct empty image
-//	domapping(image_out, image_in, &Mx, &My); // image in and image out are pointers
+	//domapping(image_out, image_in, &Mx, &My); // image in and image out are pointers
 ////	//cv::Mat image_out	= cv::Mat::zeros(height_max, width_max,CV_8UC3); // 3 channel 8-bit character
 ////		
 ////	int xtmp,ytmp,trans_x, trans_y;
@@ -433,9 +433,9 @@ void hom(cv::Mat image_out, const cv::Mat image_in, trans transformations, int w
 ////	}
 ////###################
 #if(_HOM_TIMEIT)
-	watch.lap("Perform Mapping");
+	//watch.lap("Perform Mapping");
 	#endif
-	watch.stop();
+	//watch.stop();
 	return;
 }
 #endif
