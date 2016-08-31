@@ -12,14 +12,13 @@ static inline void _safe_cuda_call(cudaError err, const char* msg, const char* f
 	}
 }
 
-__global__ void calcmap_cuda(int *xp_c, int *yp_c, int *wp_c, float *mxp_c, float *myp_c, float *h_c, int *width, int *height){
-	// TODO: max number of blocks
+__global__ void calcmap_cuda(int *xp_c, int *yp_c, int *wp_c, float *mxp_c, float *myp_c, float *h_c, int width, int height){
 	//int cuda_index = blockDim.x*blockIdx.x + threadIdx.x;
 	int c = blockIdx.x*blockDim.x + threadIdx.x;
 	int r = blockIdx.y*blockDim.y + threadIdx.y;
 	// Check if within image bounds
-	if((c>=(*width))||(r>=(*height))) return;
-	int cuda_index = r*(*width)+c;
+	if((c>=(width))||(r>=(height))) return;
+	int cuda_index = r*(width)+c;
 	// First calculate the scale, for the X and Y must be devicd by the scale.
 	float w				= (h_c[2]*xp_c[cuda_index]+h_c[5]*yp_c[cuda_index]+h_c[8]*wp_c[cuda_index]);
 	// x/w
@@ -75,10 +74,10 @@ void calcmapping(Eigen::MatrixXf& Mx, Eigen::MatrixXf& My,  Eigen::Matrix3f& Hi,
 	std::cerr << "N_BLOCKS_MAX: " << N_BLOCKS_MAX << std::endl;
 	std::cerr << "N_THREADS_MAX:" << N_THREADS_MAX << std::endl;
 	#endif
-	#if(_CUDAFUNCS_TIMEIT)
-	gputimer watch;
-	watch.start();
-	#endif
+	//#if(_CUDAFUNCS_TIMEIT)
+	//gputimer watch;
+	//watch.start();
+	//#endif
 
 	//std::cerr << "Enter calcmapping." << std::endl;
 	// Calculate max x and y of image
@@ -132,9 +131,9 @@ void calcmapping(Eigen::MatrixXf& Mx, Eigen::MatrixXf& My,  Eigen::Matrix3f& Hi,
 	// Get pointers to data of mapping matrices
 	mxp = Mx.data();	// Mx is a pointer, thus child accessing with ->
 	myp = My.data();	// My is a pointer, thus child accessing with ->
-	#if(_CUDAFUNCS_TIMEIT)
-	watch.lap("Cuda prelims: ");
-	#endif
+	//#if(_CUDAFUNCS_TIMEIT)
+	//watch.lap("Cuda prelims: ");
+	//#endif
 	// Allocate space on device for device copies
 	cudaMalloc((void **)&xp_c,size_i);
 	cudaMalloc((void **)&yp_c,size_i);
@@ -142,44 +141,59 @@ void calcmapping(Eigen::MatrixXf& Mx, Eigen::MatrixXf& My,  Eigen::Matrix3f& Hi,
 	cudaMalloc((void **)&mxp_c,size_i);
 	cudaMalloc((void **)&myp_c,size_i);
 	cudaMalloc((void **)&h_c,size_h);
-	#if(_CUDAFUNCS_TIMEIT)
-	watch.lap("Allocate space on device: ");
-	#endif
+	//#if(_CUDAFUNCS_TIMEIT)
+	//watch.lap("Allocate space on device: ");
+	//#endif
 	// Copy inputs to device
-	cudaMemcpy(xp_c,	xp,	size_i,	cudaMemcpyHostToDevice);
-	cudaMemcpy(yp_c,	yp,	size_i,	cudaMemcpyHostToDevice);
-	cudaMemcpy(wp_c,	wp,	size_i,	cudaMemcpyHostToDevice);
-	cudaMemcpy(h_c,		hp,	size_h,	cudaMemcpyHostToDevice);
-	#if(_CUDAFUNCS_TIMEIT)
-	watch.lap("Copy mem host -> device: ");
-	#endif
+	SAFE_CALL(cudaMemcpy(xp_c,	xp,	size_i,	cudaMemcpyHostToDevice),"CUDA Copy Host To Device Fail");
+	SAFE_CALL(cudaMemcpy(yp_c,	yp,	size_i,	cudaMemcpyHostToDevice),"CUDA Copy Host To Device Fail");
+	SAFE_CALL(cudaMemcpy(wp_c,	wp,	size_i,	cudaMemcpyHostToDevice),"CUDA Copy Host To Device Fail");
+	SAFE_CALL(cudaMemcpy(h_c,	hp,	size_h,	cudaMemcpyHostToDevice),"CUDA Copy Host To Device Fail");
+	//#if(_CUDAFUNCS_TIMEIT)
+	//watch.lap("Copy mem host -> device: ");
+	//#endif
 	// Execute combine on cpu
 	//std::cerr << "Execute device code." << std::endl;
 	//calcmap_cuda<<<n_blocks,n_threads>>>(xp_c, yp_c, wp_c, mxp_c, myp_c, h_c);
 	// Launch 2D grid
 	// Source: http://www.informit.com/articles/article.aspx?p=2455391
-	int TX = 32;
-	int TY = 32;
-	dim3 blockSize(TX, TY);
-	//int bx = (wmax+ blockSize.x-1)/blockSize.x;
-	//int by = (hmax+ blockSize.y-1)/blockSize.y;
-	int bx = (wmax+ TX - 1)/TX;
-	int by = (wmax+ TY - 1)/TY; // Correct? or hmax??
-	dim3 gridSize = dim3 (bx, by);
-	calcmap_cuda<<<gridSize, blockSize>>>(xp_c, yp_c, wp_c, mxp_c, myp_c, h_c, &wmax, &hmax);
-	#if(_CUDAFUNCS_TIMEIT)
-	watch.lap("Execute device code: ");
-	#endif
+//	int TX = 32;
+//	int TY = 32;
+//	dim3 blockSize(TX, TY);
+//	//int bx = (wmax+ blockSize.x-1)/blockSize.x;
+//	//int by = (hmax+ blockSize.y-1)/blockSize.y;
+//	int bx = (wmax+ TX - 1)/TX;
+//	int by = (wmax+ TY - 1)/TY; // Correct? or hmax??
+//	dim3 gridSize = dim3 (bx, by);
+//	
+//	calcmap_cuda<<<gridSize, blockSize>>>(xp_c, yp_c, wp_c, mxp_c, myp_c, h_c, &wmax, &hmax);
+	
+	// Specify block size
+	const dim3 block(16,16);
+	// Calculate grid size to cover whole image
+	const dim3 grid((wmax + block.x-1)/block.x, (hmax + block.y-1)/block.y);
+	calcmap_cuda<<<grid, block>>>(xp_c, yp_c, wp_c, mxp_c, myp_c, h_c, wmax, hmax);
+	// Synchronize to check for kernel launch errors
+	SAFE_CALL(cudaDeviceSynchronize(),"Kernel Launch Failed");
+	//#if(_CUDAFUNCS_TIMEIT)
+	//watch.lap("Execute device code: ");
+	//#endif
 	// copy results to host
 	//std::cerr << "Copy memory from device to host." << std::endl;
-	cudaMemcpy(mxp, mxp_c, size_f, cudaMemcpyDeviceToHost);
-	cudaMemcpy(myp, myp_c, size_f, cudaMemcpyDeviceToHost);
-	#if(_CUDAFUNCS_TIMEIT)
-	watch.lap("Copy mem device -> host: ");
-	#endif
+	SAFE_CALL(cudaMemcpy(mxp, mxp_c, size_f, cudaMemcpyDeviceToHost),"CUDA Copy Device To Host Fail");
+	SAFE_CALL(cudaMemcpy(myp, myp_c, size_f, cudaMemcpyDeviceToHost),"CUDA Copy Device To Host Fail");
+	//#if(_CUDAFUNCS_TIMEIT)
+	//watch.lap("Copy mem device -> host: ");
+	//#endif
 	// cleanup device memory
-	cudaFree(mxp_c);	cudaFree(myp_c),	cudaFree(h_c);
-	cudaFree(xp_c);		cudaFree(yp_c);		cudaFree(wp_c);
+	//cudaFree(mxp_c);	cudaFree(myp_c),	cudaFree(h_c);
+	//cudaFree(xp_c);		cudaFree(yp_c);		cudaFree(wp_c);
+	SAFE_CALL(cudaFree(mxp_c) ,"CUDA Free Failed");
+	SAFE_CALL(cudaFree(myp_c) ,"CUDA Free Failed");
+	SAFE_CALL(cudaFree(xp_c) ,"CUDA Free Failed");
+	SAFE_CALL(cudaFree(yp_c) ,"CUDA Free Failed");
+	SAFE_CALL(cudaFree(wp_c) ,"CUDA Free Failed");
+	cudaDeviceReset();
 
 	#if(_CUDAFUNCS_DEBUG)
 	std::cerr << "### calcmapping <end> ###" << std::endl;
@@ -190,11 +204,11 @@ void calcmapping(Eigen::MatrixXf& Mx, Eigen::MatrixXf& My,  Eigen::Matrix3f& Hi,
 
 // ######################################################################################
 void copy(const cv::Mat& image_in, cv::Mat& image_out){
-//	int device = 0;
-//	SAFE_CALL(cudaSetDevice(device),"CUDA Set Device Failed");
-//	SAFE_CALL(cudaFree(0),"CUDA Free Failed");
-//	SAFE_CALL(cudaDeviceSynchronize(),"CUDA Device Sync Failed");
-//	SAFE_CALL(cudaThreadSynchronize(),"CUDA Thread Sync Failed");
+	int device = 0;
+	SAFE_CALL(cudaSetDevice(device),"CUDA Set Device Failed");
+	SAFE_CALL(cudaFree(0),"CUDA Free Failed");
+	SAFE_CALL(cudaDeviceSynchronize(),"CUDA Device Sync Failed");
+	SAFE_CALL(cudaThreadSynchronize(),"CUDA Thread Sync Failed");
 
 	#if(_CUDAFUNCS_DEBUG)
 	std::cerr << "### domapping <start> ###" << std::endl;
@@ -245,6 +259,7 @@ void copy(const cv::Mat& image_in, cv::Mat& image_out){
 	// Free memory
 	SAFE_CALL(cudaFree(d_input) ,"CUDA Free Failed");
 	SAFE_CALL(cudaFree(d_output),"CUDA Free Failed");
+	cudaDeviceReset();
 }
 
 // ######################################################################################
@@ -433,9 +448,9 @@ void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixX
 //#	//cudaFree(mxp_c);	cudaFree(myp_c);	cudaFree(im_in_c); cudaFree(im_out_c);
 //#	//cudaFree(im_in_c);
 //#
-	#if(_CUDAFUNCS_TIMEIT)
-	watch.stop();
-	#endif
+	//#if(_CUDAFUNCS_TIMEIT)
+	//watch.stop();
+	//#endif
 	#if(_CUDAFUNCS_DEBUG)
 	std::cerr << "### domapping <end> ###" << std::endl;
 	#endif

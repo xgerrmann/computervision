@@ -3,7 +3,8 @@
 // script based on: http://math.stackexchange.com/questions/494238/how-to-compute-homography-matrix-h-from-corresponding-points-2d-2d-planar-homog/1886060#1886060
 
 int main(){
-	cv::Mat image_in = cv::imread("image.jpg", CV_LOAD_IMAGE_COLOR);
+	cv::Mat image_in = cv::imread(default_image, CV_LOAD_IMAGE_COLOR);
+	//cv::Mat image_in = cv::imread("image.jpg", CV_LOAD_IMAGE_COLOR);
 	std::string windowname	= "Original image";
 	//cv::namedWindow(windowname);
 	
@@ -31,12 +32,13 @@ int main(){
 	//gputimer watch;
 	//watch.start();
 	cv::Mat image_out(height_screen,width_screen,CV_8UC3);
-	cv::Mat image_out_test(image_in.rows,image_in.cols,CV_8UC3);
-	hom(image_in, image_out_test, transformations, width_screen, height_screen);
+	//cv::Mat image_out_test(image_in.rows,image_in.cols,CV_8UC3);
+	//hom(image_in, image_out_test, transformations, width_screen, height_screen);
+	hom(image_in, image_out, transformations, width_screen, height_screen);
 	//copy(image_in, image_out_test);
 	
 	cv::imshow("input", image_in);
-	cv::imshow("output",image_out_test);
+	cv::imshow("output",image_out);
 	cv::waitKey();
 	//watch.stop();
 	//std::cerr << "Finished, only need to show." << std::endl;
