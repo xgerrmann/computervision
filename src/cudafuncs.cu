@@ -27,7 +27,7 @@ __global__ void calcmap_cuda(int *xp_c, int *yp_c, int *wp_c, float *mxp_c, floa
 	myp_c[cuda_index]	= (h_c[1]*xp_c[cuda_index]+h_c[4]*yp_c[cuda_index]+h_c[7]*wp_c[cuda_index])/w;
 }
 
-__global__ void domap_cuda(uchar *image_out, uchar *image_in, float *xp_c, float *yp_c, int *width, int *height){
+__global__ void domap_cuda(unsigned char *image_out, unsigned char *image_in, float *xp_c, float *yp_c, int *width, int *height){
 	int c = blockIdx.x*blockDim.x + threadIdx.x;
 	int r = blockIdx.y*blockDim.y + threadIdx.y;
 	// Check if within image bounds
@@ -37,8 +37,8 @@ __global__ void domap_cuda(uchar *image_out, uchar *image_in, float *xp_c, float
 	image_out[cuda_index] = 90;
 }
 
-__global__ void copy_cuda(unsigned char* input,
-							unsigned char* output,
+__global__ void copy_cuda(unsigned char *input,
+							unsigned char *output,
 							int width,
 							int height,
 							int step_in,
@@ -208,11 +208,11 @@ void calcmapping(Eigen::MatrixXf& Mx, Eigen::MatrixXf& My,  Eigen::Matrix3f& Hi,
 void copy(const cv::Mat& image_in, cv::Mat& image_out){
 // This function uploads the input image onto the device (GPU) and downloads it to the
 // output image. // TODO: do 2d upload and download for less data transfer.
-	int device = 0;
-	SAFE_CALL(cudaSetDevice(device),"CUDA Set Device Failed");
-	SAFE_CALL(cudaFree(0),"CUDA Free Failed");
-	SAFE_CALL(cudaDeviceSynchronize(),"CUDA Device Sync Failed");
-	SAFE_CALL(cudaThreadSynchronize(),"CUDA Thread Sync Failed");
+	//int device = 0;
+	//SAFE_CALL(cudaSetDevice(device),"CUDA Set Device Failed");
+	//SAFE_CALL(cudaFree(0),"CUDA Free Failed");
+	//SAFE_CALL(cudaDeviceSynchronize(),"CUDA Device Sync Failed");
+	//SAFE_CALL(cudaThreadSynchronize(),"CUDA Thread Sync Failed");
 
 	#if(_CUDAFUNCS_DEBUG)
 	std::cerr << "### domapping <start> ###" << std::endl;
@@ -249,12 +249,11 @@ void copy(const cv::Mat& image_in, cv::Mat& image_out){
 	
 	// Launch kernel
 	copy_cuda<<<grid,block>>>(d_input,
-							d_output,
-							image_in.cols,
-							image_in.rows,
-							image_in.step,
-							image_out.step);
-	// ??TODO: see other types: http://horacio9573.no-ip.org/cuda/group__CUDART__MEMORY_g17f3a55e8c9aef5f90b67cdf22851375.html
+								d_output,
+								image_in.cols,
+								image_in.rows,
+								image_in.step,
+								image_out.step);
 	// Synchronize to check for kernel launch errors
 	SAFE_CALL(cudaDeviceSynchronize(),"Kernel Launch Failed");
 	
@@ -264,195 +263,71 @@ void copy(const cv::Mat& image_in, cv::Mat& image_out){
 	// Free memory
 	SAFE_CALL(cudaFree(d_input) ,"CUDA Free Failed");
 	SAFE_CALL(cudaFree(d_output),"CUDA Free Failed");
-	cudaDeviceReset();
+	//cudaDeviceReset();
 }
 
 // ######################################################################################
-void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixXf *Mx, Eigen::MatrixXf *My){
+void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixXf& Mx, Eigen::MatrixXf& My){
 // domapping
 // Function that performs the actual mapping
 // d_ stands for device	(gpu)
 // h_ stands for host	(cpu)
 
-	const cv::Mat image_in = cv::imread("media/50x50.png",CV_LOAD_IMAGE_COLOR);
 	#if(_CUDAFUNCS_DEBUG)
 	std::cerr << "### domapping <start> ###" << std::endl;
 	#endif
-	copy(image_input,image_output);
-	// create output image space on host
-//##	//const int input_bytes	= image_in.step*image_in.rows;
-//##	//const int output_bytes	= input_out.step*input_out.rows;
-//##	const int input_bytes	= image_in.rows*image_in.step  ;
-//##	const int output_bytes	= input_out.rows*input_out.step;
-//##	std::cerr	<< "Rows input:           " << image_in.rows				<< std::endl;
-//##	std::cerr	<< "Cols input:           " << image_in.cols 				<< std::endl;
-//##	std::cerr	<< "Type input:           " << image_in.type()			<< std::endl;
-//##	std::cerr	<< "input continuous:     " << image_in.isContinuous()	<< std::endl;
-//##	std::cerr	<< "Step input:           " << image_in.step				<< std::endl;
-//##	std::cerr	<< "Rows input_out:       " << input_out.rows				<< std::endl;
-//##	std::cerr	<< "Cols input_out:       " << input_out.cols				<< std::endl;
-//##	std::cerr	<< "Type input_out:       " << input_out.type()			<< std::endl;
-//##	std::cerr	<< "input_out continuous: " << input_out.isContinuous()	<< std::endl;
-//##	std::cerr	<< "Step input_out:       " << input_out.step				<< std::endl;
-//##	unsigned char *d_input, *d_output;
-//##	// TODO: load image here !! 
-//##	SAFE_CALL(cudaMalloc<unsigned char>(&d_input,	input_bytes),	"CUDA Malloc input Failed");
-//##	SAFE_CALL(cudaMalloc<unsigned char>(&d_output,	output_bytes) ,	"CUDA Malloc output Failed");
-//##	//SAFE_CALL(cudaMalloc((void**)&d_input,	input_bytes) ,"CUDA Malloc input Failed");
-//##	//SAFE_CALL(cudaMalloc((void**)&d_output,	output_bytes),"CUDA Malloc ouput Failed");
-//##
-//##	// Copy image_input to device
-//##	SAFE_CALL(cudaMemcpy(d_input, image_in.ptr(), input_bytes, cudaMemcpyHostToDevice), "CUDA Memcpy Host To Device Failed");
-//##
-//##	const dim3 block(16,16);
-//##	//const dim3 block(32,32);
-//##	//const dim3 block(64,64);
-//##	//const dim3 grid(ceil(float(image_in.cols + block.x-1)/float(block.x)), ceil(float(image_in.rows + block.y-1)/float(block.y)));
-//##	const dim3 grid(ceil((image_in.cols + block.x-1)/block.x), ceil((image_in.rows + block.y-1)/block.y));
-//##	// TODO: inspect grid
-//##	//std::cerr << ceil((image_in.cols + block.x-1)/block.x) <<std::endl;
-//##	//std::cerr << ceil((image_in.rows + block.y-1)/block.y) <<std::endl;
-//##	copy_cuda<<<grid,block>>>(d_input,
-//##							d_output,
-//##							image_in.step,
-//##							input_out.step,
-//##							image_in.cols,
-//##							image_in.rows);
-//##	SAFE_CALL(cudaDeviceSynchronize(),"Kernel Launch Failed");
-//##	SAFE_CALL(cudaThreadSynchronize(),"CUDA Thread Sync Failed");
-//##	// TODO: see other types: http://horacio9573.no-ip.org/cuda/group__CUDART__MEMORY_g17f3a55e8c9aef5f90b67cdf22851375.html
-//##	// Retrieve image_input from device
-//##
-//##	SAFE_CALL(cudaMemcpy(input_out.ptr(), d_output, output_bytes, cudaMemcpyDeviceToHost), "CUDA Memcpy Device To Host Failed");
-//##	SAFE_CALL(cudaDeviceSynchronize(),"CUDA Device Sync Failed");
-//##	SAFE_CALL(cudaThreadSynchronize(),"CUDA Thread Sync Failed");
-//##	// Free memory
-//##	SAFE_CALL(cudaFree(d_input) ,"CUDA Free Failed");
-//##	SAFE_CALL(cudaFree(d_output),"CUDA Free Failed");
-//##	std::cerr << "Show Image." << std::endl;
-//##	cv::imshow("image_output",input_out);
-//##	cv::waitKey(0);
-//##	std::cerr << "Image shown." << std::endl;
-//##//	#if(_CUDAFUNCS_TIMEIT)
-//##//	gputimer watch;
-//##//	watch.start();
-//##//	#endif
-//##//	// TODO: inputmage dimensions and Mx and My not correpsonding when rotations and translations are zero.	 
-//##	int width_mx	= Mx->cols();
-//##	int height_mx	= Mx->rows();
-//##	int width_my	= My->cols();
-//##	int height_my	= My->rows();
-//##	int width_in	= image_in.cols;
-//##	int height_in	= image_in.rows;
-//##	int width_out	= image_output.cols;
-//##	int height_out	= image_output.rows;
-//##	int N_m			= width_mx*height_mx;
-//##	int N_in		= width_in*height_in;
-//##	int N_out		= width_out*height_out;
-//##	int channels	= image_in.channels();
-//##	// Determine size of memory for each input and output
-//##	int size_m	= N_m*sizeof(float);			// size of Mx and My (one channel)
-//##	int size_in	= N_in*sizeof(uchar)*channels;	// size of image_in	 (three channels)
-//##	int size_out= N_out*sizeof(uchar)*channels;	// size of image_out (three channels)
-//##	#if(_CUDAFUNCS_DEBUG)
-//##	std::cerr << "Width_mx:      " << width_mx		<< std::endl;
-//##	std::cerr << "Height_mx:     " << height_mx		<< std::endl;
-//##	std::cerr << "Width_my:      " << width_my		<< std::endl;
-//##	std::cerr << "Height_my:     " << height_my		<< std::endl;
-//##	std::cerr << "Width_in:      " << width_in		<< std::endl;
-//##	std::cerr << "Height_in:     " << height_in		<< std::endl;
-//##	std::cerr << "Width_out:     " << width_out		<< std::endl;
-//##	std::cerr << "Height_out:    " << height_out	<< std::endl;
-//##	std::cerr << "Channels:      " << channels		<< std::endl;
-//##	std::cerr << "size_m:        " << size_m		<< std::endl;
-//##	std::cerr << "size_in:       " << size_in		<< std::endl;
-//##	std::cerr << "size_out:      " << size_out		<< std::endl;
-//##	std::cerr << "sizeof(uchar): " << sizeof(uchar)	<< std::endl;
-//##	std::cerr << "sizeof(cv::CV_8U): " << sizeof(CV_8U)	<< std::endl;
-//##	std::cerr << "sizeof(float): " << sizeof(float)	<< std::endl;
-//##	std::cerr << "type image_in: " << image_in->type() << std::endl;
-//##	std::cerr << "type image_out:" << image_out->type() << std::endl;
-//##	#endif
-
-	// TODO, keep Mx and My on CUDA device?
-	// Create pointers
-	//float *mxp, *myp, *mxp_c, *myp_c;
-	//uchar *im_out_c, *im_in_c, *im_in, *im_out;
-	// Get pointers to data of mapping matrices
-	//mxp		= Mx->data();		// Mx is a pointer, thus child accessing with ->
-	//myp		= My->data();		// My is a pointer, thus child accessing with ->
-	////im_in	= image_in->data;	// Get pointer from cv::Mat
-	//im_out	= image_out->data;	// Get pointer fomr cv::Mat
-	////im_in	= image_in->ptr(0);	// Get pointer from cv::Mat
-	////im_out	= image_out->ptr(0);	// Get pointer fomr cv::Mat
-	//std::cerr << "sizeof(im_in): "	<< sizeof(im_in[0])	<< std::endl;
-	//std::cerr << "sizeof(im_out): "	<< sizeof(im_out[0])	<< std::endl;
+	//const cv::Mat image_in = cv::imread("media/50x50.png",CV_LOAD_IMAGE_COLOR);
+	//copy(image_input,image_output);
 	
-	// Allocate space on device for device copies
-	//cudaMalloc((void **)&mxp_c,		size_m);
-	//cudaMalloc((void **)&myp_c,		size_m);
-	//cudaMalloc((void **)&im_in_c,	size_in);
-	//cudaMalloc((void **)&im_out_c,	size_out);
-	// Copy inputs to device
-	//cudaMemcpy(mxp_c,	mxp,	size_m,		cudaMemcpyHostToDevice);
-	//cudaMemcpy(myp_c,	myp,	size_m,		cudaMemcpyHostToDevice);
-	//cudaMemcpy(im_in_c,	im_in,	size_in,	cudaMemcpyHostToDevice);
-//#	std::cerr << "Make GpuMat." << std::endl;
-//#	cv::cuda::GpuMat image_in_c;
-//#	std::cerr << "Upload Image." << std::endl;
-//#	image_in_c.upload(*image_in);
-	//uchar *image_in_c;
-	//cudaMalloc((void **)&im_in_c,	size_in);
+	// Determine size in bytes of data
+	const int inputBytes	= image_input.step*image_input.rows;	// sizeof(uchar) = 1
+	const int outputBytes	= image_output.step*image_output.rows;	// sizeof(uchar) = 1
+	int N					= Mx.rows()*My.cols();	// number of pixels
+	const int mxBytes		= N*sizeof(float);
+	const int myBytes		= N*sizeof(float);
 
-	//std::cerr << "Data host -> device." << std::endl;
-	//cudaMemcpy2D(image_in_c.data, image_in_c.step, image_in->data, image_in->step, image_in->cols*image_in->elemSize(), image_in->rows,	cudaMemcpyHostToDevice);
+	// Create pointers for device data
+	unsigned char *d_input, *d_output;
+	float *d_mx, *d_my;
+	SAFE_CALL(cudaMalloc<unsigned char>(&d_input,	inputBytes),	"CUDA Malloc input Failed");
+	SAFE_CALL(cudaMalloc<unsigned char>(&d_output,	outputBytes) ,	"CUDA Malloc output Failed");
+	SAFE_CALL(cudaMalloc<float>(&d_mx,	mxBytes),	"CUDA Malloc input Failed");
+	SAFE_CALL(cudaMalloc<float>(&d_my,	myBytes),	"CUDA Malloc output Failed");
 
-//	// Launch 2D grid
-//	// Source: http://www.informit.com/articles/article.aspx?p=2455391
-//	int TX = 32;
-//	int TY = 32;
-//	dim3 blockSize(TX, TY);
-//	//int bx = (wmax+ blockSize.x-1)/blockSize.x;
-//	//int by = (hmax+ blockSize.y-1)/blockSize.y;
-//	int bx = (width_out+ TX - 1)/TX*channels;
-////	int by = (width_out+ TY - 1)/TY*channels;
-//	int by = (height_out+ TY - 1)/TY*channels;
-//	std::cerr << "bx: " << bx << ", by: " << by << std::endl;
-//	dim3 gridSize = dim3 (bx, by);
-//	//domap_cuda<<<gridSize, blockSize>>>(im_out_c, im_in_c, mxp_c, myp_c, &width_out, &height_out);
-//	#if(_CUDAFUNCS_TIMEIT)
-//	watch.lap("Execute mapping on device: ");
-//	#endif
-//
-//	// TODO compare pointers to data
-//	//std::cerr << "Pointer to host data:   " << im_in << std::endl;
-//	//std::cerr << "Pointer to device data: " << im_in_c << std::endl;
-//
-//	std::cerr << "type image_in: " << image_in->type() << std::endl;
-//	std::cerr << "Image in (zeros): "<<std::endl;
-//	image_in->setTo(0);
-//	for(int i = N_in*10; i < N_in; i++){
-//		std::cerr << int(im_in[i]) << std::endl;
-//	}
-//	std::cerr << "type image_in: " << image_in->type() << std::endl;
-//	// Get results back from host
-//	//cudaMemcpy(im_out,	im_out_c,	size_out,	cudaMemcpyDeviceToHost);
-//	//cudaMemcpy(im_in,	im_in_c,	size_in,	cudaMemcpyDeviceToHost);
-//	std::cerr << "Step: " << step << std::endl;
-//	//cudaMemcpy2D(im_in, 0, im_in_c, step, sizeof(uchar)*width_in, sizeof(uchar)*height_in,	cudaMemcpyDeviceToHost);
-//#	std::cerr << "data device -> host." << std::endl;
-//#	cudaMemcpy2D(image_in->data, image_in->step, image_in_c.data, image_in_c.step, image_in_c.cols*image_in_c.elemSize(), image_in_c.rows,	cudaMemcpyDeviceToHost);
-//#
-//#
-//#	// TODO: this does not work.
-//#	std::cerr << "Show images." << std::endl;
-//#	cv::imshow("im_in",*image_in);	// correct
-//#//	cv::imshow("im_out",*image_out);// incorrect
-//#	cv::waitKey(0);
-//#	// cleanup device memory
-//#	//cudaFree(mxp_c);	cudaFree(myp_c);	cudaFree(im_in_c); cudaFree(im_out_c);
-//#	//cudaFree(im_in_c);
-//#
+	// Copy to device
+	SAFE_CALL(cudaMemcpy(d_input, image_input.ptr(), inputBytes, cudaMemcpyHostToDevice), "CUDA Memcpy Host To Device Failed");
+	SAFE_CALL(cudaMemcpy(d_output, image_output.ptr(), outputBytes, cudaMemcpyHostToDevice), "CUDA Memcpy Host To Device Failed");
+	SAFE_CALL(cudaMemcpy(d_mx, Mx.data(), mxBytes, cudaMemcpyHostToDevice), "CUDA Memcpy Host To Device Failed");
+	SAFE_CALL(cudaMemcpy(d_my, My.data(), myBytes, cudaMemcpyHostToDevice), "CUDA Memcpy Host To Device Failed");
+	
+	// Specify block size
+	const dim3 block(16,16);
+	// Calculate grid size to cover whole image
+	// Operate only on region of interest
+	const int width		= Mx.cols();
+	const int height	= Mx.rows();
+	const dim3 grid((width + block.x-1)/block.x, (height + block.y-1)/block.y);
+	
+	// Launch kernel
+	copy_cuda<<<grid,block>>>(d_input,
+								d_output,
+								width,
+								height,
+								image_input.step,
+								image_output.step);
+	
+	// Synchronize to check for kernel launch errors
+	SAFE_CALL(cudaDeviceSynchronize(),"Kernel Launch Failed");
+	
+	// Retrieve image_input from device
+	SAFE_CALL(cudaMemcpy(image_output.ptr(), d_output, outputBytes, cudaMemcpyDeviceToHost), "CUDA Memcpy Device To Host Failed");
+	
+	// Free memory
+	SAFE_CALL(cudaFree(d_input) ,"CUDA Free Failed");
+	SAFE_CALL(cudaFree(d_output),"CUDA Free Failed");
+	SAFE_CALL(cudaFree(d_mx) ,"CUDA Free Failed");
+	SAFE_CALL(cudaFree(d_my) ,"CUDA Free Failed");
+	
 	//#if(_CUDAFUNCS_TIMEIT)
 	//watch.stop();
 	//#endif
