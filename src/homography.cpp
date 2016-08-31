@@ -31,7 +31,7 @@ int main(){
 	height_screen	= 1080;
 	//gputimer watch;
 	//watch.start();
-	cv::Mat image_out(height_screen,width_screen,CV_8UC3);
+	cv::Mat image_out = cv::Mat::zeros(height_screen,width_screen,CV_8UC3);
 	//cv::Mat image_out_test(image_in.rows,image_in.cols,CV_8UC3);
 	//hom(image_in, image_out_test, transformations, width_screen, height_screen);
 	hom(image_in, image_out, transformations, width_screen, height_screen);

@@ -48,13 +48,15 @@ __global__ void copy_cuda(unsigned char* input,
 	const int yIndex = blockIdx.y * blockDim.y + threadIdx.y;
 	if((xIndex<width) && (yIndex<height)){
 		//const int index = yIndex*step + (3*xIndex);
-		const int index			= yIndex*step_in	+ (3*xIndex);
+		const int index_in			= yIndex*step_in	+ (3*xIndex);
+		const int index_out			= yIndex*step_out	+ (3*xIndex);
 		//const int index_out			= yIndex*outputStep	+ (3*xIndex);
 		//const int index_out	= yIndex*step_out	+ (3*xIndex);
 		//const int index		= xIndex*step + yIndex;
-		output[index]	= input[index];
-		output[index+1]	= input[index+1];
-		output[index+2]	= input[index+2];
+		// make indexes correct
+		output[index_out]	= input[index_in];
+		output[index_out+1]	= input[index_in+1];
+		output[index_out+2]	= input[index_in+2];
 	}
 	// no return
 }
@@ -246,9 +248,9 @@ void copy(const cv::Mat& image_in, cv::Mat& image_out){
 	copy_cuda<<<grid,block>>>(d_input,
 							d_output,
 							image_in.cols,
-							image_out.cols,
+							image_in.rows,
 							image_in.step,
-							image_in.step);
+							image_out.step);
 	// ??TODO: see other types: http://horacio9573.no-ip.org/cuda/group__CUDART__MEMORY_g17f3a55e8c9aef5f90b67cdf22851375.html
 	// Synchronize to check for kernel launch errors
 	SAFE_CALL(cudaDeviceSynchronize(),"Kernel Launch Failed");
