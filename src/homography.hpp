@@ -20,7 +20,8 @@
 // ## Eigen
 //#include <Eigen/Dense>
 #include <eigen3/Eigen/Dense> // << changes
-#include <limits.h> // for max values of datatypes
+//#include <limits.h> // for max values of datatypes
+#include <float.h> // for max values of datatypes
 // ## Armadillo
 //#include <armadillo>
 // ## Attention tracker
@@ -39,6 +40,7 @@
 #ifdef _DEBUG_
 #define _HOM_DEBUG	1
 #endif
+#define _HOM_DEBUG	1
 
 typedef struct {
 	Eigen::Matrix3f Rx;
@@ -52,7 +54,7 @@ void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformatio
 Rxyz calcrotationmatrix(double rx, double ry, double rz);
 std::vector<float> calcrotations(Eigen::Matrix3f Rt);
 Eigen::Matrix3f calchomography(int width, int height, trans transformations);
-Eigen::Vector4i calccorners(Eigen::Matrix3f H, int height, int width);
+Eigen::Vector4f box_out(Eigen::Matrix3f H, int height, int width);
 
 const double PI		= 3.141592653589793;
 const double INF	= abs(1.0/0.0);
@@ -115,7 +117,7 @@ std::vector<float> calcrotations(Eigen::Matrix3f Rt){
 	return rots;
 }
 
-Eigen::Vector4i box_out(Eigen::Matrix3f H, int width_original, int height_original){
+Eigen::Vector4f box_out(Eigen::Matrix3f H, int width_original, int height_original){
 // This function calculates the locations in the x,y,z, coordinate system of the resulting
 // corner points. From this it determines the width and height of the outgoing image.
 
@@ -152,36 +154,35 @@ Eigen::Vector4i box_out(Eigen::Matrix3f H, int width_original, int height_origin
 	
 //	Projected corners are in pixels
 //	#print 'Projected corners:\n',corners_proj
-	int xmin_out, ymin_out, xmax_out, ymax_out;
-	float xtmp, ytmp;
-	xmin_out	= INT_MAX;
-	ymin_out	= INT_MAX;
-	xmax_out	= INT_MIN;
-	ymax_out	= INT_MIN;
+	float xmin_out, ymin_out, xmax_out, ymax_out, xtmp, ytmp;
+	xmin_out	= FLT_MAX;
+	ymin_out	= FLT_MAX;
+	xmax_out	= FLT_MIN;
+	ymax_out	= FLT_MIN;
 	for(int i = 0; i<4; i++){
 		xtmp = corners_proj.at(i)[0];
 		ytmp = corners_proj.at(i)[1];
-		if(int(round(xtmp)) < xmin_out)
-			xmin_out = int(round(xtmp));
-		if(int(round(xtmp)) > xmax_out)
-			xmax_out = int(round(xtmp));
-		if(int(round(ytmp)) < ymin_out)
-			ymin_out = int(round(ytmp));
-		if(int(round(ytmp)) > ymax_out)
-			ymax_out = int(round(ytmp));
+		if(xtmp < xmin_out)
+			xmin_out = xtmp;
+		if(xtmp > xmax_out)
+			xmax_out = xtmp;
+		if(ytmp < ymin_out)
+			ymin_out = ytmp;
+		if(ytmp > ymax_out)
+			ymax_out = ytmp;
 	}
 //	std::cerr << "xmin: \t" << xmin_out << "\n";
 //	std::cerr << "xmax: \t" << xmax_out << "\n";
 //	std::cerr << "ymin: \t" << ymin_out << "\n";
 //	std::cerr << "ymax: \t" << ymax_out << "\n";
-	int height_image_out, width_image_out;
+	float height_image_out, width_image_out;
 	height_image_out	= ymax_out - ymin_out + 1; // height_image_out is in pixels so +1
 	width_image_out		= xmax_out - xmin_out + 1; // width_image_out  is in pixels so +1
 //	std::cerr << "Height: " << height_out << "\n";
 //	std::cerr << "Width:  " << width_out << "\n";
 //	std::cerr << "xmin:   " << xmin_out << "\n";
 //	std::cerr << "ymin:   " << ymin_out << "\n";
-	Eigen::Vector4i rectangle;
+	Eigen::Vector4f rectangle;
 	rectangle << xmin_out,ymin_out,width_image_out,height_image_out;
 	return rectangle; // xmin, ymin, width, height
 }
@@ -332,104 +333,80 @@ Eigen::Matrix3f calchomography(int width, int height, trans transformations){
 	return H;
 }
 
-void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformations, int& width_max, int& height_max){
+void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformations, int& width_screen, int& height_screen){
 // Faster backward homography, mapping by masking and matrix indices method # 0.007 seconds
 	//#if(_HOM_TIMEIT)
 //	timer watch;
 //	watch.start();
 	//#endif
 
-	int height	= image_input.size().height;
-	int width	= image_input.size().width;
-	int channels= image_input.channels();
+	const int height_in	= image_input.size().height;
+	const int width_in	= image_input.size().width;
+	const int channels	= image_input.channels();
 	
 	Eigen::Matrix3f H, Hi;
 	//arma::Mat<float> H, Hi;	
-	H	= calchomography(width,height,transformations);
+	H	= calchomography(width_in,height_in,transformations);
 	//H	<<	1,0,0,
 	//		0,1,0,
 	//		0,0,1;
-	#if(_HOM_DEBUG)
-	std::cerr << "H:\n" << H << std::endl;
-	#endif
-//	std::cerr << width << std::endl;
-//	std::cerr << height << std::endl;
-	Eigen::Vector4i rectangle = box_out(H, width, height);
-	//std::cerr <<"Rectangle:\n"<< rectangle << "\n"; // rectangle is xmin, ymin, width, height
+//	Determine dimensions of output image
+	Eigen::Vector4f rectangle = box_out(H, width_in, height_in);
 	Hi	= H.inverse(); // correct
-//	std::cerr << "Hi:\n" << Hi << std::endl;
-	int xmin_out, ymin_out, xmax_out, ymax_out, width_out, height_out;
-	xmin_out	= rectangle[0];
-	ymin_out	= rectangle[1];
-	width_out	= rectangle[2];
-	height_out	= rectangle[3];
-	xmax_out	= xmin_out + width_out-1; // zero based, thus -1
-	ymax_out	= ymin_out + height_out-1;// zero based, thus -1
+	#if(_HOM_DEBUG)
+	std::cerr <<"Rectangle:\n"<< rectangle << "\n"; // rectangle is xmin, ymin, width, height
+	std::cerr << "H:\n" << H << std::endl;
+	std::cerr << "Hi:\n" << Hi << std::endl;
+	#endif
+	float xmin, ymin, xmax, ymax;
+	int width_out, height_out;
+	xmin		= rectangle[0];
+	ymin		= rectangle[1];
+	width_out	= int(ceil(rectangle[2])); // in pixels
+	height_out	= int(ceil(rectangle[3])); // in pixels
+	xmax		= xmin + width_out - 1; // zero based, thus -1
+	ymax		= ymin + height_out - 1;// zero based, thus -1
 // Determine size of matrices for performing the mapping.
 // Mapping must stay within max size.
 // Max size of mapping matrices is minimum of outgoing image dimensions and the max dimensions
-	int wmax = std::min(width_out, width_max);
-	int hmax = std::min(height_out, height_max);
+	int width_max = std::min(width_out, width_screen);
+	int height_max = std::min(height_out, height_screen);
 	#if(_HOM_DEBUG)
-	std::cerr << "xmin: " << xmin_out << std::endl;
-	std::cerr << "xmax: " << xmax_out << std::endl;
-	std::cerr << "ymin: " << ymin_out << std::endl;
-	std::cerr << "ymax: " << ymax_out << std::endl;
-	std::cerr << "width_out:  " << width_out << std::endl;
-	std::cerr << "height_out: " << height_out << std::endl;
-	std::cerr << "wmax: " << wmax << std::endl;
-	std::cerr << "hmax: " << hmax << std::endl;
+	std::cerr << "xmin:       "	<< xmin			<< std::endl;
+	std::cerr << "xmax:       " << xmax 		<< std::endl;
+	std::cerr << "ymin:       " << ymin 		<< std::endl;
+	std::cerr << "ymax:       " << ymax 		<< std::endl;
+	std::cerr << "width_out:  "	<< width_out	<< std::endl;
+	std::cerr << "height_out: "	<< height_out	<< std::endl;
+	std::cerr << "width_max:  "	<< width_max	<< std::endl;
+	std::cerr << "height_max: "	<< height_max	<< std::endl;
 	#endif
 	// Mapping is calculated on GPU
-	//arma::Cube<float> M = calcmapping(Eigen::Matrix3f Hi, int xmin_out, int ymin_out, int wmax, int hmax);
-	Eigen::MatrixXf Mx(hmax, wmax);// = Eigen::Matrix<float,hmax,wmax>::Zero();
-	Eigen::MatrixXf My(hmax, wmax);// = Eigen::Matrix<float,hmax,wmax>::Zero();
+	Eigen::MatrixXf Mx(height_max, width_max);// = Eigen::Matrix<float,hmax,wmax>::Zero();
+	Eigen::MatrixXf My(height_max, width_max);// = Eigen::Matrix<float,hmax,wmax>::Zero();
 	#if(_HOM_TIMEIT)
 	//watch.lap("Mapping Preliminaries");
 	#endif
-	calcmapping(Mx, My, Hi, xmin_out, ymin_out, wmax, hmax);
+	calcmapping(Mx, My, Hi, width_in, height_in, xmin, ymin);
 	#if(_HOM_TIMEIT)
 	//watch.lap("Calc Mapping");
 	#endif
 	//cv::imshow("image_in",*image_in);
-////##########################
-//	//	# construct empty image
-	//copy(image_input, image_output);
+	// Print mapping when debugggin is on
+	#if(_HOM_DEBUG)
+	int xtmp,ytmp,trans_x, trans_y;
+	for(int h = 0; h<height_max; h++){
+		for(int w = 0; w<width_max; w++){
+			// Change origin from center of image to upper right corner.
+			xtmp = Mx(h,w);
+			ytmp = My(h,w);
+			// Early continue if oudside max imaxe bounds.
+			if(xtmp<0 || xtmp >= width_out || ytmp<0 || ytmp>=height_out)	continue;
+			std::cerr<<"y: "<< ytmp <<" -> "<< h << " \t| " << "x: "<< xtmp <<" -> "<< w << std::endl;
+		}
+	}
+	#endif
 	domapping(image_input, image_output, Mx, My); // image in and image out are pointers
-////	//cv::Mat image_out	= cv::Mat::zeros(height_max, width_max,CV_8UC3); // 3 channel 8-bit character
-////		
-////	int xtmp,ytmp,trans_x, trans_y;
-////	trans_x = int(round(width/2));
-////	trans_y = int(round(height/2));
-////	for(int h = 0; h<hmax; h++){
-////		for(int w = 0; w<wmax; w++){
-////	//		std::cerr<<"h:"<<h<<std::endl;
-////	//		std::cerr<<"height_out:"<<height_out<<std::endl;
-////	//		std::cerr<<arma::size(Mi);
-////			// Change origin from center of image to upper right corner.
-////			xtmp = Mx(h,w)+trans_x;
-////			ytmp = My(h,w)+trans_y;
-////			if(xtmp<0 || xtmp >= width || ytmp<0 || ytmp>=height){
-////				//std::cerr<<"NOT x:"<<xtmp<<"->"<<w<<std::endl;
-////				//std::cerr<<"NOT y:"<<ytmp<<"->"<<h<<std::endl;
-////				continue;
-////			}
-////		//	std::cerr<<"x:"<<xtmp<<"->"<<w<<std::endl;
-////		//	std::cerr<<"y:"<<ytmp<<"->"<<h<<std::endl;
-////			//std::cerr<<"y:"<<h<<",x:"<<w<<",R:"<<int(image_arma(h,w,0))<<std::endl;
-////			//std::cerr<< "R:"<<int(image_arma(ytmp,xtmp,0)) << "==" << int(image_out_arma(h,w,0))<< std::endl;
-////		//	std::cerr<< int(image_arma(ytmp,xtmp,1)) << "==" << int(image_out_arma(h,w,1))<< std::endl;
-////		//	std::cerr<< int(image_arma(ytmp,xtmp,2)) << "==" << int(image_out_arma(h,w,2))<< std::endl;
-////			((uchar*)image_out.data)[(w+h*width_max)*3]		= ((uchar)image.data[(ytmp*width+xtmp)*3]) ;
-////			((uchar*)image_out.data)[(w+h*width_max)*3+1]	= ((uchar)image.data[(ytmp*width+xtmp)*3+1]) ;
-////			((uchar*)image_out.data)[(w+h*width_max)*3+2]	= ((uchar)image.data[(ytmp*width+xtmp)*3+2]) ;
-////		//	std::cerr << "Test";
-////		//	std::cerr<< int(image_arma(ytmp,xtmp,0)) << "==" << int(image_out_arma(h,w,0))<< std::endl;
-////		//	std::cerr<< int(image_arma(ytmp,xtmp,1)) << "==" << int(image_out_arma(h,w,1))<< std::endl;
-////		//	std::cerr<< int(image_arma(ytmp,xtmp,2)) << "==" << int(image_out_arma(h,w,2))<< std::endl;
-////		//  Values seem to be correct
-////		}
-////	}
 ////###################
 #if(_HOM_TIMEIT)
 	//watch.lap("Perform Mapping");

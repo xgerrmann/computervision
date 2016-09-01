@@ -33,7 +33,7 @@
 
 // ## Function Definitions
 static inline void _safe_cuda_call(cudaError err, const char* msg, const char* file_name, const int line_number);
-void calcmapping(Eigen::MatrixXf& Mx, Eigen::MatrixXf& My,  Eigen::Matrix3f& Hi, int xmin_out, int ymin_out, int wmax, int hmax);
+void calcmapping(Eigen::MatrixXf& Mx, Eigen::MatrixXf& My,  Eigen::Matrix3f& Hi, int width_in, int height_in, float xmin, float ymin);
 void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixXf& Mx, Eigen::MatrixXf& My);
 void copy(const cv::Mat& image_in, cv::Mat& image_out);
 

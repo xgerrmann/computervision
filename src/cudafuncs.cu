@@ -16,24 +16,31 @@ static inline void _safe_cuda_call(cudaError err, const char* msg, const char* f
 
 // CALCMAP_CUDA ##################################################################################
 // CALCMAP_CUDA ##################################################################################
-__global__ void calcmap_cuda(int *xp_c, int *yp_c, int *wp_c, float *mxp_c, float *myp_c, float *h_c, int width, int height){
-	//int cuda_index = blockDim.x*blockIdx.x + threadIdx.x;
+__global__ void calcmap_cuda(float *mxp_c, float *myp_c, float *h_c, int width_in, int height_in, int width_out, int height_out){
 	int c = blockIdx.x*blockDim.x + threadIdx.x;
 	int r = blockIdx.y*blockDim.y + threadIdx.y;
-	// Check if within image bounds
-	if((c>=(width))||(r>=(height))) return;
-	int cuda_index = r*(width)+c;
+	// Early return if outside image bounds
+	if((c>=(width_out))||(r>=(height_out))) return;
+	//int index_row_major = c+r*width_out;
+	int index_col_major = r+c*height_out;
+	//int cuda_index = r*(height_out)+c;
+	// Translation of image center here
+	//float t_x = (width_in-1)/2;
+	//float t_y = (height_in-1)/2;
+	// TODO: no need to transfer X and Y
 	// First calculate the scale, for the X and Y must be devicd by the scale.
-	float w				= (h_c[2]*xp_c[cuda_index]+h_c[5]*yp_c[cuda_index]+h_c[8]*wp_c[cuda_index]);
-	// x/w
-	mxp_c[cuda_index]	= (h_c[0]*xp_c[cuda_index]+h_c[3]*yp_c[cuda_index]+h_c[6]*wp_c[cuda_index])/w;
-	// y/w
-	myp_c[cuda_index]	= (h_c[1]*xp_c[cuda_index]+h_c[4]*yp_c[cuda_index]+h_c[7]*wp_c[cuda_index])/w;
+	//float w				=  h_c[2]*(xp_c[cuda_index]-t_x)+h_c[5]*(yp_c[cuda_index]-t_y)+h_c[8]; // original scale = 1, thus h_c[8]*1 is same as h_c[8]
+	//mxp_c[cuda_index]	= (h_c[0]*(xp_c[cuda_index]-t_x)+h_c[3]*(yp_c[cuda_index]-t_y)+h_c[6])/w;
+	//myp_c[cuda_index]	= (h_c[1]*(xp_c[cuda_index]-t_x)+h_c[4]*(yp_c[cuda_index]-t_y)+h_c[7])/w;
+//	mxp_c[index_row_major]	= xp_c[index_row_major];
+//	myp_c[index_row_major]	= yp_c[index_row_major];
+	mxp_c[index_col_major]	= c;
+	myp_c[index_col_major]	= r;
 }
 
 // DOMAP_CUDA ####################################################################################
 // DOMAP_CUDA ####################################################################################
-__global__ void domap_cuda(unsigned char *d_input,
+__global__ void domap_cuda(unsigned char  *d_input,
 							unsigned char *d_output,
 							float *d_mx,
 							float *d_my,
@@ -42,17 +49,33 @@ __global__ void domap_cuda(unsigned char *d_input,
 							int step_input,
 							int step_output)
 {
+// Width and height are the dimensions of the resulting mapped input image and may vary.
+// xIndex and yIndex correspond to the X and Y image-coordinates of the original image AFTER
+// mapping.
+	// transpose (+x, +y)
+	//int trans_x = int((width-1)/2+0.5); // +0.5, then cast to int. (same as round and then convert to int)
+	//int trans_y = int((height-1)/2+0.5); // -1 because image sizes are 1 px too large // TODO: fix
+	
 	int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
 	int yIndex = blockIdx.y * blockDim.y + threadIdx.y;
-	const int index_in		= yIndex*step_input	+ (3*xIndex);
-	// Perform mapping (now xout=xin, yout=yin)
-	xIndex *= 1;
-	yIndex *= 1;
-	const int index_out		= yIndex*step_output + (3*xIndex);
+	// Determine the index of the mapping matrices
+	//const int map_index = yIndex*width+xIndex;
+	const int map_index = xIndex*(height) + yIndex; // column major
 
-	d_output[index_out]		= (unsigned char) 90;
-	d_output[index_out+1]	= (unsigned char) 90;
-	d_output[index_out+2]	= (unsigned char) 90;
+	int x_tmp	= d_mx[map_index];
+	int y_tmp	= d_my[map_index];
+
+	// if mapped outside original image, then do not compute
+	if((x_tmp<0) || (x_tmp>=width-1) || (y_tmp<0) || (y_tmp>=height-1)){
+		return;
+	}
+	const int index_out		= yIndex*step_output + (3*xIndex);
+	// Perform mapping
+	const int index_in		= y_tmp*step_input + (3*x_tmp);
+
+	d_output[index_out]		= d_input[index_in];
+	d_output[index_out+1]	= d_input[index_in+1];
+	d_output[index_out+2]	= d_input[index_in+2];
 }
 
 // COPY_CUDA #####################################################################################
@@ -83,17 +106,21 @@ __global__ void copy_cuda(unsigned char *input,
 
 // CALCMAPPING  ##################################################################################
 // CALCMAPPING  ##################################################################################
-void calcmapping(Eigen::MatrixXf& Mx, Eigen::MatrixXf& My,  Eigen::Matrix3f& Hi, int xmin_out, int ymin_out, int wmax, int hmax){
+void calcmapping(Eigen::MatrixXf& Mx, Eigen::MatrixXf& My,  Eigen::Matrix3f& Hi, int width_in, int height_in, float xmin, float ymin){
 	#if(_CUDAFUNCS_DEBUG)
 	std::cerr << "### calcmapping <start> ###" << std::endl;
 	#endif
+	// Determine size of the resulting mapping
+	int height, width;
+	height	= Mx.rows();
+	width	= Mx.cols();
+	#if(_CUDAFUNCS_DEBUG)
 	// Get the properties of the GPU device, this will only be executed once.
 	static cudaDeviceProp cuda_properties;
 	static cudaError_t cuda_error= cudaGetDeviceProperties(&cuda_properties,0); // cuda properties of device 0
 	static int N_BLOCKS_MAX		= cuda_properties.maxThreadsPerBlock;	// x dimension
 	static int N_THREADS_MAX	= cuda_properties.maxGridSize[0];		// x dimension
 	static int N_PIXELS_MAX		= N_BLOCKS_MAX * N_THREADS_MAX;
-	#if(_CUDAFUNCS_DEBUG)
 	std::cerr << "N_BLOCKS_MAX: " << N_BLOCKS_MAX << std::endl;
 	std::cerr << "N_THREADS_MAX:" << N_THREADS_MAX << std::endl;
 	#endif
@@ -102,120 +129,64 @@ void calcmapping(Eigen::MatrixXf& Mx, Eigen::MatrixXf& My,  Eigen::Matrix3f& Hi,
 	//watch.start();
 	//#endif
 
-	//std::cerr << "Enter calcmapping." << std::endl;
-	// Calculate max x and y of image
-	int xmax,ymax;
-	xmax = xmin_out + wmax - 1;
-	ymax = ymin_out + hmax - 1;
-
-	// Prepare inputs for the device code
-	// STATIC because every loop this is the same
-	// Input are meshgrid MATLAB-like arrays of the X and Y coordinates of the pixels and the scale (=1)
-	arma::Mat<int> x = arma::linspace<arma::Row<int> >(xmin_out,xmax,wmax);
-	arma::Mat<int> X = arma::repmat(x,hmax,1);
-	arma::Mat<int> y = arma::linspace<arma::Col<int> >(ymin_out,ymax,hmax);
-	arma::Mat<int> Y = arma::repmat(y,1,wmax);
-	arma::Mat<int> W = arma::ones<arma::Mat<int> >(hmax,wmax);
-	
-	#if(_CUDAFUNCS_DEBUG)
-	//X.print("X:");
-	//Y.print("Y:");
-	//W.print("W:");
-	#endif
 	
 	// Determine data sizes
-	int N		= hmax*wmax;
+	int N		= height*width;
 	//std::cerr << hmax << "," << wmax << std::endl;
 	assert(N<N_PIXELS_MAX);// number of pixels must be smaller then the total number of threads (in the x dimension)
 	int size_i	= N*sizeof(int);
 	int size_f	= N*sizeof(float);
 	int size_h	= 9*sizeof(float); // H (in fact a 3x3 matrix) contains 9 float scalars.
 
-	// determine number of blocks and threads per block
-	//int n_blocks	= ceil(float(N)/float(N_THREADS_MAX));
-	//int n_threads	= ceil(float(N)/float(n_blocks));
-	//int n_threads	= N_THREADS_MAX;
-	//std::cerr << "n_blocks:  "<< n_blocks << std::endl;
-	//std::cerr << "n_threads: "<< n_threads << std::endl;
-
 	// Create pointers to host and device data
-	int		*xp, *yp, *wp, *xp_c, *yp_c, *wp_c;
+	//int		*xp, *yp, *xp_c, *yp_c;
 	float	*mxp, *myp, *hp, *mxp_c, *myp_c, *h_c;
 	
 	// Link the pointers to the corresponding data
-	xp = X.memptr(); // pointer to x matrix input data
-	yp = Y.memptr(); // pointer to y matrix input data
-	wp = W.memptr(); // pointer to w matrix input data
 	hp = Hi.data(); // Hi is a pointer to an eigen matrix
 	
-	// Number of rows and columns in Mx and My must be identical
-	// TODO: Actually this does not have to be the case!!
-	assert(Mx.rows() == My.rows() && Mx.cols() == My.cols());
 	// Get pointers to data of mapping matrices
 	mxp = Mx.data();	// Mx is a pointer, thus child accessing with ->
 	myp = My.data();	// My is a pointer, thus child accessing with ->
 	//#if(_CUDAFUNCS_TIMEIT)
 	//watch.lap("Cuda prelims: ");
 	//#endif
+	
 	// Allocate space on device for device copies
-	cudaMalloc((void **)&xp_c,size_i);
-	cudaMalloc((void **)&yp_c,size_i);
-	cudaMalloc((void **)&wp_c,size_i);
 	cudaMalloc((void **)&mxp_c,size_i);
 	cudaMalloc((void **)&myp_c,size_i);
 	cudaMalloc((void **)&h_c,size_h);
 	//#if(_CUDAFUNCS_TIMEIT)
 	//watch.lap("Allocate space on device: ");
 	//#endif
+	
 	// Copy inputs to device
-	SAFE_CALL(cudaMemcpy(xp_c,	xp,	size_i,	cudaMemcpyHostToDevice),"CUDA Copy Host To Device Fail");
-	SAFE_CALL(cudaMemcpy(yp_c,	yp,	size_i,	cudaMemcpyHostToDevice),"CUDA Copy Host To Device Fail");
-	SAFE_CALL(cudaMemcpy(wp_c,	wp,	size_i,	cudaMemcpyHostToDevice),"CUDA Copy Host To Device Fail");
 	SAFE_CALL(cudaMemcpy(h_c,	hp,	size_h,	cudaMemcpyHostToDevice),"CUDA Copy Host To Device Fail");
 	//#if(_CUDAFUNCS_TIMEIT)
 	//watch.lap("Copy mem host -> device: ");
 	//#endif
-	// Execute combine on cpu
-	//std::cerr << "Execute device code." << std::endl;
-	//calcmap_cuda<<<n_blocks,n_threads>>>(xp_c, yp_c, wp_c, mxp_c, myp_c, h_c);
-	// Launch 2D grid
-	// Source: http://www.informit.com/articles/article.aspx?p=2455391
-//	int TX = 32;
-//	int TY = 32;
-//	dim3 blockSize(TX, TY);
-//	//int bx = (wmax+ blockSize.x-1)/blockSize.x;
-//	//int by = (hmax+ blockSize.y-1)/blockSize.y;
-//	int bx = (wmax+ TX - 1)/TX;
-//	int by = (wmax+ TY - 1)/TY; // Correct? or hmax??
-//	dim3 gridSize = dim3 (bx, by);
-//	
-//	calcmap_cuda<<<gridSize, blockSize>>>(xp_c, yp_c, wp_c, mxp_c, myp_c, h_c, &wmax, &hmax);
 	
 	// Specify block size
 	const dim3 block(16,16);
 	// Calculate grid size to cover whole image
-	const dim3 grid((wmax + block.x-1)/block.x, (hmax + block.y-1)/block.y);
-	calcmap_cuda<<<grid, block>>>(xp_c, yp_c, wp_c, mxp_c, myp_c, h_c, wmax, hmax);
+	const dim3 grid((width + block.x-1)/block.x, (height + block.y-1)/block.y);
+	calcmap_cuda<<<grid, block>>>(mxp_c, myp_c, h_c, width_in, height_in, width, height);
 	// Synchronize to check for kernel launch errors
 	SAFE_CALL(cudaDeviceSynchronize(),"Kernel Launch Failed");
 	//#if(_CUDAFUNCS_TIMEIT)
 	//watch.lap("Execute device code: ");
 	//#endif
-	// copy results to host
-	//std::cerr << "Copy memory from device to host." << std::endl;
+	
+	// Copy results to host
 	SAFE_CALL(cudaMemcpy(mxp, mxp_c, size_f, cudaMemcpyDeviceToHost),"CUDA Copy Device To Host Fail");
 	SAFE_CALL(cudaMemcpy(myp, myp_c, size_f, cudaMemcpyDeviceToHost),"CUDA Copy Device To Host Fail");
 	//#if(_CUDAFUNCS_TIMEIT)
 	//watch.lap("Copy mem device -> host: ");
 	//#endif
-	// cleanup device memory
-	//cudaFree(mxp_c);	cudaFree(myp_c),	cudaFree(h_c);
-	//cudaFree(xp_c);		cudaFree(yp_c);		cudaFree(wp_c);
+	
+	// Cleanup device memory
 	SAFE_CALL(cudaFree(mxp_c) ,"CUDA Free Failed");
 	SAFE_CALL(cudaFree(myp_c) ,"CUDA Free Failed");
-	SAFE_CALL(cudaFree(xp_c) ,"CUDA Free Failed");
-	SAFE_CALL(cudaFree(yp_c) ,"CUDA Free Failed");
-	SAFE_CALL(cudaFree(wp_c) ,"CUDA Free Failed");
 	//cudaDeviceReset();
 
 	#if(_CUDAFUNCS_DEBUG)
@@ -305,6 +276,7 @@ void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixX
 	const int mxBytes		= N*sizeof(float);
 	const int myBytes		= N*sizeof(float);
 
+	std::cerr << "Mx rows: " << Mx.rows() << ", Mx cols: " << Mx.cols() << std::endl;
 	// Create pointers for device data
 	unsigned char *d_input, *d_output;
 	float *d_mx, *d_my;
@@ -314,26 +286,31 @@ void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixX
 	SAFE_CALL(cudaMalloc<float>(&d_my,	myBytes),	"CUDA Malloc output Failed");
 
 	// Copy to device
-	SAFE_CALL(cudaMemcpy(d_input, image_input.ptr(), inputBytes, cudaMemcpyHostToDevice), "CUDA Memcpy Host To Device Failed");
-	SAFE_CALL(cudaMemcpy(d_output, image_output.ptr(), outputBytes, cudaMemcpyHostToDevice), "CUDA Memcpy Host To Device Failed");
+	SAFE_CALL(cudaMemcpy(d_input,	image_input.ptr(),	inputBytes, cudaMemcpyHostToDevice), "CUDA Memcpy Host To Device Failed");
+	SAFE_CALL(cudaMemcpy(d_output,	image_output.ptr(),	outputBytes, cudaMemcpyHostToDevice), "CUDA Memcpy Host To Device Failed");
 	SAFE_CALL(cudaMemcpy(d_mx, Mx.data(), mxBytes, cudaMemcpyHostToDevice), "CUDA Memcpy Host To Device Failed");
 	SAFE_CALL(cudaMemcpy(d_my, My.data(), myBytes, cudaMemcpyHostToDevice), "CUDA Memcpy Host To Device Failed");
 	
 	// Specify block size
-	const dim3 block(16,16);
+	//const dim3 block(16,16);
+	const dim3 block(1,1);
 	// Calculate grid size to cover whole image
 	// Operate only on region of interest
-	const int width		= Mx.cols();
-	const int height	= Mx.rows();
-	const dim3 grid((width + block.x-1)/block.x, (height + block.y-1)/block.y);
+	const int width_out		= Mx.cols();
+	const int height_out	= Mx.rows();
+	const dim3 grid((width_out + block.x-1)/block.x, (height_out + block.y-1)/block.y);
 	
+	#if(_CUDAFUNCS_DEBUG)
+		std::cerr << "width:  " << width_out << std::endl;
+		std::cerr << "height: " << height_out << std::endl;
+	#endif
 	// Launch kernel
 	domap_cuda<<<grid,block>>>(d_input,
 								d_output,
 								d_mx,
 								d_my,
-								width,
-								height,
+								width_out,
+								height_out,
 								image_input.step,
 								image_output.step);
 	
