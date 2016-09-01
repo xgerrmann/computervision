@@ -21,21 +21,14 @@ __global__ void calcmap_cuda(float *mxp_c, float *myp_c, float *h_c, int width_i
 	int r = blockIdx.y*blockDim.y + threadIdx.y;
 	// Early return if outside image bounds
 	if((c>=(width_out))||(r>=(height_out))) return;
-	//int index_row_major = c+r*width_out;
 	int index_col_major = r+c*height_out;
-	//int cuda_index = r*(height_out)+c;
 	// Translation of image center here
-	//float t_x = (width_in-1)/2;
-	//float t_y = (height_in-1)/2;
-	// TODO: no need to transfer X and Y
+	float t_x = (width_in-1)/2;
+	float t_y = (height_in-1)/2;
 	// First calculate the scale, for the X and Y must be devicd by the scale.
-	//float w				=  h_c[2]*(xp_c[cuda_index]-t_x)+h_c[5]*(yp_c[cuda_index]-t_y)+h_c[8]; // original scale = 1, thus h_c[8]*1 is same as h_c[8]
-	//mxp_c[cuda_index]	= (h_c[0]*(xp_c[cuda_index]-t_x)+h_c[3]*(yp_c[cuda_index]-t_y)+h_c[6])/w;
-	//myp_c[cuda_index]	= (h_c[1]*(xp_c[cuda_index]-t_x)+h_c[4]*(yp_c[cuda_index]-t_y)+h_c[7])/w;
-//	mxp_c[index_row_major]	= xp_c[index_row_major];
-//	myp_c[index_row_major]	= yp_c[index_row_major];
-	mxp_c[index_col_major]	= c;
-	myp_c[index_col_major]	= r;
+	float w					=  h_c[2]*(c-t_x)+h_c[5]*(r-t_y)+h_c[8]; // original scale = 1, thus h_c[8]*1 is same as h_c[8]
+	mxp_c[index_col_major]	= (h_c[0]*(c-t_x)+h_c[3]*(r-t_y)+h_c[6])/w + t_x;//- t_x;
+	myp_c[index_col_major]	= (h_c[1]*(c-t_x)+h_c[4]*(r-t_y)+h_c[7])/w + t_y;//- t_y;
 }
 
 // DOMAP_CUDA ####################################################################################
@@ -66,7 +59,7 @@ __global__ void domap_cuda(unsigned char  *d_input,
 	int y_tmp	= d_my[map_index];
 
 	// if mapped outside original image, then do not compute
-	if((x_tmp<0) || (x_tmp>=width-1) || (y_tmp<0) || (y_tmp>=height-1)){
+	if((x_tmp<0) || (x_tmp>=width) || (y_tmp<0) || (y_tmp>=height)){
 		return;
 	}
 	const int index_out		= yIndex*step_output + (3*xIndex);
