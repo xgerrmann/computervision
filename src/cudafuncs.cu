@@ -21,20 +21,20 @@ __global__ void calcmap_cuda(int *d_mx,
 								float *hi_c,
 								int width_map_out,
 								int height_map_out,
-								float xmin_map_out,
-								float ymin_map_out)
+								float xc,
+								float yc)
 {
-	int c = blockIdx.x*blockDim.x + threadIdx.x;
-	int r = blockIdx.y*blockDim.y + threadIdx.y;
+	const int col = blockIdx.x*blockDim.x + threadIdx.x;
+	const int row = blockIdx.y*blockDim.y + threadIdx.y;
 	// Early return if outside image bounds
-	if((c>=width_map_out)||(r>=height_map_out)) return;
-	int index_col_major = r+c*height_map_out;
+	if((col>=width_map_out)||(row>=height_map_out)) return;
+	const int index_col_major = row+col*height_map_out;
 	// TODO: convert to int nicely
 	// X and Y pixel coordinates with the center of the image at (x=0, y=0), then move image back
 	// so that upper left pixel is (x=0, y=0)
-	float w					=  hi_c[2]*(c+xmin_map_out)+hi_c[5]*(r+ymin_map_out)+hi_c[8]; // original scale = 1, thus h_c[8]*1 is same as h_c[8]
-	d_mx[index_col_major]	= (hi_c[0]*(c+xmin_map_out)+hi_c[3]*(r+ymin_map_out)+hi_c[6])/w-xmin_map_out;
-	d_my[index_col_major]	= (hi_c[1]*(c+xmin_map_out)+hi_c[4]*(r+ymin_map_out)+hi_c[7])/w-ymin_map_out;
+	float w					=  hi_c[2]*(col-xc)+hi_c[5]*(row-yc)+hi_c[8]; // original scale = 1, thus h_c[8]*1 is same as h_c[8]
+	d_mx[index_col_major]	= int((hi_c[0]*(col-xc)+hi_c[3]*(row-yc)+hi_c[6])/w+xc+0.5); // +0.5 for decent rounding on conversion to int
+	d_my[index_col_major]	= int((hi_c[1]*(col-xc)+hi_c[4]*(row-yc)+hi_c[7])/w+yc+0.5); // +0.5 for decent rounding on conversion to int
 }
 
 // DOMAP_CUDA ####################################################################################
@@ -47,17 +47,14 @@ __global__ void domap_cuda(unsigned char  *d_input,
 							int height_input,
 							int width_output,
 							int height_output,
-							int x_map_min,
-							int y_map_min,
+							int xc,
+							int yc,
 							int step_input,
 							int step_output)
 {
 // Width and height are the dimensions of the resulting mapped input image and may vary.
 // xIndex and yIndex correspond to the X and Y image-coordinates of the original image AFTER
 // mapping.
-	// transpose (+x, +y)
-	//int trans_x = int((width-1)/2+0.5); // +0.5, then cast to int. (same as round and then convert to int)
-	//int trans_y = int((height-1)/2+0.5); // -1 because image sizes are 1 px too large // TODO: fix
 	
 	int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
 	int yIndex = blockIdx.y * blockDim.y + threadIdx.y;
@@ -69,14 +66,23 @@ __global__ void domap_cuda(unsigned char  *d_input,
 	int x_tmp	= d_mx[map_index];
 	int y_tmp	= d_my[map_index];
 
-	// if mapped outside original image, then do not compute
+	// if mapped outside original image, then do not compute.
 	if((x_tmp<0) || (x_tmp>=width_input) || (y_tmp<0) || (y_tmp>=height_input)){
 		return;
 	}
-	const int index_out		= (yIndex+y_map_min+height_output/2)*step_output + (3*(xIndex+x_map_min+width_output/2));
-	// Perform mapping
+	const int row_map_out	= round((float)yIndex-yc+height_output/2);	// (float) neccessary for indicating which round to use (double or float)
+	const int col_map_out	= round((float)(xIndex-xc+width_output/2));
+	const int iy_map_out	= row_map_out;	// (float) neccessary for indicating which round to use (double or float)
+	const int ix_map_out	= 3*col_map_out;
+
+	// Return if x or y pixel coordinate falls outside the screen. (Happens because of rounding)
+	if((col_map_out >= width_output) || (row_map_out>=height_output) || (col_map_out<0) || (row_map_out<0)) return;
+	
+	// determine indices
+	const int index_out		= iy_map_out*step_output + ix_map_out;
 	const int index_in		= y_tmp*step_input + (3*x_tmp);
 
+	// Perform mapping
 	d_output[index_out]		= d_input[index_in];
 	d_output[index_out+1]	= d_input[index_in+1];
 	d_output[index_out+2]	= d_input[index_in+2];
@@ -124,7 +130,7 @@ void calcmapping(Eigen::MatrixXi& Mx, Eigen::MatrixXi& My,  Eigen::Matrix3f& Hi,
 	static cudaError_t cuda_error= cudaGetDeviceProperties(&cuda_properties,0); // cuda properties of device 0
 	static int N_BLOCKS_MAX		= cuda_properties.maxThreadsPerBlock;	// x dimension
 	static int N_THREADS_MAX	= cuda_properties.maxGridSize[0];		// x dimension
-	static int N_PIXELS_MAX		= N_BLOCKS_MAX * N_THREADS_MAX;
+	//static int N_PIXELS_MAX		= N_BLOCKS_MAX * N_THREADS_MAX;
 	std::cerr << "N_BLOCKS_MAX: " << N_BLOCKS_MAX << std::endl;
 	std::cerr << "N_THREADS_MAX:" << N_THREADS_MAX << std::endl;
 	#endif
@@ -262,7 +268,7 @@ void copy(const cv::Mat& image_in, cv::Mat& image_out){
 
 // DOMAPPING ##################EE#################################################################
 // DOMAPPING ##################EE#################################################################
-void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixXi& Mx, Eigen::MatrixXi& My, float x_map_min, float y_map_min){
+void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixXi& Mx, Eigen::MatrixXi& My, float xc, float yc){
 // domapping
 // Function that performs the actual mapping
 // d_ stands for device	(gpu)
@@ -297,7 +303,7 @@ void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixX
 	
 	// Specify block size
 	//const dim3 block(16,16);
-	const dim3 block(1,1); //TODO: block, 16x16
+	const dim3 block(2,2); //TODO: block, 16x16
 	// Calculate grid size to cover whole image
 	// Operate only on region of interest
 	//const int width_out		= Mx.cols();
@@ -321,8 +327,8 @@ void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixX
 								height_in,
 								width_out,
 								height_out,
-								x_map_min,
-								y_map_min,
+								xc,
+								yc,
 								image_input.step,
 								image_output.step);
 	

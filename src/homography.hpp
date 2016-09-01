@@ -178,8 +178,8 @@ Eigen::Vector4f box_out(Eigen::Matrix3f H, int width_original, int height_origin
 	float height_image_out, width_image_out;
 	height_image_out	= ymax_out - ymin_out + 1; // height_image_out is in pixels so +1
 	width_image_out		= xmax_out - xmin_out + 1; // width_image_out  is in pixels so +1
-//	std::cerr << "Height: " << height_out << "\n";
-//	std::cerr << "Width:  " << width_out << "\n";
+//	std::cerr << "Height: " << height_image_out << "\n";
+//	std::cerr << "Width:  " << width_image_out << "\n";
 //	std::cerr << "xmin:   " << xmin_out << "\n";
 //	std::cerr << "ymin:   " << ymin_out << "\n";
 	Eigen::Vector4f rectangle;
@@ -358,19 +358,23 @@ void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformatio
 	std::cerr << "H:\n" << H << std::endl;
 	std::cerr << "Hi:\n" << Hi << std::endl;
 	#endif
-	float xmin, ymin, xmax, ymax;
+	float xmin, ymin, xmax, ymax, xc, yc; // xc and yc are the offsets of the center of the mapping from the upper left corner
 	int width_out, height_out;
 	xmin		= rectangle[0];
 	ymin		= rectangle[1];
 	width_out	= int(ceil(rectangle[2])); // in pixels
 	height_out	= int(ceil(rectangle[3])); // in pixels
-	xmax		= xmin + width_out - 1; // zero based, thus -1
-	ymax		= ymin + height_out - 1;// zero based, thus -1
+	xmax		= xmin + rectangle[2] - 1; // zero based, thus -1, use rectangle, because it is still float
+	ymax		= ymin + rectangle[3] - 1;// zero based, thus -1, use rectangle because float.
+	xc			= fabs(xmin); // x location of the center in the mapped image
+	yc			= fabs(ymax); // y location of the center in the mapped image
+	std::cerr << "xc: " << xc << std::endl;
+	std::cerr << "yc: " << yc << std::endl;
 // Determine size of matrices for performing the mapping.
 // Mapping must stay within max size.
 // Max size of mapping matrices is minimum of outgoing image dimensions and the max dimensions
-	int width_max = std::min(width_out, width_screen);
-	int height_max = std::min(height_out, height_screen);
+	int width_max	= std::min(width_out, width_screen);
+	int height_max	= std::min(height_out, height_screen);
 	#if(_HOM_DEBUG)
 	std::cerr << "xmin:       "	<< xmin			<< std::endl;
 	std::cerr << "xmax:       "	<< xmax 		<< std::endl;
@@ -387,7 +391,7 @@ void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformatio
 	#if(_HOM_TIMEIT)
 	//watch.lap("Mapping Preliminaries");
 	#endif
-	calcmapping(Mx, My, Hi, xmin, ymin);
+	calcmapping(Mx, My, Hi, xc, yc);
 	#if(_HOM_TIMEIT)
 	//watch.lap("Calc Mapping");
 	#endif
@@ -406,7 +410,7 @@ void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformatio
 		}
 	}
 	#endif
-	domapping(image_input, image_output, Mx, My, xmin, ymin); // image in and image out are pointers
+	domapping(image_input, image_output, Mx, My, xc, yc); // image in and image out are pointers
 ////###################
 #if(_HOM_TIMEIT)
 	//watch.lap("Perform Mapping");
