@@ -282,7 +282,9 @@ void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixX
 	// Determine size in bytes of data
 	const int inputBytes	= image_input.step*image_input.rows;	// sizeof(uchar) = 1
 	const int outputBytes	= image_output.step*image_output.rows;	// sizeof(uchar) = 1
-	int N					= Mx.rows()*My.cols();	// number of pixels
+	const int width_map		= Mx.cols();
+	const int height_map	= Mx.rows();
+	const int N				= width_map*height_map;	// number of pixels
 	const int mxBytes		= N*sizeof(int);
 	const int myBytes		= N*sizeof(int);
 
@@ -302,15 +304,15 @@ void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixX
 	SAFE_CALL(cudaMemcpy(d_my, My.data(), myBytes, cudaMemcpyHostToDevice), "CUDA Memcpy Host To Device Failed");
 	
 	// Specify block size
-	//const dim3 block(16,16);
-	const dim3 block(2,2); //TODO: block, 16x16
+	const dim3 block(16,16);
 	// Calculate grid size to cover whole image
 	// Operate only on region of interest
 	//const int width_out		= Mx.cols();
 	//const int height_out	= Mx.rows();
 	const int width_out		= image_output.size().width;
 	const int height_out	= image_output.size().height;
-	const dim3 grid((width_out + block.x-1)/block.x, (height_out + block.y-1)/block.y);
+	// TODO: adjust grid to mapping size
+	const dim3 grid((width_map + block.x-1)/block.x, (height_map + block.y-1)/block.y);
 	
 	#if(_CUDAFUNCS_DEBUG)
 		std::cerr << "width:  " << width_out << std::endl;
