@@ -192,7 +192,7 @@ Eigen::Matrix3f calchomography(int width, int height, trans transformations){
 // Coordinate system:
 // ^ y+
 // |
-// --->x
+// --->x+
 
 	// Width and height of an image must be > 0
 	assert(width>0&&height>0);
@@ -373,21 +373,21 @@ void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformatio
 	int height_max = std::min(height_out, height_screen);
 	#if(_HOM_DEBUG)
 	std::cerr << "xmin:       "	<< xmin			<< std::endl;
-	std::cerr << "xmax:       " << xmax 		<< std::endl;
-	std::cerr << "ymin:       " << ymin 		<< std::endl;
-	std::cerr << "ymax:       " << ymax 		<< std::endl;
+	std::cerr << "xmax:       "	<< xmax 		<< std::endl;
+	std::cerr << "ymin:       "	<< ymin 		<< std::endl;
+	std::cerr << "ymax:       "	<< ymax 		<< std::endl;
 	std::cerr << "width_out:  "	<< width_out	<< std::endl;
 	std::cerr << "height_out: "	<< height_out	<< std::endl;
 	std::cerr << "width_max:  "	<< width_max	<< std::endl;
 	std::cerr << "height_max: "	<< height_max	<< std::endl;
 	#endif
 	// Mapping is calculated on GPU
-	Eigen::MatrixXf Mx(height_max, width_max);// = Eigen::Matrix<float,hmax,wmax>::Zero();
-	Eigen::MatrixXf My(height_max, width_max);// = Eigen::Matrix<float,hmax,wmax>::Zero();
+	Eigen::MatrixXi Mx(height_max, width_max);// = Eigen::Matrix<float,hmax,wmax>::Zero();
+	Eigen::MatrixXi My(height_max, width_max);// = Eigen::Matrix<float,hmax,wmax>::Zero();
 	#if(_HOM_TIMEIT)
 	//watch.lap("Mapping Preliminaries");
 	#endif
-	calcmapping(Mx, My, Hi, width_in, height_in, xmin, ymin);
+	calcmapping(Mx, My, Hi, xmin, ymin);
 	#if(_HOM_TIMEIT)
 	//watch.lap("Calc Mapping");
 	#endif
@@ -395,8 +395,8 @@ void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformatio
 	// Print mapping when debugggin is on
 	#if(_HOM_DEBUG)
 	int xtmp,ytmp,trans_x, trans_y;
-	for(int h = 0; h<height_max; h++){
-		for(int w = 0; w<width_max; w++){
+	for(int h = 0; h<height_out; h++){
+		for(int w = 0; w<width_out; w++){
 			// Change origin from center of image to upper right corner.
 			xtmp = Mx(h,w);
 			ytmp = My(h,w);
@@ -406,7 +406,7 @@ void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformatio
 		}
 	}
 	#endif
-	domapping(image_input, image_output, Mx, My); // image in and image out are pointers
+	domapping(image_input, image_output, Mx, My, xmin, ymin); // image in and image out are pointers
 ////###################
 #if(_HOM_TIMEIT)
 	//watch.lap("Perform Mapping");

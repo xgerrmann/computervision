@@ -16,29 +16,39 @@ static inline void _safe_cuda_call(cudaError err, const char* msg, const char* f
 
 // CALCMAP_CUDA ##################################################################################
 // CALCMAP_CUDA ##################################################################################
-__global__ void calcmap_cuda(float *mxp_c, float *myp_c, float *h_c, int width_in, int height_in, int width_out, int height_out){
+__global__ void calcmap_cuda(int *d_mx,
+								int *d_my,
+								float *hi_c,
+								int width_map_out,
+								int height_map_out,
+								float xmin_map_out,
+								float ymin_map_out)
+{
 	int c = blockIdx.x*blockDim.x + threadIdx.x;
 	int r = blockIdx.y*blockDim.y + threadIdx.y;
 	// Early return if outside image bounds
-	if((c>=(width_out))||(r>=(height_out))) return;
-	int index_col_major = r+c*height_out;
-	// Translation of image center here
-	float t_x = (width_in-1)/2;
-	float t_y = (height_in-1)/2;
-	// First calculate the scale, for the X and Y must be devicd by the scale.
-	float w					=  h_c[2]*(c-t_x)+h_c[5]*(r-t_y)+h_c[8]; // original scale = 1, thus h_c[8]*1 is same as h_c[8]
-	mxp_c[index_col_major]	= (h_c[0]*(c-t_x)+h_c[3]*(r-t_y)+h_c[6])/w + t_x;//- t_x;
-	myp_c[index_col_major]	= (h_c[1]*(c-t_x)+h_c[4]*(r-t_y)+h_c[7])/w + t_y;//- t_y;
+	if((c>=width_map_out)||(r>=height_map_out)) return;
+	int index_col_major = r+c*height_map_out;
+	// TODO: convert to int nicely
+	// X and Y pixel coordinates with the center of the image at (x=0, y=0), then move image back
+	// so that upper left pixel is (x=0, y=0)
+	float w					=  hi_c[2]*(c+xmin_map_out)+hi_c[5]*(r+ymin_map_out)+hi_c[8]; // original scale = 1, thus h_c[8]*1 is same as h_c[8]
+	d_mx[index_col_major]	= (hi_c[0]*(c+xmin_map_out)+hi_c[3]*(r+ymin_map_out)+hi_c[6])/w-xmin_map_out;
+	d_my[index_col_major]	= (hi_c[1]*(c+xmin_map_out)+hi_c[4]*(r+ymin_map_out)+hi_c[7])/w-ymin_map_out;
 }
 
 // DOMAP_CUDA ####################################################################################
 // DOMAP_CUDA ####################################################################################
 __global__ void domap_cuda(unsigned char  *d_input,
 							unsigned char *d_output,
-							float *d_mx,
-							float *d_my,
-							int width,
-							int height,
+							int *d_mx,
+							int *d_my,
+							int width_input,
+							int height_input,
+							int width_output,
+							int height_output,
+							int x_map_min,
+							int y_map_min,
 							int step_input,
 							int step_output)
 {
@@ -53,16 +63,17 @@ __global__ void domap_cuda(unsigned char  *d_input,
 	int yIndex = blockIdx.y * blockDim.y + threadIdx.y;
 	// Determine the index of the mapping matrices
 	//const int map_index = yIndex*width+xIndex;
-	const int map_index = xIndex*(height) + yIndex; // column major
+	// TODO: heights and widths
+	const int map_index = yIndex + xIndex*(height_input); // column major
 
 	int x_tmp	= d_mx[map_index];
 	int y_tmp	= d_my[map_index];
 
 	// if mapped outside original image, then do not compute
-	if((x_tmp<0) || (x_tmp>=width) || (y_tmp<0) || (y_tmp>=height)){
+	if((x_tmp<0) || (x_tmp>=width_input) || (y_tmp<0) || (y_tmp>=height_input)){
 		return;
 	}
-	const int index_out		= yIndex*step_output + (3*xIndex);
+	const int index_out		= (yIndex+y_map_min+height_output/2)*step_output + (3*(xIndex+x_map_min+width_output/2));
 	// Perform mapping
 	const int index_in		= y_tmp*step_input + (3*x_tmp);
 
@@ -99,14 +110,14 @@ __global__ void copy_cuda(unsigned char *input,
 
 // CALCMAPPING  ##################################################################################
 // CALCMAPPING  ##################################################################################
-void calcmapping(Eigen::MatrixXf& Mx, Eigen::MatrixXf& My,  Eigen::Matrix3f& Hi, int width_in, int height_in, float xmin, float ymin){
+void calcmapping(Eigen::MatrixXi& Mx, Eigen::MatrixXi& My,  Eigen::Matrix3f& Hi, float x_map_min, float y_map_min){
 	#if(_CUDAFUNCS_DEBUG)
 	std::cerr << "### calcmapping <start> ###" << std::endl;
 	#endif
 	// Determine size of the resulting mapping
-	int height, width;
-	height	= Mx.rows();
-	width	= Mx.cols();
+	int height_map_out, width_map_out;
+	height_map_out	= Mx.rows();
+	width_map_out	= Mx.cols();
 	#if(_CUDAFUNCS_DEBUG)
 	// Get the properties of the GPU device, this will only be executed once.
 	static cudaDeviceProp cuda_properties;
@@ -124,37 +135,36 @@ void calcmapping(Eigen::MatrixXf& Mx, Eigen::MatrixXf& My,  Eigen::Matrix3f& Hi,
 
 	
 	// Determine data sizes
-	int N		= height*width;
+	int N		= height_map_out*width_map_out;
 	//std::cerr << hmax << "," << wmax << std::endl;
 	assert(N<N_PIXELS_MAX);// number of pixels must be smaller then the total number of threads (in the x dimension)
 	int size_i	= N*sizeof(int);
-	int size_f	= N*sizeof(float);
+	//int size_f	= N*sizeof(float);
 	int size_h	= 9*sizeof(float); // H (in fact a 3x3 matrix) contains 9 float scalars.
 
 	// Create pointers to host and device data
-	//int		*xp, *yp, *xp_c, *yp_c;
-	float	*mxp, *myp, *hp, *mxp_c, *myp_c, *h_c;
-	
+	float	*h_hi, *d_hi;
+	int		*d_mx, *d_my, *h_mx, *h_my;
 	// Link the pointers to the corresponding data
-	hp = Hi.data(); // Hi is a pointer to an eigen matrix
+	h_hi = Hi.data(); // Hi is a pointer to an eigen matrix
 	
 	// Get pointers to data of mapping matrices
-	mxp = Mx.data();	// Mx is a pointer, thus child accessing with ->
-	myp = My.data();	// My is a pointer, thus child accessing with ->
+	h_mx = Mx.data();	// Mx is a pointer, thus child accessing with ->
+	h_my = My.data();	// My is a pointer, thus child accessing with ->
 	//#if(_CUDAFUNCS_TIMEIT)
 	//watch.lap("Cuda prelims: ");
 	//#endif
 	
 	// Allocate space on device for device copies
-	cudaMalloc((void **)&mxp_c,size_i);
-	cudaMalloc((void **)&myp_c,size_i);
-	cudaMalloc((void **)&h_c,size_h);
+	cudaMalloc((void **)&d_mx,size_i);
+	cudaMalloc((void **)&d_my,size_i);
+	cudaMalloc((void **)&d_hi,size_h);
 	//#if(_CUDAFUNCS_TIMEIT)
 	//watch.lap("Allocate space on device: ");
 	//#endif
 	
 	// Copy inputs to device
-	SAFE_CALL(cudaMemcpy(h_c,	hp,	size_h,	cudaMemcpyHostToDevice),"CUDA Copy Host To Device Fail");
+	SAFE_CALL(cudaMemcpy(d_hi,	h_hi,	size_h,	cudaMemcpyHostToDevice),"CUDA Copy Host To Device Fail");
 	//#if(_CUDAFUNCS_TIMEIT)
 	//watch.lap("Copy mem host -> device: ");
 	//#endif
@@ -162,8 +172,8 @@ void calcmapping(Eigen::MatrixXf& Mx, Eigen::MatrixXf& My,  Eigen::Matrix3f& Hi,
 	// Specify block size
 	const dim3 block(16,16);
 	// Calculate grid size to cover whole image
-	const dim3 grid((width + block.x-1)/block.x, (height + block.y-1)/block.y);
-	calcmap_cuda<<<grid, block>>>(mxp_c, myp_c, h_c, width_in, height_in, width, height);
+	const dim3 grid((width_map_out + block.x-1)/block.x, (height_map_out + block.y-1)/block.y);
+	calcmap_cuda<<<grid, block>>>(d_mx, d_my, d_hi, width_map_out, height_map_out, x_map_min, y_map_min);
 	// Synchronize to check for kernel launch errors
 	SAFE_CALL(cudaDeviceSynchronize(),"Kernel Launch Failed");
 	//#if(_CUDAFUNCS_TIMEIT)
@@ -171,15 +181,16 @@ void calcmapping(Eigen::MatrixXf& Mx, Eigen::MatrixXf& My,  Eigen::Matrix3f& Hi,
 	//#endif
 	
 	// Copy results to host
-	SAFE_CALL(cudaMemcpy(mxp, mxp_c, size_f, cudaMemcpyDeviceToHost),"CUDA Copy Device To Host Fail");
-	SAFE_CALL(cudaMemcpy(myp, myp_c, size_f, cudaMemcpyDeviceToHost),"CUDA Copy Device To Host Fail");
+	SAFE_CALL(cudaMemcpy(h_mx, d_mx, size_i, cudaMemcpyDeviceToHost),"CUDA Copy Device To Host Fail");
+	SAFE_CALL(cudaMemcpy(h_my, d_my, size_i, cudaMemcpyDeviceToHost),"CUDA Copy Device To Host Fail");
 	//#if(_CUDAFUNCS_TIMEIT)
 	//watch.lap("Copy mem device -> host: ");
 	//#endif
 	
 	// Cleanup device memory
-	SAFE_CALL(cudaFree(mxp_c) ,"CUDA Free Failed");
-	SAFE_CALL(cudaFree(myp_c) ,"CUDA Free Failed");
+	SAFE_CALL(cudaFree(d_mx) ,"CUDA Free Failed");
+	SAFE_CALL(cudaFree(d_my) ,"CUDA Free Failed");
+	SAFE_CALL(cudaFree(d_hi) ,"CUDA Free Failed");
 	//cudaDeviceReset();
 
 	#if(_CUDAFUNCS_DEBUG)
@@ -251,7 +262,7 @@ void copy(const cv::Mat& image_in, cv::Mat& image_out){
 
 // DOMAPPING ##################EE#################################################################
 // DOMAPPING ##################EE#################################################################
-void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixXf& Mx, Eigen::MatrixXf& My){
+void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixXi& Mx, Eigen::MatrixXi& My, float x_map_min, float y_map_min){
 // domapping
 // Function that performs the actual mapping
 // d_ stands for device	(gpu)
@@ -266,17 +277,17 @@ void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixX
 	const int inputBytes	= image_input.step*image_input.rows;	// sizeof(uchar) = 1
 	const int outputBytes	= image_output.step*image_output.rows;	// sizeof(uchar) = 1
 	int N					= Mx.rows()*My.cols();	// number of pixels
-	const int mxBytes		= N*sizeof(float);
-	const int myBytes		= N*sizeof(float);
+	const int mxBytes		= N*sizeof(int);
+	const int myBytes		= N*sizeof(int);
 
 	std::cerr << "Mx rows: " << Mx.rows() << ", Mx cols: " << Mx.cols() << std::endl;
 	// Create pointers for device data
 	unsigned char *d_input, *d_output;
-	float *d_mx, *d_my;
+	int *d_mx, *d_my;
 	SAFE_CALL(cudaMalloc<unsigned char>(&d_input,	inputBytes),	"CUDA Malloc input Failed");
 	SAFE_CALL(cudaMalloc<unsigned char>(&d_output,	outputBytes) ,	"CUDA Malloc output Failed");
-	SAFE_CALL(cudaMalloc<float>(&d_mx,	mxBytes),	"CUDA Malloc input Failed");
-	SAFE_CALL(cudaMalloc<float>(&d_my,	myBytes),	"CUDA Malloc output Failed");
+	SAFE_CALL(cudaMalloc<int>(&d_mx,	mxBytes),	"CUDA Malloc input Failed");
+	SAFE_CALL(cudaMalloc<int>(&d_my,	myBytes),	"CUDA Malloc output Failed");
 
 	// Copy to device
 	SAFE_CALL(cudaMemcpy(d_input,	image_input.ptr(),	inputBytes, cudaMemcpyHostToDevice), "CUDA Memcpy Host To Device Failed");
@@ -286,24 +297,32 @@ void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixX
 	
 	// Specify block size
 	//const dim3 block(16,16);
-	const dim3 block(1,1);
+	const dim3 block(1,1); //TODO: block, 16x16
 	// Calculate grid size to cover whole image
 	// Operate only on region of interest
-	const int width_out		= Mx.cols();
-	const int height_out	= Mx.rows();
+	//const int width_out		= Mx.cols();
+	//const int height_out	= Mx.rows();
+	const int width_out		= image_output.size().width;
+	const int height_out	= image_output.size().height;
 	const dim3 grid((width_out + block.x-1)/block.x, (height_out + block.y-1)/block.y);
 	
 	#if(_CUDAFUNCS_DEBUG)
 		std::cerr << "width:  " << width_out << std::endl;
 		std::cerr << "height: " << height_out << std::endl;
 	#endif
+	int width_in	= image_input.size().width;
+	int height_in	= image_input.size().height;
 	// Launch kernel
 	domap_cuda<<<grid,block>>>(d_input,
 								d_output,
 								d_mx,
 								d_my,
+								width_in,
+								height_in,
 								width_out,
 								height_out,
+								x_map_min,
+								y_map_min,
 								image_input.step,
 								image_output.step);
 	

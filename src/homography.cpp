@@ -9,8 +9,8 @@ int main(){
 	//cv::namedWindow(windowname);
 	
 	float	rx = 0.0*PI;
-	//float	ry = 0.24*PI;
 	float	ry = 0.0*PI;
+	//float	ry = 0.24*PI;
 	float	rz = 0.0*PI;
 	//float	rz = 0.5*PI;
 	
@@ -27,8 +27,8 @@ int main(){
 	//transformations["rz"]	= -0.0873265;
 	Eigen::Matrix3f Rt	= rot.Rz*rot.Ry*rot.Rx;
 	int width_screen, height_screen;
-	width_screen	= 1920;
-	height_screen	= 1080;
+	width_screen	= 1920-64;
+	height_screen	= 1080-50;
 	//gputimer watch;
 	//watch.start();
 	cv::Mat image_out = cv::Mat::zeros(height_screen,width_screen,CV_8UC3);

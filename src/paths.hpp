@@ -13,7 +13,7 @@
 // source: https://www.google.nl/url?sa=i&rct=j&q=&esrc=s&source=images&cd=&cad=rja&uact=8&ved=0ahUKEwiMs-aspK_OAhXCthoKHYiqAh4QjRwIBw&url=http%3A%2F%2Fmafiawars.wikia.com%2Fwiki%2FUser_blog%3AToenailsin%2FRandom_Snaps&bvm=bv.129391328,d.d2s&psig=AFQjCNH0H2XuUSLG_WqjLTkYrv6-tSzBIw&ust=1470658566944464
 //#define default_image "media/50x50.png"
 // source: http://www.ramclutches.com/social_media.html
-//#define default_image "media/icon_small.png"
+#define default_image "media/icon_small.png"
 // source: http://i.imgur.com/zED6tAd.png
-#define default_image "media/heart.png"
+//#define default_image "media/heart.png"
 
