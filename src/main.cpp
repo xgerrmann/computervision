@@ -125,14 +125,16 @@ int main(){
 		#endif
 		// Reset im_out
 		image_out.setTo(0);
+		// TODO: does not have to be a for loop..
 		for(head_pose pose_head : estimator.poses()) {
-			cv::Mat rotations = pose_head.rvec;
+			cv::Mat rotations		= pose_head.rvec;
+			cv::Mat translations	= pose_head.tvec;
 
 			//std::cerr << "Rotations:"  << rotations << std::endl;
 			trans transformation;
-			transformation["tx"] = 0;
-			transformation["ty"] = 0;
-			transformation["tz"] = 0;
+			transformation["tx"] = (double)translations.at<double>(0);
+			transformation["ty"] = (double)translations.at<double>(1);
+			transformation["tz"] = (double)translations.at<double>(2);
 			transformation["rx"] = (double)rotations.at<double>(0);
 			transformation["ry"] = (double)rotations.at<double>(1);
 			transformation["rz"] = (double)rotations.at<double>(2);

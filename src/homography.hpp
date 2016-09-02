@@ -363,6 +363,10 @@ void hom(const cv::Mat& image_input, cv::cuda::GpuMat& image_output, trans& tran
 	Eigen::Matrix3f H, Hi;
 	//arma::Mat<float> H, Hi;	
 	H	= calchomography(width_in,height_in,transformations);
+	int trans_x, trans_y, trans_z;
+	trans_x = transformations["tx"];
+	trans_y = transformations["ty"];
+	trans_z = transformations["tz"];
 	//H	<<	1,0,0,
 	//		0,1,0,
 	//		0,0,1;
@@ -427,7 +431,7 @@ void hom(const cv::Mat& image_input, cv::cuda::GpuMat& image_output, trans& tran
 //		}
 //	}
 //	#endif
-	domapping(image_input, image_output, Mx, My, xc_in, yc_in, xc_map, yc_map); // image in and image out are pointers
+	domapping(image_input, image_output, Mx, My, xc_in, yc_in, xc_map, yc_map, trans_x, trans_y); // image in and image out are pointers
 	
 ////###################
 	#if(_HOM_TIMEIT)

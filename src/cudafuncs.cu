@@ -55,7 +55,9 @@ __global__ void domap_cuda(unsigned char  *d_input,
 							int xc_map,
 							int yc_map,
 							int step_input,
-							size_t step_output)
+							size_t step_output,
+							int trans_x,
+							int trans_y)
 {
 // Width and height are the dimensions of the resulting mapped input image and may vary.
 // xIndex and yIndex correspond to the X and Y image-coordinates of the original image AFTER
@@ -78,8 +80,8 @@ __global__ void domap_cuda(unsigned char  *d_input,
 	if((col_in<0) || (col_in>=width_input) || (row_in<0) || (row_in>=height_input)){
 		return;
 	}
-	const int row_map_out = row_map-yc_map+height_output/2;
-	const int col_map_out = col_map-xc_map+width_output/2;
+	const int row_map_out = row_map-yc_map-trans_y+height_output/2;// trans_y is positive up
+	const int col_map_out = col_map-xc_map+trans_x+width_output/2;
 
 	const int iy_map_out	= row_map_out;	// (float) neccessary for indicating which round to use (double or float)
 	const int ix_map_out	= 3*(col_map_out);
@@ -291,7 +293,7 @@ void copy(const cv::Mat& image_in, cv::Mat& image_out){
 
 // DOMAPPING ##################EE#################################################################
 // DOMAPPING ##################EE#################################################################
-void domapping(const cv::Mat& image_input, cv::cuda::GpuMat& image_output, Eigen::MatrixXi& Mx, Eigen::MatrixXi& My, float xc_in, float yc_in, float xc_map, float yc_map){
+void domapping(const cv::Mat& image_input, cv::cuda::GpuMat& image_output, Eigen::MatrixXi& Mx, Eigen::MatrixXi& My, float xc_in, float yc_in, float xc_map, float yc_map, int trans_x, int trans_y){
 // domapping
 // Function that performs the actual mapping
 // d_ stands for device	(gpu)
@@ -317,7 +319,6 @@ void domapping(const cv::Mat& image_input, cv::cuda::GpuMat& image_output, Eigen
 	unsigned char *d_input;
 	int *d_mx, *d_my;
 	SAFE_CALL(cudaMalloc<unsigned char>(&d_input,	inputBytes),	"CUDA Malloc input Failed");
-	//SAFE_CALL(cudaMalloc<unsigned char>(&d_output,	outputBytes) ,	"CUDA Malloc output Failed");
 	SAFE_CALL(cudaMalloc<int>(&d_mx,	mxBytes),	"CUDA Malloc input Failed");
 	SAFE_CALL(cudaMalloc<int>(&d_my,	myBytes),	"CUDA Malloc output Failed");
 	#if(_CUDAFUNCS_TIMEIT)
@@ -338,7 +339,6 @@ void domapping(const cv::Mat& image_input, cv::cuda::GpuMat& image_output, Eigen
 	const dim3 block(32,32);
 	//const dim3 block(64,64); // too large
 	// Calculate grid size to cover whole image
-	// TODO:Operate only on region of interest
 	const int width_out		= image_output.size().width;
 	const int height_out	= image_output.size().height;
 	const dim3 grid((width_map + block.x-1)/block.x, (height_map + block.y-1)/block.y);
@@ -349,7 +349,7 @@ void domapping(const cv::Mat& image_input, cv::cuda::GpuMat& image_output, Eigen
 	#endif
 	int width_in	= image_input.size().width;
 	int height_in	= image_input.size().height;
-	// TODO: pass as function arguments instead of calculating here
+	// TODO: pass as function arguments instead of calculating here ??
 	// Launch kernel
 	uchar *d_output		= image_output.ptr<uchar>();
 	size_t step_output	= image_output.step;
@@ -368,7 +368,9 @@ void domapping(const cv::Mat& image_input, cv::cuda::GpuMat& image_output, Eigen
 								xc_map,
 								yc_map,
 								image_input.step,
-								step_output);
+								step_output,
+								trans_x,
+								trans_y);
 	
 	// Synchronize to check for kernel launch errors
 	SAFE_CALL(cudaDeviceSynchronize(),"Kernel Launch Failed");
