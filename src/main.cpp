@@ -78,7 +78,6 @@ int main(){
 	std::string window_image = "Image";
 	// 
 	cv::namedWindow(window_image,cv::WINDOW_OPENGL);
-	cv::namedWindow("im_gpu",cv::WINDOW_OPENGL);
 	
 	cv::VideoCapture video_in(0);
 	int width_webcam, height_webcam;
@@ -106,11 +105,7 @@ int main(){
 	gputimer watch;
 	double subsample_detection_frame = 3.0;
 	//cv::Mat im_out(height_screen,width_screen,CV_8UC3);
-	cv::Mat image_out = cv::Mat::zeros(height_screen,width_screen,CV_8UC3);
-	cv::cuda::GpuMat im_gpu(height_screen, width_screen, CV_8UC3);
-	im_gpu.setTo(0);
-	uchar *ptr_im_gpu	= im_gpu.ptr<uchar>();
-	size_t step_im_gpu	= im_gpu.step;
+	cv::cuda::GpuMat image_out(height_screen, width_screen, CV_8UC3);
 	transformation_manager trans_mngr;
 	for(EVER){
 		//#if _MAIN_DEBUG || _MAIN_TIMEIT
@@ -125,7 +120,7 @@ int main(){
 		watch.lap("Update estimator");
 		#endif
 		// Reset im_out
-		image_out.setTo(cv::Scalar(0));
+		image_out.setTo(0);
 		for(head_pose pose_head : estimator.poses()) {
 			cv::Mat rotations = pose_head.rvec;
 
@@ -145,7 +140,7 @@ int main(){
 			#if(_MAIN_TIMEIT)
 			watch.lap("Manage transformations");
 			#endif
-			hom(image_in, image_out,transformation_update,width_screen,height_screen,ptr_im_gpu,step_im_gpu);
+			hom(image_in, image_out, transformation_update,width_screen,height_screen);
 			#if(_MAIN_TIMEIT)
 			watch.lap("Calculate new image");
 			#endif
@@ -162,11 +157,6 @@ int main(){
 		}
 		#if(_MAIN_TIMEIT)
 		watch.lap("Imshow");
-		#endif
-		cv::imshow("im_gpu",im_gpu);
-		cv::waitKey(1);
-		#if(_MAIN_TIMEIT)
-		watch.lap("Imshow_gpu");
 		#endif
 		//#if(_MAIN_DEBUG)
 		double t_total = watch.stop();

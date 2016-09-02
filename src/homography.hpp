@@ -14,6 +14,8 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/core/core.hpp>
+#include <opencv2/core/cuda.hpp>
+
 //#include <opencv2/imgproc/imgproc.hpp>
 #include "paths.hpp"
 #include <math.h>
@@ -50,7 +52,7 @@ typedef struct {
 
 typedef std::map<std::string,float> trans;
 
-void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformations, int& width_max, int& height_max, uchar *ptr_im_gpu, size_t step_im_gpu);
+void hom(const cv::Mat& image_input, cv::cuda::GpuMat& image_output, trans& transformations, int& width_max, int& height_max);
 Rxyz calcrotationmatrix(double rx, double ry, double rz);
 std::vector<float> calcrotations(Eigen::Matrix3f Rt);
 Eigen::Matrix3f calchomography(int width, int height, trans transformations);
@@ -342,7 +344,7 @@ Eigen::Matrix3f calchomography(int width, int height, trans transformations){
 	return H;
 }
 
-void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformations, int& width_screen, int& height_screen, uchar *ptr_im_gpu, size_t step_im_gpu){
+void hom(const cv::Mat& image_input, cv::cuda::GpuMat& image_output, trans& transformations, int& width_screen, int& height_screen){
 	#if(_HOM_DEBUG) || (_HOM_TIMEIT)
 	std::cerr << "### hom <start> ###" << std::endl;
 	#endif
@@ -425,7 +427,7 @@ void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformatio
 //		}
 //	}
 //	#endif
-	domapping(image_input, image_output, Mx, My, xc_in, yc_in, xc_map, yc_map,ptr_im_gpu, step_im_gpu); // image in and image out are pointers
+	domapping(image_input, image_output, Mx, My, xc_in, yc_in, xc_map, yc_map); // image in and image out are pointers
 	
 ////###################
 	#if(_HOM_TIMEIT)
