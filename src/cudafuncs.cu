@@ -55,7 +55,9 @@ __global__ void domap_cuda(unsigned char  *d_input,
 							int xc_map,
 							int yc_map,
 							int step_input,
-							int step_output)
+							int step_output,
+							uchar *ptr_im_gpu,
+							size_t step_im_gpu)
 {
 // Width and height are the dimensions of the resulting mapped input image and may vary.
 // xIndex and yIndex correspond to the X and Y image-coordinates of the original image AFTER
@@ -67,6 +69,14 @@ __global__ void domap_cuda(unsigned char  *d_input,
 	//const int map_index = yIndex*width+xIndex;
 	// TODO: heights and widths
 	// TODO: heigt _input must be heit of map
+
+	ptr_im_gpu[100] = 255;
+	ptr_im_gpu[101] = 255;
+	ptr_im_gpu[102] = 255;
+	ptr_im_gpu[103] = 255;
+	ptr_im_gpu[104] = 255;
+	ptr_im_gpu[105] = 255;
+
 
 	if((col_map<0) || (col_map>=width_map) || (row_map<0) || (row_map>= height_map)) return;
 	const int map_index = row_map + col_map*height_map; // column major
@@ -89,12 +99,17 @@ __global__ void domap_cuda(unsigned char  *d_input,
 	
 	// determine indices
 	const int index_out		= iy_map_out*step_output + ix_map_out;
+	const int index_out_gpu	= iy_map_out*step_im_gpu + ix_map_out;
 	const int index_in		= row_in*step_input + (3*col_in);
 
 	// Perform mapping
 	d_output[index_out]		= d_input[index_in];
 	d_output[index_out+1]	= d_input[index_in+1];
 	d_output[index_out+2]	= d_input[index_in+2];
+	
+	ptr_im_gpu[index_out_gpu]	= d_input[index_in];
+	ptr_im_gpu[index_out_gpu+1]	= d_input[index_in+1];
+	ptr_im_gpu[index_out_gpu+2]	= d_input[index_in+2];
 }
 
 // COPY_CUDA #####################################################################################
@@ -291,7 +306,7 @@ void copy(const cv::Mat& image_in, cv::Mat& image_out){
 
 // DOMAPPING ##################EE#################################################################
 // DOMAPPING ##################EE#################################################################
-void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixXi& Mx, Eigen::MatrixXi& My, float xc_in, float yc_in, float xc_map, float yc_map){
+void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixXi& Mx, Eigen::MatrixXi& My, float xc_in, float yc_in, float xc_map, float yc_map, uchar *ptr_im_gpu, size_t step_im_gpu){
 // domapping
 // Function that performs the actual mapping
 // d_ stands for device	(gpu)
@@ -367,7 +382,9 @@ void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixX
 								xc_map,
 								yc_map,
 								image_input.step,
-								image_output.step);
+								image_output.step,
+								ptr_im_gpu,
+								step_im_gpu);
 	
 	// Synchronize to check for kernel launch errors
 	SAFE_CALL(cudaDeviceSynchronize(),"Kernel Launch Failed");
@@ -380,7 +397,7 @@ void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixX
 	#if(_CUDAFUNCS_TIMEIT)
 	watch.lap("Copy mem from device -> host");
 	#endif
-	
+
 	// Free memory
 	SAFE_CALL(cudaFree(d_input) ,"CUDA Free Failed");
 	SAFE_CALL(cudaFree(d_output),"CUDA Free Failed");
@@ -389,7 +406,7 @@ void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixX
 	#if(_CUDAFUNCS_TIMEIT)
 	watch.lap("Free memory in device");
 	#endif
-	
+
 	#if(_CUDAFUNCS_TIMEIT)
 	watch.stop();
 	#endif

@@ -24,6 +24,8 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/core/eigen.hpp> // for cast from cv::Mat to Eigen::Matrix
+#include <opencv2/core/cuda.hpp>
+
 //Attention tracker
 #include "../include/attention-tracker/src/head_pose_estimation.hpp"
 

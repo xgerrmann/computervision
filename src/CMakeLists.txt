@@ -21,8 +21,7 @@ find_package(CUDA REQUIRED)
 
 # Create binaries
 #-------------------
-#cuda_add_executable(homography	homography.cpp	homography.hpp			cudafuncs.cu	cudafuncs.hpp)
-cuda_add_executable(homography	homography.cpp	cudafuncs.cu)
+#cuda_add_executable(homography	homography.cpp	cudafuncs.cu)
 #cuda_add_executable(test test.cpp	cudafuncs.cu)
 cuda_add_executable(main	main.cpp	cudafuncs.cu)
 
@@ -60,11 +59,7 @@ message("OpenBLASlibrary: ${OpenBLAS_LIBRARY}")
 # main
 target_link_libraries(main			dlib	${OpenCV_LIBS}	${ARMADILLO_LIBRARIES}	${ATTENTION_TRACKER_LIBRARY}	openblas	${CUDA_LIBRARIES} gputimer)
 # homography
-#target_link_libraries(homography	dlib	${OpenCV_LIBS}	${ARMADILLO_LIBRARIES}	${ATTENTION_TRACKER_LIBRARY}	openblas	${CUDA_LIBRARIES} gputimer)
-#target_link_libraries(homography	dlib	${OpenCV_LIBS}	${ATTENTION_TRACKER_LIBRARY}	${CUDA_LIBRARIES})
-#target_link_libraries(homography	${OpenCV_LIBS}	${ATTENTION_TRACKER_LIBRARY}	${CUDA_LIBRARIES})
-target_link_libraries(homography	dlib ${OpenCV_LIBS}	${CUDA_LIBRARIES} gputimer)
-#target_link_libraries(test	${OpenCV_LIBS}	${CUDA_LIBRARIES}) // works
+#target_link_libraries(homography	dlib ${OpenCV_LIBS}	${CUDA_LIBRARIES} gputimer)
 
 option(DEBUG "DEBUG" OFF)
 if(${DEBUG})

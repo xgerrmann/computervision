@@ -76,8 +76,9 @@ int main(){
 
 	cv::Mat image_in = cv::imread(default_image);
 	std::string window_image = "Image";
-	//cv::namedWindow(window_image,cv::WINDOW_OPENGL);
+	// 
 	cv::namedWindow(window_image,cv::WINDOW_OPENGL);
+	cv::namedWindow("im_gpu",cv::WINDOW_OPENGL);
 	
 	cv::VideoCapture video_in(0);
 	int width_webcam, height_webcam;
@@ -106,9 +107,10 @@ int main(){
 	double subsample_detection_frame = 3.0;
 	//cv::Mat im_out(height_screen,width_screen,CV_8UC3);
 	cv::Mat image_out = cv::Mat::zeros(height_screen,width_screen,CV_8UC3);
-	//cv::Mat tmp_cv(4,4,CV_64FC1); // double data type, single channel
-	Eigen::Matrix4d tmp_eigen;
-	Eigen::Matrix4f pose;
+	cv::cuda::GpuMat im_gpu(height_screen, width_screen, CV_8UC3);
+	im_gpu.setTo(0);
+	uchar *ptr_im_gpu	= im_gpu.ptr<uchar>();
+	size_t step_im_gpu	= im_gpu.step;
 	transformation_manager trans_mngr;
 	for(EVER){
 		//#if _MAIN_DEBUG || _MAIN_TIMEIT
@@ -143,7 +145,7 @@ int main(){
 			#if(_MAIN_TIMEIT)
 			watch.lap("Manage transformations");
 			#endif
-			hom(image_in, image_out,transformation_update,width_screen,height_screen);
+			hom(image_in, image_out,transformation_update,width_screen,height_screen,ptr_im_gpu,step_im_gpu);
 			#if(_MAIN_TIMEIT)
 			watch.lap("Calculate new image");
 			#endif
@@ -160,6 +162,11 @@ int main(){
 		}
 		#if(_MAIN_TIMEIT)
 		watch.lap("Imshow");
+		#endif
+		cv::imshow("im_gpu",im_gpu);
+		cv::waitKey(1);
+		#if(_MAIN_TIMEIT)
+		watch.lap("Imshow_gpu");
 		#endif
 		//#if(_MAIN_DEBUG)
 		double t_total = watch.stop();

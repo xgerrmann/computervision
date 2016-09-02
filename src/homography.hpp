@@ -11,7 +11,7 @@
 // ## GPUtimer
 #include "../lib/gputimer/gputimer.hpp"
 
-//#include <opencv2/opencv.hpp>
+#include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/core/core.hpp>
 //#include <opencv2/imgproc/imgproc.hpp>
@@ -50,14 +50,14 @@ typedef struct {
 
 typedef std::map<std::string,float> trans;
 
-void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformations, int& width_max, int& height_max);
+void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformations, int& width_max, int& height_max, uchar *ptr_im_gpu, size_t step_im_gpu);
 Rxyz calcrotationmatrix(double rx, double ry, double rz);
 std::vector<float> calcrotations(Eigen::Matrix3f Rt);
 Eigen::Matrix3f calchomography(int width, int height, trans transformations);
 Eigen::Vector4f box_out(Eigen::Matrix3f H, int height, int width);
 
 const double PI		= 3.141592653589793;
-const double INF	= abs(1.0/0.0);
+const double INF	= fabs(1.0/0.0); // fabs is absolute function for floating point variables
 const float PITCH	= 0.2625*(std::pow(10.0,-3.0)); // [m] pixel pitch (pixel size) assume square pixels, which is generally true
 // TODO: pitch is different per device
 
@@ -342,7 +342,7 @@ Eigen::Matrix3f calchomography(int width, int height, trans transformations){
 	return H;
 }
 
-void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformations, int& width_screen, int& height_screen){
+void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformations, int& width_screen, int& height_screen, uchar *ptr_im_gpu, size_t step_im_gpu){
 	#if(_HOM_DEBUG) || (_HOM_TIMEIT)
 	std::cerr << "### hom <start> ###" << std::endl;
 	#endif
@@ -425,7 +425,8 @@ void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformatio
 //		}
 //	}
 //	#endif
-	domapping(image_input, image_output, Mx, My, xc_in, yc_in, xc_map, yc_map); // image in and image out are pointers
+	domapping(image_input, image_output, Mx, My, xc_in, yc_in, xc_map, yc_map,ptr_im_gpu, step_im_gpu); // image in and image out are pointers
+	
 ////###################
 	#if(_HOM_TIMEIT)
 	watch.lap("Perform Mapping");
