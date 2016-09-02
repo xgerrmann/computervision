@@ -67,6 +67,8 @@ __global__ void domap_cuda(unsigned char  *d_input,
 	//const int map_index = yIndex*width+xIndex;
 	// TODO: heights and widths
 	// TODO: heigt _input must be heit of map
+
+	if((col_map<0) || (col_map>=width_map) || (row_map<0) || (row_map>= height_map)) return;
 	const int map_index = row_map + col_map*height_map; // column major
 
 	const int col_in	= d_mx[map_index];
@@ -124,7 +126,7 @@ __global__ void copy_cuda(unsigned char *input,
 // CALCMAPPING  ##################################################################################
 // CALCMAPPING  ##################################################################################
 void calcmapping(Eigen::MatrixXi& Mx, Eigen::MatrixXi& My,  Eigen::Matrix3f& Hi, float xc_in, float yc_in, float xc_map, float yc_map){
-	#if(_CUDAFUNCS_DEBUG)
+	#if (_CUDAFUNCS_DEBUG) || (_CUDAFUNCS_TIMEIT)
 	std::cerr << "### calcmapping <start> ###" << std::endl;
 	#endif
 	// Determine size of the resulting mapping
@@ -141,11 +143,10 @@ void calcmapping(Eigen::MatrixXi& Mx, Eigen::MatrixXi& My,  Eigen::Matrix3f& Hi,
 	std::cerr << "N_BLOCKS_MAX: " << N_BLOCKS_MAX << std::endl;
 	std::cerr << "N_THREADS_MAX:" << N_THREADS_MAX << std::endl;
 	#endif
-	//#if(_CUDAFUNCS_TIMEIT)
-	//gputimer watch;
-	//watch.start();
-	//#endif
-
+	#if(_CUDAFUNCS_TIMEIT)
+	gputimer watch;
+	watch.start();
+	#endif
 	
 	// Determine data sizes
 	int N		= height_map_out*width_map_out;
@@ -164,26 +165,27 @@ void calcmapping(Eigen::MatrixXi& Mx, Eigen::MatrixXi& My,  Eigen::Matrix3f& Hi,
 	// Get pointers to data of mapping matrices
 	h_mx = Mx.data();	// Mx is a pointer, thus child accessing with ->
 	h_my = My.data();	// My is a pointer, thus child accessing with ->
-	//#if(_CUDAFUNCS_TIMEIT)
-	//watch.lap("Cuda prelims: ");
-	//#endif
+	#if(_CUDAFUNCS_TIMEIT)
+	watch.lap("Cuda prelims");
+	#endif
 	
 	// Allocate space on device for device copies
 	cudaMalloc((void **)&d_mx,size_i);
 	cudaMalloc((void **)&d_my,size_i);
 	cudaMalloc((void **)&d_hi,size_h);
-	//#if(_CUDAFUNCS_TIMEIT)
-	//watch.lap("Allocate space on device: ");
-	//#endif
+	#if(_CUDAFUNCS_TIMEIT)
+	watch.lap("Allocate space on device");
+	#endif
 	
 	// Copy inputs to device
 	SAFE_CALL(cudaMemcpy(d_hi,	h_hi,	size_h,	cudaMemcpyHostToDevice),"CUDA Copy Host To Device Fail");
-	//#if(_CUDAFUNCS_TIMEIT)
-	//watch.lap("Copy mem host -> device: ");
-	//#endif
+	#if(_CUDAFUNCS_TIMEIT)
+	watch.lap("Copy mem host -> device");
+	#endif
 	
 	// Specify block size
 	const dim3 block(16,16);
+	//const dim3 block(32,32);
 	// Calculate grid size to cover whole image
 	const dim3 grid((width_map_out + block.x-1)/block.x, (height_map_out + block.y-1)/block.y);
 	calcmap_cuda<<<grid, block>>>(d_mx,
@@ -197,24 +199,28 @@ void calcmapping(Eigen::MatrixXi& Mx, Eigen::MatrixXi& My,  Eigen::Matrix3f& Hi,
 									yc_map);
 	// Synchronize to check for kernel launch errors
 	SAFE_CALL(cudaDeviceSynchronize(),"Kernel Launch Failed");
-	//#if(_CUDAFUNCS_TIMEIT)
-	//watch.lap("Execute device code: ");
-	//#endif
+	#if(_CUDAFUNCS_TIMEIT)
+	watch.lap("Execute device code");
+	#endif
 	
 	// Copy results to host
 	SAFE_CALL(cudaMemcpy(h_mx, d_mx, size_i, cudaMemcpyDeviceToHost),"CUDA Copy Device To Host Fail");
 	SAFE_CALL(cudaMemcpy(h_my, d_my, size_i, cudaMemcpyDeviceToHost),"CUDA Copy Device To Host Fail");
-	//#if(_CUDAFUNCS_TIMEIT)
-	//watch.lap("Copy mem device -> host: ");
-	//#endif
+	#if(_CUDAFUNCS_TIMEIT)
+	watch.lap("Copy mem device -> host");
+	#endif
 	
 	// Cleanup device memory
 	SAFE_CALL(cudaFree(d_mx) ,"CUDA Free Failed");
 	SAFE_CALL(cudaFree(d_my) ,"CUDA Free Failed");
 	SAFE_CALL(cudaFree(d_hi) ,"CUDA Free Failed");
 	//cudaDeviceReset();
+	#if(_CUDAFUNCS_TIMEIT)
+	watch.lap("Free mem from device");
+	#endif
 
-	#if(_CUDAFUNCS_DEBUG)
+	#if (_CUDAFUNCS_DEBUG) || (_CUDAFUNCS_TIMEIT)
+	watch.stop();
 	std::cerr << "### calcmapping <end> ###" << std::endl;
 	#endif
 	// Return nothing, void function.
@@ -228,6 +234,8 @@ void copy(const cv::Mat& image_in, cv::Mat& image_out){
 // output image. // TODO: do 2d upload and download for less data transfer.
 	#if(_CUDAFUNCS_DEBUG)
 	std::cerr << "### copy <start> ###" << std::endl;
+	gputimer watch;
+	watch.start();
 	#endif
 	cv::imshow("image_input",	image_in);
 	cv::imshow("image_out",		image_out);
@@ -288,8 +296,10 @@ void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixX
 // Function that performs the actual mapping
 // d_ stands for device	(gpu)
 // h_ stands for host	(cpu)
-	#if(_CUDAFUNCS_DEBUG)
+	#if (_CUDAFUNCS_DEBUG) || (_CUDAFUNCS_TIMEIT)
 	std::cerr << "### domapping <start> ###" << std::endl;
+	gputimer watch;
+	watch.start();
 	#endif
 	//const cv::Mat image_in = cv::imread("media/50x50.png",CV_LOAD_IMAGE_COLOR);
 	//copy(image_input,image_output);
@@ -310,23 +320,28 @@ void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixX
 	SAFE_CALL(cudaMalloc<unsigned char>(&d_output,	outputBytes) ,	"CUDA Malloc output Failed");
 	SAFE_CALL(cudaMalloc<int>(&d_mx,	mxBytes),	"CUDA Malloc input Failed");
 	SAFE_CALL(cudaMalloc<int>(&d_my,	myBytes),	"CUDA Malloc output Failed");
+	#if(_CUDAFUNCS_TIMEIT)
+	watch.lap("Allocate space on device");
+	#endif
 
 	// Copy to device
 	SAFE_CALL(cudaMemcpy(d_input,	image_input.ptr(),	inputBytes, cudaMemcpyHostToDevice), "CUDA Memcpy Host To Device Failed");
 	SAFE_CALL(cudaMemcpy(d_output,	image_output.ptr(),	outputBytes, cudaMemcpyHostToDevice), "CUDA Memcpy Host To Device Failed");
 	SAFE_CALL(cudaMemcpy(d_mx, Mx.data(), mxBytes, cudaMemcpyHostToDevice), "CUDA Memcpy Host To Device Failed");
 	SAFE_CALL(cudaMemcpy(d_my, My.data(), myBytes, cudaMemcpyHostToDevice), "CUDA Memcpy Host To Device Failed");
+	#if(_CUDAFUNCS_TIMEIT)
+	watch.lap("Copy data to device");
+	#endif
 	
 	// Specify block size
+	//const dim3 block(1,1);
 	//const dim3 block(16,16);
-	const dim3 block(1,1);
+	const dim3 block(32,32);
+	//const dim3 block(64,64);
 	// Calculate grid size to cover whole image
-	// Operate only on region of interest
-	//const int width_out		= Mx.cols();
-	//const int height_out	= Mx.rows();
+	// TODO:Operate only on region of interest
 	const int width_out		= image_output.size().width;
 	const int height_out	= image_output.size().height;
-	// TODO: adjust grid to mapping size
 	const dim3 grid((width_map + block.x-1)/block.x, (height_map + block.y-1)/block.y);
 	
 	#if(_CUDAFUNCS_DEBUG)
@@ -356,20 +371,29 @@ void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixX
 	
 	// Synchronize to check for kernel launch errors
 	SAFE_CALL(cudaDeviceSynchronize(),"Kernel Launch Failed");
+	#if(_CUDAFUNCS_TIMEIT)
+	watch.lap("Execute device code");
+	#endif
 	
 	// Retrieve image_input from device
 	SAFE_CALL(cudaMemcpy(image_output.ptr(), d_output, outputBytes, cudaMemcpyDeviceToHost), "CUDA Memcpy Device To Host Failed");
+	#if(_CUDAFUNCS_TIMEIT)
+	watch.lap("Copy mem from device -> host");
+	#endif
 	
 	// Free memory
 	SAFE_CALL(cudaFree(d_input) ,"CUDA Free Failed");
 	SAFE_CALL(cudaFree(d_output),"CUDA Free Failed");
 	SAFE_CALL(cudaFree(d_mx) ,"CUDA Free Failed");
 	SAFE_CALL(cudaFree(d_my) ,"CUDA Free Failed");
+	#if(_CUDAFUNCS_TIMEIT)
+	watch.lap("Free memory in device");
+	#endif
 	
-	//#if(_CUDAFUNCS_TIMEIT)
-	//watch.stop();
-	//#endif
-	#if(_CUDAFUNCS_DEBUG)
+	#if(_CUDAFUNCS_TIMEIT)
+	watch.stop();
+	#endif
+	#if (_CUDAFUNCS_DEBUG) || (_CUDAFUNCS_TIMEIT)
 	std::cerr << "### domapping <end> ###" << std::endl;
 	#endif
 	// Return nothing, void function.

@@ -148,10 +148,10 @@ int main(){
 			watch.lap("Calculate new image");
 			#endif
 		}
-		#if(_MAIN_DEBUG)
-			cv::Rect slice	= cv::Rect(width_screen-width_webcam,height_screen-height_webcam,width_webcam, height_webcam);
-			frame.copyTo(image_out(slice));
-		#endif
+		//#if(_MAIN_DEBUG)
+		//	cv::Rect slice	= cv::Rect(width_screen-width_webcam,height_screen-height_webcam,width_webcam, height_webcam);
+		//	frame.copyTo(image_out(slice));
+		//#endif
 		cv::imshow(window_image,image_out);
 		char key = (char)cv::waitKey(1);
 		if(key == 27){
@@ -164,7 +164,7 @@ int main(){
 		//#if(_MAIN_DEBUG)
 		double t_total = watch.stop();
 		std::cerr << "Framerate: " << 1/t_total << "[Hz]" << std::endl;
-		std::cerr << "###############################" << std::endl;
+		std::cerr << "#############################################################" << std::endl;
 		//#endif
 
 	}

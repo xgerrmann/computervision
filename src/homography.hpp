@@ -190,6 +190,8 @@ Eigen::Vector4f box_out(Eigen::Matrix3f H, int width_original, int height_origin
 Eigen::Matrix3f calchomography(int width, int height, trans transformations){
 	#if(_HOM_DEBUG) || (_HOM_TIMEIT)
 	std::cerr << "### calchomography <start> ###" << std::endl;
+	gputimer watch;
+	watch.start();
 	#endif
 // This function calculates the homography matrix, given the rotations rx,ry,rz.
 // Coordinate system:
@@ -334,6 +336,7 @@ Eigen::Matrix3f calchomography(int width, int height, trans transformations){
 	//std::cerr << "H:\n" << H << "\n";
 	// H is calculated correct and results correspond with python script
 	#if(_HOM_DEBUG) || (_HOM_TIMEIT)
+	watch.stop();
 	std::cerr << "### calchomography <end> ###" << std::endl;
 	#endif
 	return H;

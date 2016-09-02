@@ -15,7 +15,7 @@
  #include <eigen3/Eigen/Dense>
 
 // ## GPUtimer
-//#include "../lib/gputimer/gputimer.hpp"
+#include "../lib/gputimer/gputimer.hpp"
 
 // ## openCV
 #include <opencv2/highgui/highgui.hpp>
