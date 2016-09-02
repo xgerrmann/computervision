@@ -80,13 +80,15 @@ int main(){
 	cv::namedWindow(window_image,cv::WINDOW_OPENGL);
 	
 	cv::VideoCapture video_in(0);
+	video_in.set(CV_CAP_PROP_BUFFERSIZE, 2); // internal buffer will now store only 3 frames
+	//cv::VideoCapture video_in(CV_CAP_DSHOW);
 	double fps = video_in.get(CV_CAP_PROP_FPS);
 	std::cerr << "Max framerate: " << fps << std::endl;
 	int width_webcam, height_webcam;
 	// TODO: get width and height from webcam instead of hardcoding
 	width_webcam	= 640;
 	height_webcam	= 480;
-	video_in.set(CV_CAP_PROP_FPS, 15);
+	video_in.set(CV_CAP_PROP_FPS, 30);
 	video_in.set(CV_CAP_PROP_FRAME_WIDTH, width_webcam);
 	video_in.set(CV_CAP_PROP_FRAME_HEIGHT, height_webcam);
 	estimator.focalLength		= 500;
