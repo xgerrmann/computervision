@@ -1,3 +1,6 @@
+// main.cpp
+// X.G.Gerrmann
+//
 #include "main.hpp"
 
 
@@ -71,9 +74,7 @@ int main(){
 
     auto estimator = HeadPoseEstimation(trained_model);
 
-	cv::Mat image;
-	image = cv::imread(default_image);
-	cv::cuda::GpuMat image_in(image);
+	cv::Mat image_in = cv::imread(default_image);
 	std::string window_image = "Image";
 	//cv::namedWindow(window_image,cv::WINDOW_OPENGL);
 	cv::namedWindow(window_image,cv::WINDOW_OPENGL);
@@ -104,8 +105,8 @@ int main(){
 	gputimer watch;
 	double subsample_detection_frame = 3.0;
 	//cv::Mat im_out(height_screen,width_screen,CV_8UC3);
-	cv::cuda::GpuMat image_out(height_screen,width_screen,CV_8UC3);
-	cv::Mat tmp_cv(4,4,CV_64FC1); // double data type, single channel
+	cv::Mat image_out = cv::Mat::zeros(height_screen,width_screen,CV_8UC3);
+	//cv::Mat tmp_cv(4,4,CV_64FC1); // double data type, single channel
 	Eigen::Matrix4d tmp_eigen;
 	Eigen::Matrix4f pose;
 	transformation_manager trans_mngr;
@@ -142,15 +143,7 @@ int main(){
 			#if(_MAIN_TIMEIT)
 			watch.lap("Manage transformations");
 			#endif
-			//std::cerr << "Trans:";
-			//for(auto transform : transformation_update){
-			//	std::cerr << "\t" << std::get<1>(transform);
-			//}
-			//std::cerr << std::endl;
-			//watch.lap("Print transformation");
-			//im_out = hom(image,transformation_update,width_screen,height_screen);
-			// TODO: im_out must be gpuarray
-			hom(&image_out, &image_in,transformation_update,width_screen,height_screen);
+			hom(image_in, image_out,transformation_update,width_screen,height_screen);
 			#if(_MAIN_TIMEIT)
 			watch.lap("Calculate new image");
 			#endif
@@ -171,6 +164,7 @@ int main(){
 		//#if(_MAIN_DEBUG)
 		double t_total = watch.stop();
 		std::cerr << "Framerate: " << 1/t_total << "[Hz]" << std::endl;
+		std::cerr << "###############################" << std::endl;
 		//#endif
 
 	}

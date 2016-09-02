@@ -3,10 +3,10 @@
 #include "homography.hpp"
 
 // ##(CPU) timer
-//#include "../lib/timer/timer.hpp"
+#include "../lib/timer/timer.hpp"
 
 // ## gputimer
-#include "../lib/timer/timer.hpp"
+#include "../lib/gputimer/gputimer.hpp"
 
 // ## dlib was
 #include <dlib/opencv.h>
@@ -32,8 +32,9 @@
 #ifdef _DEBUG_
 #define _MAIN_DEBUG 1
 #endif
+#define _MAIN_DEBUG 1
 
-#define _MAIN_TIMEIT 0
+#define _MAIN_TIMEIT 1
 //#define _MAIN_TIMEIT 1
 
 class transformation_manager{

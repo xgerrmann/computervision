@@ -9,7 +9,7 @@
 //#include "../lib/timer/timer.hpp"
 
 // ## GPUtimer
-//#include "../lib/gputimer/gputimer.hpp"
+#include "../lib/gputimer/gputimer.hpp"
 
 //#include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -40,7 +40,7 @@
 #ifdef _DEBUG_
 #define _HOM_DEBUG	1
 #endif
-#define _HOM_DEBUG	1
+//#define _HOM_DEBUG	1
 
 typedef struct {
 	Eigen::Matrix3f Rx;
@@ -188,6 +188,9 @@ Eigen::Vector4f box_out(Eigen::Matrix3f H, int width_original, int height_origin
 }
 
 Eigen::Matrix3f calchomography(int width, int height, trans transformations){
+	#if(_HOM_DEBUG) || (_HOM_TIMEIT)
+	std::cerr << "### calchomography <start> ###" << std::endl;
+	#endif
 // This function calculates the homography matrix, given the rotations rx,ry,rz.
 // Coordinate system:
 // ^ y+
@@ -330,15 +333,21 @@ Eigen::Matrix3f calchomography(int width, int height, trans transformations){
 	H.transposeInPlace(); // in place transposition to avoid aliasing
 	//std::cerr << "H:\n" << H << "\n";
 	// H is calculated correct and results correspond with python script
+	#if(_HOM_DEBUG) || (_HOM_TIMEIT)
+	std::cerr << "### calchomography <end> ###" << std::endl;
+	#endif
 	return H;
 }
 
 void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformations, int& width_screen, int& height_screen){
+	#if(_HOM_DEBUG) || (_HOM_TIMEIT)
+	std::cerr << "### hom <start> ###" << std::endl;
+	#endif
 // Faster backward homography, mapping by masking and matrix indices method # 0.007 seconds
-	//#if(_HOM_TIMEIT)
-//	timer watch;
-//	watch.start();
-	//#endif
+	#if(_HOM_TIMEIT)
+	gputimer watch;
+	watch.start();
+	#endif
 
 	const int height_in	= image_input.size().height;
 	const int width_in	= image_input.size().width;
@@ -370,8 +379,8 @@ void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformatio
 	ymax		= ymin + rectangle[3] - 1;// zero based, thus -1, use rectangle because float.
 	xc_map		= fabs(xmin); // x location of the center in the mapped image
 	yc_map		= fabs(ymax); // y location of the center in the mapped image
-	std::cerr << "xc_map: " << xc_map << std::endl;
-	std::cerr << "yc_map: " << yc_map << std::endl;
+	//std::cerr << "xc_map: " << xc_map << std::endl;
+	//std::cerr << "yc_map: " << yc_map << std::endl;
 // Determine size of matrices for performing the mapping.
 // Mapping must stay within max size.
 // Max size of mapping matrices is minimum of outgoing image dimensions and the max dimensions
@@ -391,11 +400,11 @@ void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformatio
 	Eigen::MatrixXi Mx(height_max, width_max);// = Eigen::Matrix<float,hmax,wmax>::Zero();
 	Eigen::MatrixXi My(height_max, width_max);// = Eigen::Matrix<float,hmax,wmax>::Zero();
 	#if(_HOM_TIMEIT)
-	//watch.lap("Mapping Preliminaries");
+	watch.lap("Mapping Preliminaries");
 	#endif
 	calcmapping(Mx, My, Hi, xc_in, yc_in, xc_map, yc_map);
 	#if(_HOM_TIMEIT)
-	//watch.lap("Calc Mapping");
+	watch.lap("Calc Mapping");
 	#endif
 	//cv::imshow("image_in",*image_in);
 	// Print mapping when debugggin is on
@@ -415,10 +424,12 @@ void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformatio
 //	#endif
 	domapping(image_input, image_output, Mx, My, xc_in, yc_in, xc_map, yc_map); // image in and image out are pointers
 ////###################
-#if(_HOM_TIMEIT)
-	//watch.lap("Perform Mapping");
+	#if(_HOM_TIMEIT)
+	watch.lap("Perform Mapping");
 	#endif
-	//watch.stop();
-	return;
+	watch.stop();
+	#if (_HOM_DEBUG) || (_HOM_TIMEIT)
+	std::cerr << "### hom <end> ###" << std::endl;
+	#endif
 }
 #endif

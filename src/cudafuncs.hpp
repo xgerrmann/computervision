@@ -17,14 +17,9 @@
 // ## GPUtimer
 //#include "../lib/gputimer/gputimer.hpp"
 
-// ## openCV cuda
-//#include <opencv2/core/cuda.hpp>
-
 // ## openCV
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/core/core.hpp>
-//#include <opencv2/imgproc/imgproc.hpp>
-//#include <opencv2/core/devmem2d.hpp>
 
 //## cuda
 #include <cuda_runtime.h>
@@ -40,8 +35,8 @@ void copy(const cv::Mat& image_in, cv::Mat& image_out);
 #ifdef _DEBUG_
 #define _CUDAFUNCS_DEBUG 1
 #endif
-#define _CUDAFUNCS_DEBUG 1
+//#define _CUDAFUNCS_DEBUG 1
 
-#define _CUDAFUNCS_TIMEIT 0
+#define _CUDAFUNCS_TIMEIT 1
 
 #endif

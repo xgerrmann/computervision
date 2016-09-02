@@ -303,7 +303,6 @@ void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixX
 	const int mxBytes		= N*sizeof(int);
 	const int myBytes		= N*sizeof(int);
 
-	std::cerr << "Mx rows: " << Mx.rows() << ", Mx cols: " << Mx.cols() << std::endl;
 	// Create pointers for device data
 	unsigned char *d_input, *d_output;
 	int *d_mx, *d_my;
