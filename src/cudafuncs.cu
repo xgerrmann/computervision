@@ -21,20 +21,21 @@ __global__ void calcmap_cuda(int *d_mx,
 								float *hi_c,
 								int width_map_out,
 								int height_map_out,
-								float xc,
-								float yc)
+								int xc_in,
+								int yc_in,
+								float xc_map,
+								float yc_map)
 {
 	const int col = blockIdx.x*blockDim.x + threadIdx.x;
 	const int row = blockIdx.y*blockDim.y + threadIdx.y;
 	// Early return if outside image bounds
 	if((col>=width_map_out)||(row>=height_map_out)) return;
 	const int index_col_major = row+col*height_map_out;
-	// TODO: convert to int nicely
 	// X and Y pixel coordinates with the center of the image at (x=0, y=0), then move image back
 	// so that upper left pixel is (x=0, y=0)
-	float w					=  hi_c[2]*(col-xc)+hi_c[5]*(row-yc)+hi_c[8]; // original scale = 1, thus h_c[8]*1 is same as h_c[8]
-	d_mx[index_col_major]	= int((hi_c[0]*(col-xc)+hi_c[3]*(row-yc)+hi_c[6])/w+xc+0.5); // +0.5 for decent rounding on conversion to int
-	d_my[index_col_major]	= int((hi_c[1]*(col-xc)+hi_c[4]*(row-yc)+hi_c[7])/w+yc+0.5); // +0.5 for decent rounding on conversion to int
+	float w					=      hi_c[2]*(col-xc_map)+hi_c[5]*(row-yc_map)+hi_c[8]; // original scale = 1, thus h_c[8]*1 is same as h_c[8]
+	d_mx[index_col_major]	= int((hi_c[0]*(col-xc_map)+hi_c[3]*(row-yc_map)+hi_c[6])/w+0.5+xc_in); // +0.5 for decent rounding on conversion to int
+	d_my[index_col_major]	= int((hi_c[1]*(col-xc_map)+hi_c[4]*(row-yc_map)+hi_c[7])/w+0.5+yc_in); // +0.5 for decent rounding on conversion to int
 }
 
 // DOMAP_CUDA ####################################################################################
@@ -45,10 +46,14 @@ __global__ void domap_cuda(unsigned char  *d_input,
 							int *d_my,
 							int width_input,
 							int height_input,
+							int width_map,
+							int height_map,
 							int width_output,
 							int height_output,
-							int xc,
-							int yc,
+							int xc_in,
+							int yc_in,
+							int xc_map,
+							int yc_map,
 							int step_input,
 							int step_output)
 {
@@ -56,31 +61,33 @@ __global__ void domap_cuda(unsigned char  *d_input,
 // xIndex and yIndex correspond to the X and Y image-coordinates of the original image AFTER
 // mapping.
 	
-	int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
-	int yIndex = blockIdx.y * blockDim.y + threadIdx.y;
+	int col_map = blockIdx.x * blockDim.x + threadIdx.x;
+	int row_map = blockIdx.y * blockDim.y + threadIdx.y;
 	// Determine the index of the mapping matrices
 	//const int map_index = yIndex*width+xIndex;
 	// TODO: heights and widths
-	const int map_index = yIndex + xIndex*(height_input); // column major
+	// TODO: heigt _input must be heit of map
+	const int map_index = row_map + col_map*height_map; // column major
 
-	int x_tmp	= d_mx[map_index];
-	int y_tmp	= d_my[map_index];
+	const int col_in	= d_mx[map_index];
+	const int row_in	= d_my[map_index];
 
 	// if mapped outside original image, then do not compute.
-	if((x_tmp<0) || (x_tmp>=width_input) || (y_tmp<0) || (y_tmp>=height_input)){
+	if((col_in<0) || (col_in>=width_input) || (row_in<0) || (row_in>=height_input)){
 		return;
 	}
-	const int row_map_out	= round((float)yIndex-yc+height_output/2);	// (float) neccessary for indicating which round to use (double or float)
-	const int col_map_out	= round((float)(xIndex-xc+width_output/2));
+	const int row_map_out = row_map-yc_map+height_output/2;
+	const int col_map_out = col_map-xc_map+width_output/2;
+
 	const int iy_map_out	= row_map_out;	// (float) neccessary for indicating which round to use (double or float)
-	const int ix_map_out	= 3*col_map_out;
+	const int ix_map_out	= 3*(col_map_out);
 
 	// Return if x or y pixel coordinate falls outside the screen. (Happens because of rounding)
 	if((col_map_out >= width_output) || (row_map_out>=height_output) || (col_map_out<0) || (row_map_out<0)) return;
 	
 	// determine indices
 	const int index_out		= iy_map_out*step_output + ix_map_out;
-	const int index_in		= y_tmp*step_input + (3*x_tmp);
+	const int index_in		= row_in*step_input + (3*col_in);
 
 	// Perform mapping
 	d_output[index_out]		= d_input[index_in];
@@ -116,7 +123,7 @@ __global__ void copy_cuda(unsigned char *input,
 
 // CALCMAPPING  ##################################################################################
 // CALCMAPPING  ##################################################################################
-void calcmapping(Eigen::MatrixXi& Mx, Eigen::MatrixXi& My,  Eigen::Matrix3f& Hi, float x_map_min, float y_map_min){
+void calcmapping(Eigen::MatrixXi& Mx, Eigen::MatrixXi& My,  Eigen::Matrix3f& Hi, float xc_in, float yc_in, float xc_map, float yc_map){
 	#if(_CUDAFUNCS_DEBUG)
 	std::cerr << "### calcmapping <start> ###" << std::endl;
 	#endif
@@ -179,7 +186,15 @@ void calcmapping(Eigen::MatrixXi& Mx, Eigen::MatrixXi& My,  Eigen::Matrix3f& Hi,
 	const dim3 block(16,16);
 	// Calculate grid size to cover whole image
 	const dim3 grid((width_map_out + block.x-1)/block.x, (height_map_out + block.y-1)/block.y);
-	calcmap_cuda<<<grid, block>>>(d_mx, d_my, d_hi, width_map_out, height_map_out, x_map_min, y_map_min);
+	calcmap_cuda<<<grid, block>>>(d_mx,
+									d_my,
+									d_hi,
+									width_map_out,
+									height_map_out,
+									xc_in,
+									yc_in,
+									xc_map,
+									yc_map);
 	// Synchronize to check for kernel launch errors
 	SAFE_CALL(cudaDeviceSynchronize(),"Kernel Launch Failed");
 	//#if(_CUDAFUNCS_TIMEIT)
@@ -268,7 +283,7 @@ void copy(const cv::Mat& image_in, cv::Mat& image_out){
 
 // DOMAPPING ##################EE#################################################################
 // DOMAPPING ##################EE#################################################################
-void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixXi& Mx, Eigen::MatrixXi& My, float xc, float yc){
+void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixXi& Mx, Eigen::MatrixXi& My, float xc_in, float yc_in, float xc_map, float yc_map){
 // domapping
 // Function that performs the actual mapping
 // d_ stands for device	(gpu)
@@ -304,7 +319,8 @@ void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixX
 	SAFE_CALL(cudaMemcpy(d_my, My.data(), myBytes, cudaMemcpyHostToDevice), "CUDA Memcpy Host To Device Failed");
 	
 	// Specify block size
-	const dim3 block(16,16);
+	//const dim3 block(16,16);
+	const dim3 block(1,1);
 	// Calculate grid size to cover whole image
 	// Operate only on region of interest
 	//const int width_out		= Mx.cols();
@@ -320,6 +336,7 @@ void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixX
 	#endif
 	int width_in	= image_input.size().width;
 	int height_in	= image_input.size().height;
+	// TODO: pass as function arguments instead of calculating here
 	// Launch kernel
 	domap_cuda<<<grid,block>>>(d_input,
 								d_output,
@@ -327,10 +344,14 @@ void domapping(const cv::Mat& image_input, cv::Mat& image_output, Eigen::MatrixX
 								d_my,
 								width_in,
 								height_in,
+								width_map,
+								height_map,
 								width_out,
 								height_out,
-								xc,
-								yc,
+								xc_in,
+								yc_in,
+								xc_map,
+								yc_map,
 								image_input.step,
 								image_output.step);
 	

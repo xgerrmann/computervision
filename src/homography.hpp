@@ -343,6 +343,8 @@ void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformatio
 	const int height_in	= image_input.size().height;
 	const int width_in	= image_input.size().width;
 	const int channels	= image_input.channels();
+	const float xc_in	= (width_in-1)/2;
+	const float yc_in	= (height_in-1)/2;
 	
 	Eigen::Matrix3f H, Hi;
 	//arma::Mat<float> H, Hi;	
@@ -358,7 +360,7 @@ void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformatio
 	std::cerr << "H:\n" << H << std::endl;
 	std::cerr << "Hi:\n" << Hi << std::endl;
 	#endif
-	float xmin, ymin, xmax, ymax, xc, yc; // xc and yc are the offsets of the center of the mapping from the upper left corner
+	float xmin, ymin, xmax, ymax, xc_map, yc_map; // xc and yc are the offsets of the center of the mapping from the upper left corner
 	int width_out, height_out;
 	xmin		= rectangle[0];
 	ymin		= rectangle[1];
@@ -366,10 +368,10 @@ void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformatio
 	height_out	= int(ceil(rectangle[3])); // in pixels
 	xmax		= xmin + rectangle[2] - 1; // zero based, thus -1, use rectangle, because it is still float
 	ymax		= ymin + rectangle[3] - 1;// zero based, thus -1, use rectangle because float.
-	xc			= fabs(xmin); // x location of the center in the mapped image
-	yc			= fabs(ymax); // y location of the center in the mapped image
-	std::cerr << "xc: " << xc << std::endl;
-	std::cerr << "yc: " << yc << std::endl;
+	xc_map		= fabs(xmin); // x location of the center in the mapped image
+	yc_map		= fabs(ymax); // y location of the center in the mapped image
+	std::cerr << "xc_map: " << xc_map << std::endl;
+	std::cerr << "yc_map: " << yc_map << std::endl;
 // Determine size of matrices for performing the mapping.
 // Mapping must stay within max size.
 // Max size of mapping matrices is minimum of outgoing image dimensions and the max dimensions
@@ -391,26 +393,27 @@ void hom(const cv::Mat& image_input, cv::Mat& image_output, trans& transformatio
 	#if(_HOM_TIMEIT)
 	//watch.lap("Mapping Preliminaries");
 	#endif
-	calcmapping(Mx, My, Hi, xc, yc);
+	calcmapping(Mx, My, Hi, xc_in, yc_in, xc_map, yc_map);
 	#if(_HOM_TIMEIT)
 	//watch.lap("Calc Mapping");
 	#endif
 	//cv::imshow("image_in",*image_in);
 	// Print mapping when debugggin is on
-	#if(_HOM_DEBUG)
-	int xtmp,ytmp,trans_x, trans_y;
-	for(int h = 0; h<height_out; h++){
-		for(int w = 0; w<width_out; w++){
-			// Change origin from center of image to upper right corner.
-			xtmp = Mx(h,w);
-			ytmp = My(h,w);
-			// Early continue if oudside max imaxe bounds.
-			if(xtmp<0 || xtmp >= width_out || ytmp<0 || ytmp>=height_out)	continue;
-			std::cerr<<"y: "<< ytmp <<" -> "<< h << " \t| " << "x: "<< xtmp <<" -> "<< w << std::endl;
-		}
-	}
-	#endif
-	domapping(image_input, image_output, Mx, My, xc, yc); // image in and image out are pointers
+//	#if(_HOM_DEBUG)
+//	int xtmp,ytmp,trans_x, trans_y;
+//	for(int h = 0; h<height_out; h++){
+//		for(int w = 0; w<width_out; w++){
+//			// Change origin from center of image to upper right corner.
+//			xtmp = Mx(h,w);
+//			ytmp = My(h,w);
+//			// Early continue if oudside max imaxe bounds.
+//			//if(xtmp<0 || xtmp >= width_out || ytmp<0 || ytmp>=height_out)	continue;
+//			//std::cerr<<"y_map: "<< ytmp <<" -> y_input: "<< h << " \t| " << "x_map: "<< xtmp <<" -> x_input: "<< w << std::endl;
+//			std::cerr<<"y_input: "<< h <<" -> y_map: "<< ytmp << " \t| " << "x_input: "<< w <<" -> x_map: "<< xtmp << std::endl;
+//		}
+//	}
+//	#endif
+	domapping(image_input, image_output, Mx, My, xc_in, yc_in, xc_map, yc_map); // image in and image out are pointers
 ////###################
 #if(_HOM_TIMEIT)
 	//watch.lap("Perform Mapping");
