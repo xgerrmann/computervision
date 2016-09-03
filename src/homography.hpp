@@ -54,7 +54,7 @@ typedef std::map<std::string,float> trans;
 
 void hom(const cv::Mat& image_input, cv::cuda::GpuMat& image_output, trans& transformations, int& width_max, int& height_max);
 Rxyz calcrotationmatrix(double rx, double ry, double rz);
-std::vector<float> calcrotations(Eigen::Matrix3f Rt);
+//std::vector<float> calcrotations(Eigen::Matrix3f Rt);
 Eigen::Matrix3f calchomography(int width, int height, trans transformations);
 Eigen::Vector4f box_out(Eigen::Matrix3f H, int height, int width);
 
@@ -96,28 +96,28 @@ Rxyz calcrotationmatrix(float rx, float ry, float rz){
 	return rot;
 }
 
-std::vector<float> calcrotations(Eigen::Matrix3f Rt){
-//	source: http://stackoverflow.com/questions/15022630/how-to-calculate-the-angle-from-roational-matrix
-//
-//	source: http://www.staff.city.ac.uk/~sbbh653/publications/euler.pdf
-//	it is interesting to note that there is always more than one sequence of rotations
-//	about the three principle axes that results in the same orientation of an object
-	float rx, ry, rz;
-	std::vector<float> rots;
-	double r11, r21, r31, r32, r33;
-	r11 = Rt(0,0);
-	r21 = Rt(1,0);
-	r31 = Rt(2,0);
-	r33 = Rt(2,2);
-	rx = (float) atan2( r32, r33);
-	ry = (float) atan2(-r31, sqrt(pow(r32,2)+pow(r33,2)));
-	rz = (float) atan2( r21, r11);
-	rots.push_back(rx);
-	rots.push_back(ry);
-	rots.push_back(rz);
-//	std::cerr << "calcrotations (output): rx, ry, rz: "<< rx << ", "<< ry << ", "<< rz << std::endl;
-	return rots;
-}
+//std::vector<float> calcrotations(Eigen::Matrix3f Rt){
+////	source: http://stackoverflow.com/questions/15022630/how-to-calculate-the-angle-from-roational-matrix
+////
+////	source: http://www.staff.city.ac.uk/~sbbh653/publications/euler.pdf
+////	it is interesting to note that there is always more than one sequence of rotations
+////	about the three principle axes that results in the same orientation of an object
+//	float rx, ry, rz;
+//	std::vector<float> rots;
+//	double r11, r21, r31, r32, r33;
+//	r11 = Rt(0,0);
+//	r21 = Rt(1,0);
+//	r31 = Rt(2,0);
+//	r33 = Rt(2,2);
+//	rx = (float) atan2( r32, r33);
+//	ry = (float) atan2(-r31, sqrt(pow(r32,2)+pow(r33,2)));
+//	rz = (float) atan2( r21, r11);
+//	rots.push_back(rx);
+//	rots.push_back(ry);
+//	rots.push_back(rz);
+////	std::cerr << "calcrotations (output): rx, ry, rz: "<< rx << ", "<< ry << ", "<< rz << std::endl;
+//	return rots;
+//}
 
 Eigen::Vector4f box_out(Eigen::Matrix3f H, int width_original, int height_original){
 // This function calculates the locations in the x,y,z, coordinate system of the resulting
@@ -190,16 +190,17 @@ Eigen::Vector4f box_out(Eigen::Matrix3f H, int width_original, int height_origin
 }
 
 Eigen::Matrix3f calchomography(int width, int height, trans transformations){
-	#if(_HOM_DEBUG) || (_HOM_TIMEIT)
-	std::cerr << "### calchomography <start> ###" << std::endl;
-	gputimer watch;
-	watch.start();
-	#endif
+// calchomograpphy
 // This function calculates the homography matrix, given the rotations rx,ry,rz.
 // Coordinate system:
 // ^ y+
 // |
 // --->x+
+	#if(_HOM_DEBUG) || (_HOM_TIMEIT)
+	std::cerr << "### calchomography <start> ###" << std::endl;
+	gputimer watch;
+	watch.start();
+	#endif
 
 	// Width and height of an image must be > 0
 	assert(width>0&&height>0);

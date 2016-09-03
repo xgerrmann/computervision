@@ -123,10 +123,11 @@ int main(){
 		#if(_MAIN_TIMEIT)
 		watch.lap("Update estimator");
 		#endif
-		// Reset im_out
-		image_out.setTo(0);
 		// TODO: does not have to be a for loop..
 		for(head_pose pose_head : estimator.poses()) {
+			// Reset im_out (only if head is detected)
+			image_out.setTo(0);
+			
 			cv::Mat rotations		= pose_head.rvec;
 			cv::Mat translations	= pose_head.tvec;
 
