@@ -13,11 +13,6 @@ set(CMAKE_CXX_STANDARD 11)
 
 ### CUDA
 find_package(CUDA REQUIRED)
-#list(APPEND CUDA_NVCC_FLAGS "-arch=sm_20;-std=c++11;-O2;-DVERBOSE")
-#list(APPEND CUDA_NVCC_FLAGS "-arch=sm_20;-std=c++11;")
-#SET(CUDA_PROPAGATE_HOST_FLAGS OFF)
-
-#add_subdirectory(cuda-utils)
 
 # Create binaries
 #-------------------
@@ -34,10 +29,6 @@ include(../include/dlib/cmake)
 
 # Eigen3
 # installed on the system
-
-# Armadillo
-find_package(Armadillo REQUIRED)
-include_directories(${ARMADILLO_INCLUDE_DIRS})
 
 ## tracker
 set(ATTENTION_TRACKER_LIBRARY /home/xgerrmann/Documents/src/computervision/include/attention-tracker/build/libhead_pose_estimation.so)
@@ -57,7 +48,7 @@ message("OpenBLASlibrary: ${OpenBLAS_LIBRARY}")
 ## Linker
 ##-------------------
 # main
-target_link_libraries(main			dlib	${OpenCV_LIBS}	${ARMADILLO_LIBRARIES}	${ATTENTION_TRACKER_LIBRARY}	openblas	${CUDA_LIBRARIES} gputimer)
+target_link_libraries(main	dlib	${OpenCV_LIBS}	${ATTENTION_TRACKER_LIBRARY}	openblas	${CUDA_LIBRARIES} gputimer)
 # homography
 #target_link_libraries(homography	dlib ${OpenCV_LIBS}	${CUDA_LIBRARIES} gputimer)
 

@@ -24,8 +24,6 @@
 #include <eigen3/Eigen/Dense> // << changes
 //#include <limits.h> // for max values of datatypes
 #include <float.h> // for max values of datatypes
-// ## Armadillo
-//#include <armadillo>
 // ## Attention tracker
 #include "../include/attention-tracker/src/head_pose_estimation.hpp"
 // ## Xlib
@@ -362,7 +360,6 @@ void hom(const cv::Mat& image_input, cv::cuda::GpuMat& image_output, trans& tran
 	const float yc_in	= (height_in-1)/2;
 	
 	Eigen::Matrix3f H, Hi;
-	//arma::Mat<float> H, Hi;	
 	H	= calchomography(width_in,height_in,transformations);
 	int trans_x, trans_y, trans_z;
 	trans_x = transformations["tx"];

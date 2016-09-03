@@ -80,7 +80,7 @@ int main(){
 	cv::namedWindow(window_image,cv::WINDOW_OPENGL);
 	
 	cv::VideoCapture video_in(0);
-	video_in.set(CV_CAP_PROP_BUFFERSIZE, 2); // internal buffer will now store only 3 frames
+	video_in.set(CV_CAP_PROP_BUFFERSIZE, 0); // internal buffer will now store only 3 frames
 	//cv::VideoCapture video_in(CV_CAP_DSHOW);
 	double fps = video_in.get(CV_CAP_PROP_FPS);
 	std::cerr << "Max framerate: " << fps << std::endl;
@@ -110,6 +110,7 @@ int main(){
 	double subsample_detection_frame = 3.0;
 	//cv::Mat im_out(height_screen,width_screen,CV_8UC3);
 	cv::cuda::GpuMat image_out(height_screen, width_screen, CV_8UC3);
+	image_out.setTo(0);
 	transformation_manager trans_mngr;
 	for(EVER){
 		//#if _MAIN_DEBUG || _MAIN_TIMEIT
