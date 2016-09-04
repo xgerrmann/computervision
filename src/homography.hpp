@@ -50,7 +50,7 @@ typedef struct {
 
 typedef std::map<std::string,float> trans;
 
-void hom(const cv::Mat& image_input, cv::cuda::GpuMat& image_output, trans& transformations, int& width_max, int& height_max);
+void hom(const cv::cuda::GpuMat& image_input, cv::cuda::GpuMat& image_output, trans& transformations, int& width_max, int& height_max);
 Rxyz calcrotationmatrix(double rx, double ry, double rz);
 //std::vector<float> calcrotations(Eigen::Matrix3f Rt);
 Eigen::Matrix3f calchomography(int width, int height, trans transformations);
@@ -343,7 +343,7 @@ Eigen::Matrix3f calchomography(int width, int height, trans transformations){
 	return H;
 }
 
-void hom(const cv::Mat& image_input, cv::cuda::GpuMat& image_output, trans& transformations, int& width_screen, int& height_screen){
+void hom(const cv::cuda::GpuMat& image_input, cv::cuda::GpuMat& image_output, trans& transformations, int& width_screen, int& height_screen){
 	#if(_HOM_DEBUG) || (_HOM_TIMEIT)
 	std::cerr << "### hom <start> ###" << std::endl;
 	#endif
@@ -353,11 +353,11 @@ void hom(const cv::Mat& image_input, cv::cuda::GpuMat& image_output, trans& tran
 	watch.start();
 	#endif
 
-	const int height_in	= image_input.size().height;
-	const int width_in	= image_input.size().width;
-	const int channels	= image_input.channels();
-	const float xc_in	= (width_in-1)/2;
-	const float yc_in	= (height_in-1)/2;
+	static const int height_in	= image_input.size().height;
+	static const int width_in	= image_input.size().width;
+	static const int channels	= image_input.channels();
+	static const float xc_in	= (width_in-1)/2;
+	static const float yc_in	= (height_in-1)/2;
 	
 	Eigen::Matrix3f H, Hi;
 	H	= calchomography(width_in,height_in,transformations);

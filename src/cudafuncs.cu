@@ -40,7 +40,7 @@ __global__ void calcmap_cuda(int *d_mx,
 
 // DOMAP_CUDA ####################################################################################
 // DOMAP_CUDA ####################################################################################
-__global__ void domap_cuda(unsigned char  *d_input,
+__global__ void domap_cuda(const unsigned char  *d_input,
 							unsigned char *d_output,
 							int *d_mx,
 							int *d_my,
@@ -54,7 +54,7 @@ __global__ void domap_cuda(unsigned char  *d_input,
 							int yc_in,
 							int xc_map,
 							int yc_map,
-							int step_input,
+							size_t step_input,
 							size_t step_output,
 							int trans_x,
 							int trans_y)
@@ -293,7 +293,7 @@ void copy(const cv::Mat& image_in, cv::Mat& image_out){
 
 // DOMAPPING ##################EE#################################################################
 // DOMAPPING ##################EE#################################################################
-void domapping(const cv::Mat& image_input, cv::cuda::GpuMat& image_output, Eigen::MatrixXi& Mx, Eigen::MatrixXi& My, float xc_in, float yc_in, float xc_map, float yc_map, int trans_x, int trans_y){
+void domapping(const cv::cuda::GpuMat& image_input, cv::cuda::GpuMat& image_output, Eigen::MatrixXi& Mx, Eigen::MatrixXi& My, float xc_in, float yc_in, float xc_map, float yc_map, int trans_x, int trans_y){
 // domapping
 // Function that performs the actual mapping
 // d_ stands for device	(gpu)
@@ -315,10 +315,7 @@ void domapping(const cv::Mat& image_input, cv::cuda::GpuMat& image_output, Eigen
 	const int myBytes		= N*sizeof(int);
 
 	// Create pointers for device data
-	//unsigned char *d_input, *d_output;
-	unsigned char *d_input;
 	int *d_mx, *d_my;
-	SAFE_CALL(cudaMalloc<unsigned char>(&d_input,	inputBytes),	"CUDA Malloc input Failed");
 	SAFE_CALL(cudaMalloc<int>(&d_mx,	mxBytes),	"CUDA Malloc input Failed");
 	SAFE_CALL(cudaMalloc<int>(&d_my,	myBytes),	"CUDA Malloc output Failed");
 	#if(_CUDAFUNCS_TIMEIT)
@@ -326,7 +323,7 @@ void domapping(const cv::Mat& image_input, cv::cuda::GpuMat& image_output, Eigen
 	#endif
 
 	// Copy to device
-	SAFE_CALL(cudaMemcpy(d_input,	image_input.ptr(),	inputBytes, cudaMemcpyHostToDevice), "CUDA Memcpy Host To Device Failed");
+	//SAFE_CALL(cudaMemcpy(d_input,	image_input.ptr(),	inputBytes, cudaMemcpyHostToDevice), "CUDA Memcpy Host To Device Failed");
 	SAFE_CALL(cudaMemcpy(d_mx, Mx.data(), mxBytes, cudaMemcpyHostToDevice), "CUDA Memcpy Host To Device Failed");
 	SAFE_CALL(cudaMemcpy(d_my, My.data(), myBytes, cudaMemcpyHostToDevice), "CUDA Memcpy Host To Device Failed");
 	#if(_CUDAFUNCS_TIMEIT)
@@ -351,10 +348,8 @@ void domapping(const cv::Mat& image_input, cv::cuda::GpuMat& image_output, Eigen
 	int height_in	= image_input.size().height;
 	// TODO: pass as function arguments instead of calculating here ??
 	// Launch kernel
-	uchar *d_output		= image_output.ptr<uchar>();
-	size_t step_output	= image_output.step;
-	domap_cuda<<<grid,block>>>(d_input,
-								d_output,
+	domap_cuda<<<grid,block>>>(image_input.ptr<uchar>(),
+								image_output.ptr<uchar>(),
 								d_mx,
 								d_my,
 								width_in,
@@ -368,7 +363,7 @@ void domapping(const cv::Mat& image_input, cv::cuda::GpuMat& image_output, Eigen
 								xc_map,
 								yc_map,
 								image_input.step,
-								step_output,
+								image_output.step,
 								trans_x,
 								trans_y);
 	
@@ -379,7 +374,6 @@ void domapping(const cv::Mat& image_input, cv::cuda::GpuMat& image_output, Eigen
 	#endif
 	
 	// Free memory
-	SAFE_CALL(cudaFree(d_input) ,"CUDA Free Failed");
 	SAFE_CALL(cudaFree(d_mx) ,"CUDA Free Failed");
 	SAFE_CALL(cudaFree(d_my) ,"CUDA Free Failed");
 	#if(_CUDAFUNCS_TIMEIT)

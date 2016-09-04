@@ -74,13 +74,16 @@ int main(){
 
     auto estimator = HeadPoseEstimation(trained_model);
 
-	cv::Mat image_in = cv::imread(default_image);
+	cv::Mat image_in_tmp	= cv::imread(default_image);
+	//cv::cuda::GpuMat image_in(image_in_tmp.height, image_in_tmp.width, image_in_tmp.type());
+	const cv::cuda::GpuMat image_in(image_in_tmp);
 	std::string window_image = "Image";
 	// 
 	cv::namedWindow(window_image,cv::WINDOW_OPENGL);
 	
 	cv::VideoCapture video_in(0);
-	video_in.set(CV_CAP_PROP_BUFFERSIZE, 0); // internal buffer will now store only 3 frames
+	int size_buff = 0;
+	video_in.set(CV_CAP_PROP_BUFFERSIZE, size_buff); // internal buffer will now store only 3 frames
 	//cv::VideoCapture video_in(CV_CAP_DSHOW);
 	double fps = video_in.get(CV_CAP_PROP_FPS);
 	std::cerr << "Max framerate: " << fps << std::endl;
