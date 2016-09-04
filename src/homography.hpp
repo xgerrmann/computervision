@@ -403,33 +403,10 @@ void hom(const cv::cuda::GpuMat& image_input, cv::cuda::GpuMat& image_output, tr
 	std::cerr << "width_max:  "	<< width_max	<< std::endl;
 	std::cerr << "height_max: "	<< height_max	<< std::endl;
 	#endif
-	// Mapping is calculated on GPU
-	Eigen::MatrixXi Mx(height_max, width_max);// = Eigen::Matrix<float,hmax,wmax>::Zero();
-	Eigen::MatrixXi My(height_max, width_max);// = Eigen::Matrix<float,hmax,wmax>::Zero();
 	#if(_HOM_TIMEIT)
 	watch.lap("Mapping Preliminaries");
 	#endif
-	calcmapping(Mx, My, Hi, xc_in, yc_in, xc_map, yc_map);
-	#if(_HOM_TIMEIT)
-	watch.lap("Calc Mapping");
-	#endif
-	//cv::imshow("image_in",*image_in);
-	// Print mapping when debugggin is on
-//	#if(_HOM_DEBUG)
-//	int xtmp,ytmp,trans_x, trans_y;
-//	for(int h = 0; h<height_out; h++){
-//		for(int w = 0; w<width_out; w++){
-//			// Change origin from center of image to upper right corner.
-//			xtmp = Mx(h,w);
-//			ytmp = My(h,w);
-//			// Early continue if oudside max imaxe bounds.
-//			//if(xtmp<0 || xtmp >= width_out || ytmp<0 || ytmp>=height_out)	continue;
-//			//std::cerr<<"y_map: "<< ytmp <<" -> y_input: "<< h << " \t| " << "x_map: "<< xtmp <<" -> x_input: "<< w << std::endl;
-//			std::cerr<<"y_input: "<< h <<" -> y_map: "<< ytmp << " \t| " << "x_input: "<< w <<" -> x_map: "<< xtmp << std::endl;
-//		}
-//	}
-//	#endif
-	domapping(image_input, image_output, Mx, My, xc_in, yc_in, xc_map, yc_map, trans_x, trans_y); // image in and image out are pointers
+	map(Hi, image_input, image_output, width_out, height_out, xc_in, yc_in, xc_map, yc_map, trans_x, trans_y); // image in and image out are pointers
 	
 ////###################
 	#if(_HOM_TIMEIT)
