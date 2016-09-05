@@ -94,29 +94,6 @@ Rxyz calcrotationmatrix(float rx, float ry, float rz){
 	return rot;
 }
 
-//std::vector<float> calcrotations(Eigen::Matrix3f Rt){
-////	source: http://stackoverflow.com/questions/15022630/how-to-calculate-the-angle-from-roational-matrix
-////
-////	source: http://www.staff.city.ac.uk/~sbbh653/publications/euler.pdf
-////	it is interesting to note that there is always more than one sequence of rotations
-////	about the three principle axes that results in the same orientation of an object
-//	float rx, ry, rz;
-//	std::vector<float> rots;
-//	double r11, r21, r31, r32, r33;
-//	r11 = Rt(0,0);
-//	r21 = Rt(1,0);
-//	r31 = Rt(2,0);
-//	r33 = Rt(2,2);
-//	rx = (float) atan2( r32, r33);
-//	ry = (float) atan2(-r31, sqrt(pow(r32,2)+pow(r33,2)));
-//	rz = (float) atan2( r21, r11);
-//	rots.push_back(rx);
-//	rots.push_back(ry);
-//	rots.push_back(rz);
-////	std::cerr << "calcrotations (output): rx, ry, rz: "<< rx << ", "<< ry << ", "<< rz << std::endl;
-//	return rots;
-//}
-
 Eigen::Vector4f box_out(Eigen::Matrix3f H, int width_original, int height_original){
 // This function calculates the locations in the x,y,z, coordinate system of the resulting
 // corner points. From this it determines the width and height of the outgoing image.
@@ -218,19 +195,16 @@ Eigen::Matrix3f calchomography(int width, int height, trans transformations){
 	Eigen::Matrix3f Rti	= Rt.inverse();
 //	std::cerr << "Rti:\n"	<< Rti	<< std::endl;
 //	# define 3 points on the virtual image plane
-	Eigen::Vector3f p0, p1, p2, pr0, pr1, pr2;
-	p0 << 0.0, 0.0, 0.0;	// [m]
-	p1 << 1.0, 0.0, 0.0;	// [m]
-	p2 << 0.0, 1.0, 0.0;	// [m]
+	Eigen::Vector3f p0, p1, pr0, pr1;
+	p0 << 1.0, 0.0, 0.0;	// [m]
+	p1 << 0.0, 1.0, 0.0;	// [m]
 	//std::cerr << p0 << "\n";
 	//std::cerr << p1 << "\n";
 	//std::cerr << p2 << "\n";
 //	# preform rotation of points
 	pr0 = Rt*p0;
 	pr1 = Rt*p1;
-	pr2 = Rt*p2;
-//	Find 2 vectors that span the plane:
-//	pr0 is always <0,0,0>, so the vectors pr1 and pr2 define the plane.
+//	The vectors pr0 and pr1 define the plane.
 
 //	Construct the vectors for the view-lines from the optical center to the corners of the virtual image:
 //	Corner numbering:
@@ -284,14 +258,14 @@ Eigen::Matrix3f calchomography(int width, int height, trans transformations){
 		float x, y;
 		// TODO: more comments
 		//std::cerr << "Corner: " << cornerlines.at(i) << "\n";
-		A	<< cornerlines.at(i) , -pr1, -pr2;
+		A	<< cornerlines.at(i) , -pr0, -pr1;
 		//std::cerr << "A: \n" << A <<"\n";
 		Ai		= A.inverse();
 		//std::cerr << "Ai: \n" << Ai <<"\n";
 		//std::cerr << "e\n" << e <<"\n";
 		comb	= Ai*(-e);
 		//std::cerr << "Comb:\n" << comb << "\n";
-		tmp_mat << pr1, pr2;
+		tmp_mat << pr0, pr1;
 		tmp_vec = comb.block<2,1>(1,0);
 		//std::cerr << "Comb part:\n" << tmp_vec << "\n";
 		intersection = tmp_mat*tmp_vec;
