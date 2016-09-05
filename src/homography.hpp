@@ -48,7 +48,9 @@ typedef struct {
 	Eigen::Matrix3f Rz;
 } Rxyz;
 
-typedef std::map<std::string,float> trans;
+typedef struct trans{
+	float tx, ty, tz, rx, ry, rz;
+} trans;
 
 void hom(const cv::cuda::GpuMat& image_input, cv::cuda::GpuMat& image_output, trans& transformations, int& width_max, int& height_max);
 Rxyz calcrotationmatrix(double rx, double ry, double rz);
@@ -181,15 +183,15 @@ Eigen::Matrix3f calchomography(int width, int height, trans transformations){
 	assert(width>0&&height>0);
 
 	//Rt = Rz*Ry*Rx
-	Rxyz rot			= calcrotationmatrix(transformations["rx"], transformations["ry"], transformations["rz"]);
+	Rxyz rot			= calcrotationmatrix(transformations.rx, transformations.ry, transformations.rz);
 	Eigen::Matrix3f Rt	= rot.Rz*rot.Ry*rot.Rx;
 	#if(_HOM_DEBUG)
-	std::cerr << "tx: " << transformations["tx"] << std::endl;
-	std::cerr << "ty: " << transformations["ty"] << std::endl;
-	std::cerr << "tz: " << transformations["tz"] << std::endl;
-	std::cerr << "rx: " << transformations["rx"] << std::endl;
-	std::cerr << "ry: " << transformations["ry"] << std::endl;
-	std::cerr << "rz: " << transformations["rz"] << std::endl;
+	std::cerr << "tx: " << transformations.tx << std::endl;
+	std::cerr << "ty: " << transformations.ty << std::endl;
+	std::cerr << "tz: " << transformations.tz << std::endl;
+	std::cerr << "rx: " << transformations.rx << std::endl;
+	std::cerr << "ry: " << transformations.ry << std::endl;
+	std::cerr << "rz: " << transformations.rz << std::endl;
 	std::cerr << "Rt:\n"	<< Rt	<< std::endl;
 	#endif
 	Eigen::Matrix3f Rti	= Rt.inverse();
@@ -327,9 +329,9 @@ void hom(const cv::cuda::GpuMat& image_input, cv::cuda::GpuMat& image_output, tr
 	Eigen::Matrix3f H, Hi;
 	H	= calchomography(width_in,height_in,transformations);
 	int trans_x, trans_y, trans_z;
-	trans_x = transformations["tx"];
-	trans_y = transformations["ty"];
-	trans_z = transformations["tz"];
+	trans_x = transformations.tx;
+	trans_y = transformations.ty;
+	trans_z = transformations.tz;
 	//H	<<	1,0,0,
 	//		0,1,0,
 	//		0,0,1;

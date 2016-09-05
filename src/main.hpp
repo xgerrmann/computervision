@@ -17,6 +17,7 @@
 #include <dlib/serialize.h>
 //#include <dlib/image_io.h>
 #include <iostream>
+#include <algorithm>
 
 // ## opencv2
 #include <opencv2/opencv.hpp>
@@ -41,20 +42,22 @@
 
 class transformation_manager{
 	trans transformation_init;
+	int n_average; // Number of frames to average the headpose over
 	std::list<std::tuple<timer::tp, trans>> transformation_history;
 	timer::tp tstart, tend;		// Start and end time of the currently stored history.
 	//timer::dt max_history_length;		// Max history length.
 	double max_history_length;		// Max history length.
 
 	public:
-		transformation_manager();			// Constructor
+		transformation_manager(int frames_average);			// Constructor
 		trans add(trans transformation);	// Method to add transformation to the history, returns a transformation based on its history; 
 };
 // Constructor
-transformation_manager::transformation_manager(){
+transformation_manager::transformation_manager(int frames_average){
 	max_history_length	= double(1.0);			// [s]
 	//tstart			= timer::now();	// [s]
 	//tend				= timer::now();	// [s]
+	n_average = frames_average;
 }
 trans transformation_manager::add(trans transformation){
 	timer::tp tp_now	= timer::now();
@@ -63,10 +66,11 @@ trans transformation_manager::add(trans transformation){
 		tstart				= tp_now;
 		transformation_init	= transformation;
 	}
-	timer::dt dt_his	= tend-tstart;
+	timer::dt dt_his	= tend-tstart; // This is the length (in seconds) of the currently stored history
 	//std::cerr << "his:" << max_history_length << std::endl;
 	//std::cerr << "dt: " << double(dt_his.count()) << std::endl;
 	//std::cerr << "len: "<< transformation_history.size() << std::endl;
+	// Add the new transformation to the history list
 	transformation_history.push_front(std::make_tuple(tp_now,transformation));
 	//std::cerr << "len: "<< transformation_history.size() << std::endl;
 	while((tend-tstart).count()>max_history_length){
@@ -76,16 +80,27 @@ trans transformation_manager::add(trans transformation){
 		tstart	= std::get<0>(transformation_history.back());
 	}
 	// right now, return the transformation directly
-	auto dof_out	= transformation.begin();
-	auto dof_init	= transformation_init.begin();
-	while(dof_out != transformation.end()){
-		//std::cerr << "PRE  dof_in: " << dof_out->second << ", dof_init: " << dof_init->second << std::endl;
-		dof_out->second = dof_out->second-dof_init->second;
-		//std::cerr << "POST dof_in: " << dof_out->second << ", dof_init: " << dof_init->second << std::endl;
-		++dof_out;
-		++dof_init;
-	}
-	return transformation;
+	// For every element in the transformation: tx, ty, tz, rx, ry and rz substract the initial pose
+	trans trans_new;
+	trans_new.tx = transformation.tx-transformation_init.tx;
+	trans_new.ty = transformation.ty-transformation_init.ty;
+	trans_new.tz = transformation.tz-transformation_init.tz;
+	trans_new.rx = transformation.rx-transformation_init.rx;
+	trans_new.ry = transformation.ry-transformation_init.ry;
+	trans_new.rz = transformation.rz-transformation_init.rz;
+	//auto trans_tup_tmp	= transformation_history.begin();
+	//int n_avg_max		= std::min(n_average,int(transformation_history.size()));
+	//for(int i =0; i<n_avg_max; i++){
+	//	trans trans_tmp = (std::get<1>(*trans_tup_tmp)); // first element of tuple is time, second is a transformation
+	//	trans_new.tx += (trans_tmp.tx-transformation_init.tx)/n_avg_max;
+	//	trans_new.ty += (trans_tmp.ty-transformation_init.ty)/n_avg_max;
+	//	trans_new.tz += (trans_tmp.tz-transformation_init.tz)/n_avg_max;
+	//	trans_new.rx += (trans_tmp.rx-transformation_init.rx)/n_avg_max;
+	//	trans_new.ry += (trans_tmp.ry-transformation_init.ry)/n_avg_max;
+	//	trans_new.rz += (trans_tmp.rz-transformation_init.rz)/n_avg_max;
+	//	++trans_tup_tmp; // makes sure the first is also skipped
+	//}
+	return trans_new;
 }
 
 

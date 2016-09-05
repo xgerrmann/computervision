@@ -114,7 +114,8 @@ int main(){
 	//cv::Mat im_out(height_screen,width_screen,CV_8UC3);
 	cv::cuda::GpuMat image_out(height_screen, width_screen, CV_8UC3);
 	image_out.setTo(0);
-	transformation_manager trans_mngr;
+	int n_frames_pose_average = 2;
+	transformation_manager trans_mngr(n_frames_pose_average);
 	for(EVER){
 		//#if _MAIN_DEBUG || _MAIN_TIMEIT
 		watch.start();
@@ -137,12 +138,12 @@ int main(){
 
 			//std::cerr << "Rotations:"  << rotations << std::endl;
 			trans transformation;
-			transformation["tx"] = (double)translations.at<double>(0);
-			transformation["ty"] = (double)translations.at<double>(1);
-			transformation["tz"] = (double)translations.at<double>(2);
-			transformation["rx"] = (double)rotations.at<double>(0);
-			transformation["ry"] = (double)rotations.at<double>(1);
-			transformation["rz"] = (double)rotations.at<double>(2);
+			transformation.tx = (float)translations.at<double>(0);
+			transformation.ty = (float)translations.at<double>(1);
+			transformation.tz = (float)translations.at<double>(2);
+			transformation.rx = (float)rotations.at<double>(0);
+			transformation.ry = (float)rotations.at<double>(1);
+			transformation.rz = (float)rotations.at<double>(2);
 			//std::cerr << "Trans:" << std::endl;
 			//for(auto transform : transformation){
 			//	std::cerr << "\t" << std::get<1>(transform) << std::endl;
