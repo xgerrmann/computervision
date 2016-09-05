@@ -256,7 +256,6 @@ Eigen::Matrix3f calchomography(int width, int height, trans transformations){
 		Eigen::Vector3f comb, intersection, coords;
 		Eigen::Vector2f tmp_vec, corner;
 		float x, y;
-		// TODO: more comments
 		//std::cerr << "Corner: " << cornerlines.at(i) << "\n";
 		A	<< cornerlines.at(i) , -pr0, -pr1;
 		//std::cerr << "A: \n" << A <<"\n";
@@ -265,17 +264,9 @@ Eigen::Matrix3f calchomography(int width, int height, trans transformations){
 		//std::cerr << "e\n" << e <<"\n";
 		comb	= Ai*(-e);
 		//std::cerr << "Comb:\n" << comb << "\n";
-		tmp_mat << pr0, pr1;
-		tmp_vec = comb.block<2,1>(1,0);
-		//std::cerr << "Comb part:\n" << tmp_vec << "\n";
-		intersection = tmp_mat*tmp_vec;
-		//std::cerr << "Intersection:\n" << intersection << "\n";
-		//Compute x,y coordinates in plane by performing the inverse plane rotation on the point of intersection
-		coords = Rti*intersection;
-		//std::cerr << "Coordinates:\n" << coords << "\n";
 		// Convert real coordinates into pixel coordinates
-		x = coords[0]/PITCH;	// [pixels]
-		y = coords[1]/PITCH;	// [pixels]
+		x = comb[1]/PITCH;
+		y = comb[2]/PITCH;
 		//std::cerr << "x: " << x << "\n";
 		//std::cerr << "y: " << y << "\n";
 		corner << x,y;
