@@ -114,7 +114,7 @@ int main(){
 	//cv::Mat im_out(height_screen,width_screen,CV_8UC3);
 	cv::cuda::GpuMat image_out(height_screen, width_screen, CV_8UC3);
 	image_out.setTo(0);
-	int n_frames_pose_average = 2;
+	int n_frames_pose_average = 4;
 	transformation_manager trans_mngr(n_frames_pose_average);
 	for(EVER){
 		//#if _MAIN_DEBUG || _MAIN_TIMEIT
