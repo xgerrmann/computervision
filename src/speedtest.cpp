@@ -1,4 +1,4 @@
-// main.cpp
+// speedtest.cpp
 // X.G.Gerrmann
 //
 #include "main.hpp"
@@ -58,39 +58,26 @@ int main(){
 		#if(_MAIN_TIMEIT)
 		watch.lap("Get frame");
 		#endif
-		estimator.update(frame,subsample_detection_frame);
+		// Reset im_out (only if head is detected)
+		image_out.setTo(0);
+		
+		//std::cerr << "Rotations:"  << rotations << std::endl;
+		trans transformation;
+		transformation.tx = 0;
+		transformation.ty = 0;
+		transformation.tz = 0;
+		transformation.rx = 0;
+		transformation.ry = 0.1*PI;
+		transformation.rz = 0.25*PI;
+		
+		trans transformation_update  = trans_mngr.add(transformation);
 		#if(_MAIN_TIMEIT)
-		watch.lap("Update estimator");
+		watch.lap("Manage transformations");
 		#endif
-		// TODO: does not have to be a for loop..
-		for(head_pose pose_head : estimator.poses()) {
-			// Reset im_out (only if head is detected)
-			image_out.setTo(0);
-			
-			cv::Mat rotations		= pose_head.rvec;
-			cv::Mat translations	= pose_head.tvec;
-
-			//std::cerr << "Rotations:"  << rotations << std::endl;
-			trans transformation;
-			transformation.tx = (float)translations.at<double>(0);
-			transformation.ty = (float)translations.at<double>(1);
-			transformation.tz = (float)translations.at<double>(2);
-			transformation.rx = (float)rotations.at<double>(0);
-			transformation.ry = (float)rotations.at<double>(1);
-			transformation.rz = (float)rotations.at<double>(2);
-			//std::cerr << "Trans:" << std::endl;
-			//for(auto transform : transformation){
-			//	std::cerr << "\t" << std::get<1>(transform) << std::endl;
-			//}
-			trans transformation_update  = trans_mngr.add(transformation);
-			#if(_MAIN_TIMEIT)
-			watch.lap("Manage transformations");
-			#endif
-			hom(image_in, image_out, transformation_update,width_screen,height_screen);
-			#if(_MAIN_TIMEIT)
-			watch.lap("Calculate new image");
-			#endif
-		}
+		hom(image_in, image_out, transformation_update,width_screen,height_screen);
+		#if(_MAIN_TIMEIT)
+		watch.lap("Calculate new image");
+		#endif
 		//#if(_MAIN_DEBUG)
 		//	cv::Rect slice	= cv::Rect(width_screen-width_webcam,height_screen-height_webcam,width_webcam, height_webcam);
 		//	frame.copyTo(image_out(slice));
