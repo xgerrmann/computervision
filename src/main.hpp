@@ -35,9 +35,9 @@
 #ifdef _DEBUG_
 #define _MAIN_DEBUG 1
 #endif
-#define _MAIN_DEBUG 1
+//#define _MAIN_DEBUG 1
 
-#define _MAIN_TIMEIT 1
+//#define _MAIN_TIMEIT 1
 //#define _MAIN_TIMEIT 1
 
 class transformation_manager{
@@ -67,13 +67,17 @@ trans transformation_manager::add(trans transformation){
 		transformation_init	= transformation;
 	}
 	timer::dt dt_his	= tend-tstart; // This is the length (in seconds) of the currently stored history
+	#ifdef _MAIN_DEBUG_
 	std::cerr << "max history length [s]:     " << max_history_length.count() << std::endl;
 	std::cerr << "current history length [s]: " << double(dt_his.count()) << std::endl;
 	std::cerr << "history length (frames):    " << transformation_history.size() << std::endl;
+	#endif
 	// Add the new transformation to the history list
 	transformation_history.push_front(std::make_tuple(tp_now,transformation));
+	#ifdef _MAIN_DEBUG_
 	std::cerr << "len: "<< transformation_history.size() << std::endl;
 	std::cerr << "tend-tstart: "<< float((tend-tstart).count()) << std::endl;
+	#endif
 	while(tend-tstart>max_history_length){
 		// delete oldest transformation in history
 		transformation_history.pop_back();
@@ -92,8 +96,10 @@ trans transformation_manager::add(trans transformation){
 	auto trans_tup_tmp	= transformation_history.begin();
 	int n_avg_max		= std::min(n_average,int(transformation_history.size()));
 	
+	#ifdef _MAIN_DEBUG_
 	std::cerr << "n_avg: " << n_avg_max << std::endl;
 	std::cerr << "size: " << transformation_history.size() << std::endl;
+	#endif
 	for(int i =0; i<n_avg_max; i++){
 		trans trans_tmp = (std::get<1>(*trans_tup_tmp)); // first element of tuple is time, second is a transformation
 		trans_new.tx += (trans_tmp.tx-transformation_init.tx)/n_avg_max;

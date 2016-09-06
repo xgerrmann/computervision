@@ -35,7 +35,7 @@
 #define EVER ;;
 
 //#define _HOM_TIMEIT	0
-#define _HOM_TIMEIT	1
+//#define _HOM_TIMEIT	1
 
 #ifdef _DEBUG_
 #define _HOM_DEBUG	1
@@ -379,8 +379,8 @@ void hom(const cv::cuda::GpuMat& image_input, cv::cuda::GpuMat& image_output, tr
 	#if(_HOM_TIMEIT)
 	watch.lap("Perform Mapping");
 	#endif
-	watch.stop();
 	#if (_HOM_DEBUG) || (_HOM_TIMEIT)
+	watch.stop();
 	std::cerr << "### hom <end> ###" << std::endl;
 	#endif
 }

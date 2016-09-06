@@ -38,6 +38,6 @@ void copy(const cv::Mat& image_in, cv::Mat& image_out);
 #endif
 //#define _CUDAFUNCS_DEBUG 1
 
-#define _CUDAFUNCS_TIMEIT 1
+//#define _CUDAFUNCS_TIMEIT 1
 
 #endif

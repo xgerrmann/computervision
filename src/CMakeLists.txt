@@ -18,7 +18,8 @@ find_package(CUDA REQUIRED)
 #-------------------
 #cuda_add_executable(homography	homography.cpp	cudafuncs.cu)
 #cuda_add_executable(test test.cpp	cudafuncs.cu)
-cuda_add_executable(main	main.cpp	cudafuncs.cu)
+
+#cuda_add_executable(main	main.cpp	cudafuncs.cu)
 cuda_add_executable(speedtest	speedtest.cpp	cudafuncs.cu)
 
 # OPENCV
@@ -49,7 +50,7 @@ message("OpenBLASlibrary: ${OpenBLAS_LIBRARY}")
 ## Linker
 ##-------------------
 # main
-target_link_libraries(main	dlib	${OpenCV_LIBS}	${ATTENTION_TRACKER_LIBRARY}	openblas	${CUDA_LIBRARIES} gputimer)
+#target_link_libraries(main	dlib	${OpenCV_LIBS}	${ATTENTION_TRACKER_LIBRARY}	openblas	${CUDA_LIBRARIES} gputimer)
 # speedtest
 target_link_libraries(speedtest	dlib	${OpenCV_LIBS}	${ATTENTION_TRACKER_LIBRARY}	openblas	${CUDA_LIBRARIES} gputimer)
 # homography
