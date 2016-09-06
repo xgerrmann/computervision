@@ -5,6 +5,7 @@
 
 int main(){
 // Partially based on sample of attention tracker
+	int n_trials = 1000;
 
 	// TODO create different random image
 	cv::Mat image_in_tmp	= cv::imread(default_image);
@@ -44,7 +45,7 @@ int main(){
 	int n_frames_pose_average = 4;
 	transformation_manager trans_mngr(n_frames_pose_average);
 	int initial = 1;
-	for(EVER){
+	for(int i = 0; i<n_trials; i++){
 		video_in >> frame;
 		// Reset im_out (only if head is detected)
 		image_out.setTo(0);
