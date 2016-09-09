@@ -18,6 +18,8 @@
 //#include <dlib/image_io.h>
 #include <iostream>
 #include <algorithm>
+#include <stdio.h>
+#include <sstream>
 
 // ## opencv2
 #include <opencv2/opencv.hpp>
