@@ -5,26 +5,28 @@
 
 int main(){
 // Partially based on sample of attention tracker
-	int n_trials	= 1000;
-	int n_sizes		= 100;
+	//int n_trials	= 1000;
+	//int n_sizes		= 100;
+	int n_trials	= 10;
+	int n_sizes		= 5;
 	Eigen::MatrixXi sizes(n_sizes, 2);
-	Eigen::MatrixXi times(n_trials, n_sizes);
+	Eigen::MatrixXf times(n_trials, n_sizes);
 	std::string window_image = "Image";
 	cv::namedWindow(window_image,cv::WINDOW_OPENGL);
 	cv::VideoCapture video_in(0);
 	cv::RNG cvrand;
-	for(int i_size = 1; i_size<=n_sizes; i_size ++){
+	for(int i_size = 0; i_size<n_sizes; i_size ++){
 		int width			= i_size*1920/n_sizes;
 		int height			= i_size*1080/n_sizes;
-		sizes(i_size,0) = width;
-		sizes(i_size,1) = height;
-
+		sizes(i_size,0)		= width;
+		sizes(i_size,1) 	= height;
+		std::cerr << "height: " << height<<std::endl;
+		std::cerr << "width: "  << width <<std::endl;
+  	
 		cv::Mat tmp0			= cv::imread(default_image);
 		cv::Mat image_in_tmp	= cv::Mat::ones(height,width,CV_8UC3);
 		//cv::randu(image_in_tmp,0,255);
 		cvrand.fill(image_in_tmp,cv::RNG::UNIFORM,0,255,true);
-		// TODO create different random image
-		
 
 		const cv::cuda::GpuMat image_in(image_in_tmp);
 		
@@ -79,13 +81,15 @@ int main(){
 			}
 			trans transformation_update  = trans_mngr.add(transformation);
 			watch.start();
+			std::cerr << "hom" << std::endl;
 			hom(image_in, image_out, transformation_update,width_screen,height_screen);
 			// Store time
 			//times(trial,i_size) = watch.lap(printf("Trial: %i, t", trial));
 			std::string text = " ";
 			text += std::to_string(trial);
 			times(trial,i_size) = watch.lap(text);
-			cv::imshow(window_image,image_out);
+			std::cerr << times(trial,i_size) << std::endl;
+			//cv::imshow(window_image,image_out);
 			char key = (char)cv::waitKey(1);
 			if(key == 27){
 				std::cerr << "Program halted by user.\n";
@@ -101,12 +105,35 @@ int main(){
 			#endif
 		}
 	}
+	std::cerr << "Finished tests" << std::endl;
 	// Store sizes and trials in a .txt file
-	std::string dir = "media/results"
-	//std::string 
+	std::string dir		= "media/results/";
+	std::string f_times	= "times.csv";
+	std::string f_sizes	= "sizes.csv";
+	//const static Eigen::IOFormat CSVFormat(20, true, ", ", "\n");
+	const static Eigen::IOFormat CSVFormat;
+	std::cerr << dir+f_times << std::endl;
+	std::ofstream file_times(dir+f_times);
+	std::cerr << "Start Writing" << std::endl;
+	if(file_times.is_open()){
+		std::cerr << "file_times is opened" << std::endl;
+		file_times << times.format(CSVFormat);
+		file_times.close();
+	}
+	// Sizes
+	std::ofstream file_sizes(dir+f_sizes);
+	if(file_sizes.is_open()){
+		std::cerr << "file_sizes is opened" << std::endl;
+		file_sizes << sizes.format(CSVFormat);
+		file_sizes.close();
+	}
+	std::cerr << "Finished writing" << std::endl;
+
 	// Close window
 	cv::destroyWindow(window_image);
 	// Release webcam
+	std::cerr << "release webcam" << std::endl;
 	video_in.release();
+	std::cerr << "return" << std::endl;
 	return 0;
 }
