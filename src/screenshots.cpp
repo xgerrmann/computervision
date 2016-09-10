@@ -3,31 +3,38 @@
 //
 #include "main.hpp"
 
-int main(){
-// Partially based on sample of attention tracker
 
-    auto estimator = HeadPoseEstimation(trained_model);
+int main(int argc, char* argv[]){
+// Partially based on sample of attention tracker
+	float arg_tx,arg_ty,arg_tz,arg_rx,arg_ry,arg_rz;
+	bool manual = false;
+	if(argc>0){
+		if(not (argc == 7)){
+			std::cerr << "Usage: \n./screenshots tx ty tz rx ry rz \n or just:\n./screenshots" <<std::endl;
+			exit(0);
+		}
+		arg_tx = float(atof(argv[1]));
+		arg_ty = float(atof(argv[2]));
+		arg_tz = float(atof(argv[3]));
+		arg_rx = float(atof(argv[4]));
+		arg_ry = float(atof(argv[5]));
+		arg_rz = float(atof(argv[6]));
+		manual = true;
+	}
+	auto estimator = HeadPoseEstimation(trained_model);
 
 	cv::Mat image_in_tmp	= cv::imread(default_image);
-	//cv::cuda::GpuMat image_in(image_in_tmp.height, image_in_tmp.width, image_in_tmp.type());
 	const cv::cuda::GpuMat image_in(image_in_tmp);
 	std::string window_image = "Image";
-	// 
 	cv::namedWindow(window_image,cv::WINDOW_OPENGL);
 	
 	cv::VideoCapture video_in(0);
 	int size_buff = 5;
-	//video_in.set(CV_CAP_PROP_BUFFERSIZE, size_buff); // internal buffer will now store only 3 frames
-	//cv::VideoCapture video_in(CV_CAP_DSHOW);
 	double fps = video_in.get(CV_CAP_PROP_FPS);
-	std::cerr << "Max framerate: " << fps << std::endl;
 	int width_webcam, height_webcam;
-	// TODO: get width and height from webcam instead of hardcoding
 	width_webcam	= 640;
 	height_webcam	= 480;
 	video_in.set(CV_CAP_PROP_FPS, 30);
-	//video_in.set(CV_CAP_PROP_FRAME_WIDTH, width_webcam);
-	//video_in.set(CV_CAP_PROP_FRAME_HEIGHT, height_webcam);
 	estimator.focalLength		= 500;
 	estimator.opticalCenterX	= 320;
 	estimator.opticalCenterY	= 240;
@@ -42,7 +49,6 @@ int main(){
 	Screen*  scrn = DefaultScreenOfDisplay(disp);
 	int height_screen	= scrn->height- 50; // adjust for top menu in ubuntu
 	int width_screen	= scrn->width - 64; // adjust for sidebar in ubuntu
-	std::cerr << "Screen size (wxh): "<<width_screen<<", "<<height_screen<<std::endl;
 	gputimer watch;
 	double subsample_detection_frame = 3.0;
 	//cv::Mat im_out(height_screen,width_screen,CV_8UC3);
@@ -73,17 +79,24 @@ int main(){
 
 			//std::cerr << "Rotations:"  << rotations << std::endl;
 			trans transformation;
-			transformation.tx = (float)translations.at<double>(0);
-			transformation.ty = (float)translations.at<double>(1);
-			transformation.tz = (float)translations.at<double>(2);
-			transformation.rx = (float)rotations.at<double>(0);
-			transformation.ry = (float)rotations.at<double>(1);
-			transformation.rz = (float)rotations.at<double>(2);
-			//std::cerr << "Trans:" << std::endl;
-			//for(auto transform : transformation){
-			//	std::cerr << "\t" << std::get<1>(transform) << std::endl;
-			//}
 			trans transformation_update  = trans_mngr.add(transformation);
+			if(manual==false){
+				transformation.tx = (float)translations.at<double>(0);
+				transformation.ty = (float)translations.at<double>(1);
+				transformation.tz = (float)translations.at<double>(2);
+				transformation.rx = (float)rotations.at<double>(0);
+				transformation.ry = (float)rotations.at<double>(1);
+				transformation.rz = (float)rotations.at<double>(2);
+				transformation_update  = trans_mngr.add(transformation);
+			}else{
+				transformation.tx = arg_tx;
+				transformation.ty = arg_ty;
+				transformation.tz = arg_tz;
+				transformation.rx = arg_rx*PI;
+				transformation.ry = arg_ry*PI;
+				transformation.rz = arg_rz*PI;
+				transformation_update = transformation;
+			}
 			#if(_MAIN_TIMEIT)
 			watch.lap("Manage transformations");
 			#endif
@@ -94,17 +107,27 @@ int main(){
 			//// draw feature points on face
 			//draw_polyline(frame,pose_head, 0, 40, false){
 		}
+		if(not manual){	
 		// Place webcam image in frame
-		cv::Rect slice	= cv::Rect(width_screen-width_webcam,height_screen-height_webcam,width_webcam, height_webcam);
-		//cv::cuda::GpuMat frame_gpu(frame);
-		cv::cuda::GpuMat frame_gpu(estimator._debug);
-		frame_gpu.copyTo(image_out(slice));
+			cv::Rect slice	= cv::Rect(width_screen-width_webcam,height_screen-height_webcam,width_webcam, height_webcam);
+			cv::cuda::GpuMat frame_gpu(estimator._debug);
+			frame_gpu.copyTo(image_out(slice));
+		}
 		// Show image
-		cv::imshow(window_image,image_out);
-		if(i_frame%10 == 0){
-			cv::Mat im_out_tmp;
-			image_out.download(im_out_tmp);
-			cv::imwrite( "media/screenshots/"+std::to_string(i_frame)+".png", im_out_tmp);
+		//cv::imshow(window_image,image_out);
+		cv::Mat im_out_tmp;
+		image_out.download(im_out_tmp);
+		if(i_frame%10 == 0 and not manual){
+			cv::imwrite( "media/screenshots/"+std::to_string(i_frame)+"_"".png", im_out_tmp);
+		}
+		else if(manual==true){
+			std::cerr << "yes" << std::endl;
+			cv::imwrite( "media/screenshots/"	+std::to_string(arg_tx)+"_"
+												+std::to_string(arg_ty)+"_"
+												+std::to_string(arg_tz)+"_"
+												+std::to_string(arg_rx)+"_"
+												+std::to_string(arg_ry)+"_"
+												+std::to_string(arg_rz)+".png", im_out_tmp);
 		}
 		//cv::imshow("debug",estimator._debug);
 		char key = (char)cv::waitKey(1);
@@ -112,8 +135,8 @@ int main(){
 			std::cerr << "Program halted by user.\n";
 			break;
 		}
-		// TODO: store screenshots
-
+		
+		// store screenshots
 		#if(_MAIN_TIMEIT)
 		watch.lap("Imshow");
 		#endif
@@ -123,8 +146,12 @@ int main(){
 		std::cerr << "#############################################################" << std::endl;
 		#endif
 		i_frame ++;
-
+		
+		if(manual){// only do one loop
+			break;
+		}
 	}
+
 	// Close window
 	cv::destroyWindow(window_image);
 	// Release webcam
