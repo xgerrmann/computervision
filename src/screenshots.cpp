@@ -50,6 +50,7 @@ int main(){
 	image_out.setTo(0);
 	int n_frames_pose_average = 4;
 	transformation_manager trans_mngr(n_frames_pose_average);
+	int i_frame = 0;
 	for(EVER){
 		//#if _MAIN_DEBUG || _MAIN_TIMEIT
 		watch.start();
@@ -100,6 +101,11 @@ int main(){
 		frame_gpu.copyTo(image_out(slice));
 		// Show image
 		cv::imshow(window_image,image_out);
+		if(i_frame%10 == 0){
+			cv::Mat im_out_tmp;
+			image_out.download(im_out_tmp);
+			cv::imwrite( "media/screenshots/"+std::to_string(i_frame)+".png", im_out_tmp);
+		}
 		//cv::imshow("debug",estimator._debug);
 		char key = (char)cv::waitKey(1);
 		if(key == 27){
@@ -116,6 +122,7 @@ int main(){
 		std::cerr << "Framerate: " << 1/t_total << "[Hz]" << std::endl;
 		std::cerr << "#############################################################" << std::endl;
 		#endif
+		i_frame ++;
 
 	}
 	// Close window
