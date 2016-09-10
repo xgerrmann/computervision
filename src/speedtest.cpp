@@ -91,7 +91,6 @@ int main(){
 			hom(image_in, image_out, transformation_update,width_screen,height_screen);
 			// Store time
 			times(trial,i_size) = watch.lap();
-			std::cerr << times(trial,i_size) << std::endl;
 			//cv::imshow(window_image,image_out);
 			char key = (char)cv::waitKey(1);
 			if(key == 27){
