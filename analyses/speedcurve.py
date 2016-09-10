@@ -27,7 +27,8 @@ def main():
 	t_min	= mean_time-stdev_time
 	# show data
 	plt.figure(facecolor='white')
-	plt.fill_between(size, t_min, t_max, facecolor='blue', interpolate=True,alpha = 0.5)
+	#plt.fill_between(size, t_min, t_max, facecolor='blue', interpolate=True,alpha = 0.5)
+	plt.fill_between(size, t_min, t_max, facecolor='#8080FF',color='blue',linewidth=0.5, interpolate=True)
 	plt.semilogx(size,mean_time, color='blue',linewidth=1)
 	plt.title('Computational time vs number of pixels')
 	plt.ylim([0,1])
@@ -37,6 +38,6 @@ def main():
 	#plt.show()
 
 	# save plot
-	plt.savefig('media/plots/size-time.png', facecolor="white")
+	plt.savefig('media/plots/size-time.eps',format='eps', facecolor="white")
 if __name__ == "__main__":
 	main()
