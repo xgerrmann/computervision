@@ -19,8 +19,13 @@ find_package(CUDA REQUIRED)
 #cuda_add_executable(homography	homography.cpp	cudafuncs.cu)
 #cuda_add_executable(test test.cpp	cudafuncs.cu)
 
+# main script
 cuda_add_executable(main		main.cpp		cudafuncs.cu)
+# test for comp speed vs image size
 cuda_add_executable(speedtest	speedtest.cpp	cudafuncs.cu)
+# test for computational speed distribution
+cuda_add_executable(distrotest	comp_distribution.cpp	cudafuncs.cu)
+
 
 # OPENCV
 find_package(OpenCV REQUIRED)
@@ -50,9 +55,11 @@ message("OpenBLASlibrary: ${OpenBLAS_LIBRARY}")
 ## Linker
 ##-------------------
 # main
-target_link_libraries(main		dlib	${OpenCV_LIBS}	${ATTENTION_TRACKER_LIBRARY}	openblas	${CUDA_LIBRARIES} gputimer)
+target_link_libraries(main			dlib	${OpenCV_LIBS}	${ATTENTION_TRACKER_LIBRARY}	openblas	${CUDA_LIBRARIES} gputimer)
 # speedtest
-target_link_libraries(speedtest	dlib	${OpenCV_LIBS}	${ATTENTION_TRACKER_LIBRARY}	openblas	${CUDA_LIBRARIES} gputimer)
+target_link_libraries(speedtest		dlib	${OpenCV_LIBS}	${ATTENTION_TRACKER_LIBRARY}	openblas	${CUDA_LIBRARIES} gputimer)
+# comp distribution test
+target_link_libraries(distrotest	dlib	${OpenCV_LIBS}	${ATTENTION_TRACKER_LIBRARY}	openblas	${CUDA_LIBRARIES} gputimer)
 # homography
 #target_link_libraries(homography	dlib ${OpenCV_LIBS}	${CUDA_LIBRARIES} gputimer)
 
