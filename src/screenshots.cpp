@@ -90,20 +90,23 @@ int main(){
 			#if(_MAIN_TIMEIT)
 			watch.lap("Calculate new image");
 			#endif
+			//// draw feature points on face
+			//draw_polyline(frame,pose_head, 0, 40, false){
 		}
 		// Place webcam image in frame
 		cv::Rect slice	= cv::Rect(width_screen-width_webcam,height_screen-height_webcam,width_webcam, height_webcam);
-		cv::cuda::GpuMat frame_gpu(frame);
+		//cv::cuda::GpuMat frame_gpu(frame);
+		cv::cuda::GpuMat frame_gpu(estimator._debug);
 		frame_gpu.copyTo(image_out(slice));
 		// Show image
 		cv::imshow(window_image,image_out);
+		//cv::imshow("debug",estimator._debug);
 		char key = (char)cv::waitKey(1);
 		if(key == 27){
 			std::cerr << "Program halted by user.\n";
 			break;
 		}
 		// TODO: store screenshots
-		
 
 		#if(_MAIN_TIMEIT)
 		watch.lap("Imshow");
