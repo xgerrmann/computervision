@@ -19,7 +19,7 @@ def main():
 	# show data
 	plt.figure(facecolor='white')
 	plt.boxplot(data[:,:-1],notch=False,sym='',)
-	plt.title('Computational time vs number of pixels')
+	plt.title('Computational time for each program section')
 	plt.ylim([0,50])
 	#plt.xlim([min(size),max(size)])
 	plt.ylabel("Time [ms]")
