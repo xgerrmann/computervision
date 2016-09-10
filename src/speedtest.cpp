@@ -5,10 +5,10 @@
 
 int main(){
 // Partially based on sample of attention tracker
-	//int n_trials	= 1000;
-	//int n_sizes		= 100;
-	int n_trials	= 10;
-	int n_sizes		= 5;
+	int n_trials	= 1000;
+	int n_sizes		= 100;
+	//int n_trials	= 10;
+	//int n_sizes		= 5;
 	Eigen::MatrixXi sizes(n_sizes, 2);
 	Eigen::MatrixXf times(n_trials, n_sizes);
 	std::string window_image = "Image";
@@ -16,8 +16,9 @@ int main(){
 	cv::VideoCapture video_in(0);
 	cv::RNG cvrand;
 	for(int i_size = 0; i_size<n_sizes; i_size ++){
-		int width			= i_size*1920/n_sizes;
-		int height			= i_size*1080/n_sizes;
+		std::cerr << "n_size: " << i_size << std::endl;
+		int width			= (i_size+1)*(1920-64)/n_sizes;
+		int height			= (i_size+1)*(1080-50)/n_sizes;
 		sizes(i_size,0)		= width;
 		sizes(i_size,1) 	= height;
 		std::cerr << "height: " << height<<std::endl;
@@ -72,22 +73,24 @@ int main(){
 				transformation.rz = 0;
 				initial = 0;
 			}else{
+				//transformation.tx = 0;
+				//transformation.ty = 0;
+				//transformation.tz = 0;
+				//transformation.rx = 0;
+				//transformation.ry = 0.1*PI;
+				//transformation.rz = 0.25*PI;
 				transformation.tx = 0;
 				transformation.ty = 0;
 				transformation.tz = 0;
 				transformation.rx = 0;
-				transformation.ry = 0.1*PI;
-				transformation.rz = 0.25*PI;
+				transformation.ry = 0;
+				transformation.rz = 0;
 			}
 			trans transformation_update  = trans_mngr.add(transformation);
 			watch.start();
-			std::cerr << "hom" << std::endl;
 			hom(image_in, image_out, transformation_update,width_screen,height_screen);
 			// Store time
-			//times(trial,i_size) = watch.lap(printf("Trial: %i, t", trial));
-			std::string text = " ";
-			text += std::to_string(trial);
-			times(trial,i_size) = watch.lap(text);
+			times(trial,i_size) = watch.lap();
 			std::cerr << times(trial,i_size) << std::endl;
 			//cv::imshow(window_image,image_out);
 			char key = (char)cv::waitKey(1);
@@ -110,8 +113,8 @@ int main(){
 	std::string dir		= "media/results/";
 	std::string f_times	= "times.csv";
 	std::string f_sizes	= "sizes.csv";
-	//const static Eigen::IOFormat CSVFormat(20, true, ", ", "\n");
-	const static Eigen::IOFormat CSVFormat;
+	const static Eigen::IOFormat CSVFormat(6, true, ", ", "\n");
+	//const static Eigen::IOFormat CSVFormat;
 	std::cerr << dir+f_times << std::endl;
 	std::ofstream file_times(dir+f_times);
 	std::cerr << "Start Writing" << std::endl;
