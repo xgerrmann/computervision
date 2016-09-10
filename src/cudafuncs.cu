@@ -43,8 +43,7 @@ __global__ void map_cuda(const unsigned char  *d_input,
 
 	// ## CALCULATE mapping
 	// Early return if outside image bounds
-	if((col_map>=width_map)||(row_map>=height_map)) return;
-	//const int index_col_major = row_map+col_map*height_map;
+	if((col_map>=width_map)||(row_map>=height_map)) return; // TODO: uncomment
 	// X and Y pixel coordinates with the center of the image at (x=0, y=0), then move image back
 	// so that upper left pixel is (x=0, y=0)
 	float w		=      d_hi[2]*(col_map-xc_map)+d_hi[5]*(row_map-yc_map)+d_hi[8]; // original scale = 1, thus h_c[8]*1 is same as h_c[8]
@@ -195,8 +194,8 @@ void map(Eigen::Matrix3f& Hi, const cv::cuda::GpuMat& image_input, cv::cuda::Gpu
 	
 	// Specify block size
 	//const dim3 block(1,1);
-	//const dim3 block(16,16);
-	const dim3 block(32,32);
+	const dim3 block(16,16);
+	//const dim3 block(32,32);
 	//const dim3 block(64,64); // too large
 	// Calculate grid size to cover whole image
 	const int width_out		= image_output.size().width;

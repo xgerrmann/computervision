@@ -352,7 +352,7 @@ void hom(const cv::cuda::GpuMat& image_input, cv::cuda::GpuMat& image_output, tr
 	xmax		= xmin + rectangle[2] - 1; // zero based, thus -1, use rectangle, because it is still float
 	ymax		= ymin + rectangle[3] - 1;// zero based, thus -1, use rectangle because float.
 	xc_map		= fabs(xmin); // x location of the center in the mapped image
-	yc_map		= fabs(ymax); // y location of the center in the mapped image
+	yc_map		= fabs(ymin); // y location of the center in the mapped image
 	//std::cerr << "xc_map: " << xc_map << std::endl;
 	//std::cerr << "yc_map: " << yc_map << std::endl;
 // Determine size of matrices for performing the mapping.
