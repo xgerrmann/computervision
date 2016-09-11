@@ -29,6 +29,10 @@
 #include <opencv2/core/eigen.hpp> // for cast from cv::Mat to Eigen::Matrix
 #include <opencv2/core/cuda.hpp>
 
+// ## for sleeping
+#include <chrono>
+#include <thread>
+
 //Attention tracker
 #include "../include/attention-tracker/src/head_pose_estimation.hpp"
 
