@@ -71,7 +71,7 @@ int main(int argc, char* argv[]){
 	int i_frame = 0;
 	// Set video recording settings
 	cv::VideoWriter video_out;
-	double fps_write = 15;
+	double fps_write = 10;
 	std::string fname = "media/screenshots/video/video.avi";
 	int codec = CV_FOURCC('M', 'J', 'P', 'G');
 	video_out.open(fname, codec, fps_write, image_out.size()/2, true);

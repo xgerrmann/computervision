@@ -16,21 +16,17 @@ int main(){
 	cv::namedWindow(window_image,cv::WINDOW_OPENGL);
 	
 	cv::VideoCapture video_in(0);
-	int size_buff = 5;
-	//video_in.set(CV_CAP_PROP_BUFFERSIZE, size_buff); // internal buffer will now store only 3 frames
-	//cv::VideoCapture video_in(CV_CAP_DSHOW);
 	double fps = video_in.get(CV_CAP_PROP_FPS);
 	std::cerr << "Max framerate: " << fps << std::endl;
 	int width_webcam, height_webcam;
 	// TODO: get width and height from webcam instead of hardcoding
 	width_webcam	= 640;
 	height_webcam	= 480;
-	video_in.set(CV_CAP_PROP_FPS, 30);
-	//video_in.set(CV_CAP_PROP_FRAME_WIDTH, width_webcam);
-	//video_in.set(CV_CAP_PROP_FRAME_HEIGHT, height_webcam);
-	estimator.focalLength		= 500;
-	estimator.opticalCenterX	= 320;
-	estimator.opticalCenterY	= 240;
+	video_in.set(CV_CAP_PROP_FRAME_WIDTH, width_webcam);
+	video_in.set(CV_CAP_PROP_FRAME_HEIGHT, height_webcam);
+	estimator.focalLength		= 500; // [mm]
+	estimator.opticalCenterX	= 320; // [px]
+	estimator.opticalCenterY	= 240; // [px]
 	cv::Mat frame(height_webcam,width_webcam,CV_8UC3);
 
 	if(!video_in.isOpened()){ // Early return if no frame is captured by the cam
@@ -50,10 +46,8 @@ int main(){
 	image_out.setTo(0);
 	int n_frames_pose_average = 4;
 	transformation_manager trans_mngr(n_frames_pose_average);
+	watch.start();
 	for(EVER){
-		//#if _MAIN_DEBUG || _MAIN_TIMEIT
-		watch.start();
-		//#endif
 		video_in >> frame;
 		#if(_MAIN_TIMEIT)
 		watch.lap("Get frame");
@@ -106,10 +100,10 @@ int main(){
 		#endif
 		#if(_MAIN_DEBUG)
 		double t_total = watch.stop();
+		watch.start();
 		std::cerr << "Framerate: " << 1/t_total << "[Hz]" << std::endl;
 		std::cerr << "#############################################################" << std::endl;
 		#endif
-
 	}
 	// Close window
 	cv::destroyWindow(window_image);

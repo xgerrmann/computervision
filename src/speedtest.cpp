@@ -57,7 +57,7 @@ int main(){
 		int n_frames_pose_average = 4;
 		transformation_manager trans_mngr(n_frames_pose_average);
 		int initial = 1;
-		for(int trial = 0; trial<n_trials; trial++){
+		for(int trial = 0; trial<n_trials+1; trial++){
 			//video_in >> frame;
 			// Reset im_out (only if head is detected)
 			image_out.setTo(0);
@@ -88,9 +88,12 @@ int main(){
 			}
 			trans transformation_update  = trans_mngr.add(transformation);
 			watch.start();
+			// TODO: omit time of first loop
 			hom(image_in, image_out, transformation_update,width_screen,height_screen);
 			// Store time
-			times(trial,i_size) = watch.lap();
+			if(trial>0){
+				times(trial,i_size) = watch.lap();
+			}
 			//cv::imshow(window_image,image_out);
 			char key = (char)cv::waitKey(1);
 			if(key == 27){

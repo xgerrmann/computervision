@@ -49,10 +49,10 @@ int main(){
 	image_out.setTo(0);
 	int n_frames_pose_average = 4;
 	transformation_manager trans_mngr(n_frames_pose_average);
+	watch.start();
 	for(int i =0; i<n_trials; i++){
+		watch.lap(); // reset lap to omit time of looping
 		std::cerr << "Trial: " << i << std::endl;
-		watch.start();
-		
 		video_in >> frame;
 		times(i,0) = watch.lap(); // get frame from webcam
 		estimator.update(frame,subsample_detection_frame);
@@ -85,6 +85,7 @@ int main(){
 		}
 		times(i,5) = watch.lap(); // show image
 		times(i,6) = watch.stop();// total time
+		watch.start();
 	}
 	std::cerr << "Finished tests" << std::endl;
 	// Store sizes and trials in a .txt file
