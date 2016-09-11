@@ -3,7 +3,17 @@
 //
 #include "main.hpp"
 
-int main(){
+int main(int argc, char* argv[]){
+	bool skip_hom = false;
+	if(argc==1 || strcmp(argv[1],"normal")==0){
+		skip_hom = false;
+	}
+	else if(strcmp(argv[1],"skip_homography")==0){
+		skip_hom = true;
+	}
+	else{
+		std::cerr << "Usage:\n./build/comp_distribution normal\nor:\n./build/comp_distribution skip_homography";
+	}
 // Partially based on sample of attention tracker
 	int n_trials	= 1000;
 	int n_sections	= 7;
@@ -55,7 +65,9 @@ int main(){
 		std::cerr << "Trial: " << i << std::endl;
 		video_in >> frame;
 		times(i,0) = watch.lap(); // get frame from webcam
-		estimator.update(frame,subsample_detection_frame);
+		if(not skip_hom){
+			estimator.update(frame,subsample_detection_frame);
+		}
 		times(i,1) = watch.lap(); // estimate head pose
 		
 		// Reset im_out (only if head is detected)
@@ -90,7 +102,13 @@ int main(){
 	std::cerr << "Finished tests" << std::endl;
 	// Store sizes and trials in a .txt file
 	std::string dir		= "media/results/";
-	std::string f_times	= "comp_distribution.csv";
+	std::string f_times;
+	if(not skip_hom){
+		f_times	= "comp_distribution.csv";
+	}
+	else{
+		f_times	= "comp_distribution_skip_hom.csv";
+	}
 	const static Eigen::IOFormat CSVFormat(6, true, ", ", "\n");
 	std::cerr << dir+f_times << std::endl;
 	std::ofstream file_comp(dir+f_times);
