@@ -27,8 +27,6 @@ cuda_add_executable(speedtest	speedtest.cpp	cudafuncs.cu)
 cuda_add_executable(distrotest	comp_distribution.cpp	cudafuncs.cu)
 # for making screenshots of the program with the webcam image mebedded
 cuda_add_executable(screenshots screenshots.cpp	cudafuncs.cu)
-# video test
-cuda_add_executable(video testvideowriter.cpp)
 
 
 # OPENCV
@@ -66,8 +64,6 @@ target_link_libraries(speedtest		dlib	${OpenCV_LIBS}	${ATTENTION_TRACKER_LIBRARY
 target_link_libraries(distrotest	dlib	${OpenCV_LIBS}	${ATTENTION_TRACKER_LIBRARY}	openblas	${CUDA_LIBRARIES} gputimer)
 # comp distribution test
 target_link_libraries(screenshots	dlib	${OpenCV_LIBS}	${ATTENTION_TRACKER_LIBRARY}	openblas	${CUDA_LIBRARIES} gputimer)
-# video test
-target_link_libraries(video			dlib	${OpenCV_LIBS}	${ATTENTION_TRACKER_LIBRARY}	openblas	${CUDA_LIBRARIES} gputimer)
 # homography
 #target_link_libraries(homography	dlib ${OpenCV_LIBS}	${CUDA_LIBRARIES} gputimer)
 
