@@ -9,7 +9,7 @@ int main(int argc, char* argv[]){
 	float arg_tx,arg_ty,arg_tz,arg_rx,arg_ry,arg_rz;
 	bool manual	= false;
 	bool video	= false;
-	if(argc>0){
+	if(argc>1){
 		if(not (strcmp(argv[1],"video")==0)){
 			if(not (argc == 7)){
 				std::cerr << "Usage(1): \n./screenshots tx ty tz rx ry rz \nor:\n./screenshots \n or:\n./screenshots video" <<std::endl;
@@ -72,7 +72,7 @@ int main(int argc, char* argv[]){
 	// Set video recording settings
 	cv::VideoWriter video_out;
 	double fps_write = 15;
-	std::string fname = "media/screenshots/video.avi";
+	std::string fname = "media/screenshots/video/video.avi";
 	int codec = CV_FOURCC('M', 'J', 'P', 'G');
 	video_out.open(fname, codec, fps_write, image_out.size()/2, true);
 	watch.start();
@@ -140,11 +140,11 @@ int main(int argc, char* argv[]){
 			cv::resize(im_out_tmp,im_resize,im_out_tmp.size()/2);
 			video_out.write(im_resize);
 		}
-		else if(i_frame%10 == 0 and not manual){
-			cv::imwrite( "media/screenshots/recording/"+std::to_string(i_frame)+"_"".png", im_out_tmp);
+		else if(i_frame%3 == 0 and not manual){
+			cv::imwrite( "media/screenshots/screenshots/"+std::to_string(i_frame)+"_"".png", im_out_tmp);
 		}
 		else if(manual==true){
-			cv::imwrite( "media/screenshots/"	+std::to_string(arg_tx)+"_"
+			cv::imwrite( "media/screenshots/manual/"+std::to_string(arg_tx)+"_"
 												+std::to_string(arg_ty)+"_"
 												+std::to_string(arg_tz)+"_"
 												+std::to_string(arg_rx)+"_"
